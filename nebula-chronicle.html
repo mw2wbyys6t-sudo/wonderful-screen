@@ -10,7 +10,10 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-    
+
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -144,51 +147,67 @@
         /* ===== 时间节点 ===== */
         .anime-node {
             position: absolute;
-            width: 80px;
-            height: 80px;
+            width: 96px;
+            height: 96px;
             border-radius: 50%;
-            background: radial-gradient(circle at 30% 30%, rgba(0, 243, 255, 0.3), rgba(176, 38, 255, 0.1));
-            border: 2px solid rgba(0, 243, 255, 0.5);
+            background: radial-gradient(circle at 30% 30%, rgba(20, 20, 60, 0.7), rgba(5, 5, 16, 0.85));
+            border: 2px solid rgba(100, 100, 255, 0.35);
             box-shadow:
-                0 0 20px rgba(0, 243, 255, 0.3),
-                inset 0 0 20px rgba(255, 0, 255, 0.1);
+                0 0 20px rgba(0, 243, 255, 0.15),
+                inset 0 0 24px rgba(0, 243, 255, 0.05);
             cursor: pointer;
             transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
                         box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-                        background 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+                        border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             align-items: center;
             justify-content: center;
             font-family: 'Orbitron', sans-serif;
-            font-size: 0.7rem;
             text-align: center;
             overflow: hidden;
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(12px);
             transform: translate(-50%, -50%);
         }
 
-        .anime-node > div {
+        .anime-node > .node-content {
             transition: transform 0.1s linear;
             pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .anime-node > .node-content > .node-float {
+            animation: nodeFloat 4s ease-in-out infinite;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        @keyframes nodeFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-7px); }
         }
 
         .anime-node::before {
             content: '';
             position: absolute;
-            top: -2px;
-            left: -2px;
-            right: -2px;
-            bottom: -2px;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
             border-radius: 50%;
-            background: linear-gradient(45deg, var(--neon-cyan), var(--neon-purple), var(--neon-pink), var(--neon-cyan));
+            background: conic-gradient(from 0deg, var(--genre-color, var(--neon-cyan)), var(--neon-purple), var(--neon-pink), var(--genre-color, var(--neon-cyan)));
             z-index: -1;
             opacity: 0;
             transition: opacity 0.4s;
+            filter: blur(1px);
         }
 
         .anime-node:hover::before,
         .anime-node.active::before {
-            opacity: 1;
+            opacity: 0.9;
             animation: borderRotate 3s linear infinite;
         }
 
@@ -199,29 +218,51 @@
 
         .anime-node:hover,
         .anime-node.active {
-            transform: translate(-50%, -50%) scale(1.5);
+            transform: translate(-50%, -50%) scale(1.45);
             box-shadow:
-                0 0 40px rgba(0, 243, 255, 0.6),
-                0 0 80px rgba(176, 38, 255, 0.3),
-                inset 0 0 30px rgba(255, 0, 255, 0.2);
+                0 0 50px var(--genre-glow, rgba(0, 243, 255, 0.5)),
+                0 0 90px rgba(176, 38, 255, 0.25),
+                inset 0 0 35px rgba(255, 0, 255, 0.15);
+            border-color: var(--genre-color, rgba(0, 243, 255, 0.6));
             z-index: 100;
         }
 
         .node-year {
-            font-size: 0.65rem;
-            color: var(--neon-cyan);
-            text-shadow: 0 0 10px rgba(0, 243, 255, 0.8);
+            font-size: 0.6rem;
+            color: rgba(200, 220, 255, 0.85);
+            text-shadow: 0 0 8px rgba(0, 243, 255, 0.6);
+            letter-spacing: 1px;
+        }
+
+        .node-emoji {
+            font-size: 2rem;
+            line-height: 1;
+            margin: 4px 0;
+            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));
         }
 
         .node-title {
-            font-size: 0.5rem;
-            color: rgba(255, 255, 255, 0.8);
-            margin-top: 2px;
-            max-width: 70px;
+            font-size: 0.55rem;
+            color: rgba(255, 255, 255, 0.85);
+            max-width: 80px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            font-family: 'Noto Serif SC', serif;
         }
+
+        /* 类型主题色 */
+        .anime-node.genre-scifi   { --genre-color: #00f3ff; --genre-glow: rgba(0, 243, 255, 0.45); }
+        .anime-node.genre-adventure { --genre-color: #ffcc00; --genre-glow: rgba(255, 204, 0, 0.45); }
+        .anime-node.genre-mecha   { --genre-color: #4488ff; --genre-glow: rgba(68, 136, 255, 0.45); }
+        .anime-node.genre-comedy  { --genre-color: #ffee66; --genre-glow: rgba(255, 238, 102, 0.45); }
+        .anime-node.genre-fantasy { --genre-color: #b026ff; --genre-glow: rgba(176, 38, 255, 0.45); }
+        .anime-node.genre-battle  { --genre-color: #ff4444; --genre-glow: rgba(255, 68, 68, 0.45); }
+        .anime-node.genre-magic   { --genre-color: #ff66dd; --genre-glow: rgba(255, 102, 221, 0.45); }
+        .anime-node.genre-mystery { --genre-color: #00ffaa; --genre-glow: rgba(0, 255, 170, 0.45); }
+        .anime-node.genre-suspense { --genre-color: #aa66ff; --genre-glow: rgba(170, 102, 255, 0.45); }
+        .anime-node.genre-romance { --genre-color: #ff88cc; --genre-glow: rgba(255, 136, 204, 0.45); }
+        .anime-node.genre-dark    { --genre-color: #cc3333; --genre-glow: rgba(204, 51, 51, 0.45); }
 
         /* ===== 连接线 ===== */
         .connection-line {
@@ -241,27 +282,34 @@
         /* ===== 详情面板 ===== */
         .detail-panel {
             position: fixed;
-            right: -450px;
+            right: -460px;
             top: 50%;
             transform: translateY(-50%);
-            width: 400px;
-            max-height: 80vh;
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 30px;
+            width: 420px;
+            max-height: 85vh;
+            background: rgba(8, 8, 28, 0.72);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(100, 100, 255, 0.22);
+            border-radius: 24px;
+            padding: 32px;
             z-index: 200;
-            transition: right 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: right 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                        opacity 0.4s ease,
+                        box-shadow 0.4s ease;
             overflow-y: auto;
             pointer-events: auto;
-            box-shadow: 
-                0 0 40px rgba(0, 243, 255, 0.1),
-                inset 0 0 40px rgba(176, 38, 255, 0.05);
+            box-shadow:
+                0 0 60px rgba(0, 243, 255, 0.08),
+                inset 0 0 50px rgba(176, 38, 255, 0.05);
+            opacity: 0.9;
         }
 
         .detail-panel.open {
             right: 30px;
+            opacity: 1;
+            box-shadow:
+                0 0 80px var(--detail-glow, rgba(0, 243, 255, 0.18)),
+                inset 0 0 50px rgba(176, 38, 255, 0.05);
         }
 
         .detail-panel::before {
@@ -270,24 +318,27 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple), var(--neon-pink));
-            border-radius: 20px 20px 0 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--detail-accent, var(--neon-cyan)), var(--neon-purple), var(--neon-pink));
+            border-radius: 24px 24px 0 0;
         }
 
         .detail-image {
             width: 100%;
-            height: 200px;
-            background: linear-gradient(135deg, rgba(0, 243, 255, 0.1), rgba(176, 38, 255, 0.1));
-            border-radius: 12px;
+            height: 220px;
+            background: radial-gradient(circle at 30% 30%, rgba(20, 20, 60, 0.6), rgba(5, 5, 16, 0.8));
+            border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 3rem;
-            margin-bottom: 20px;
-            border: 1px solid rgba(0, 243, 255, 0.2);
+            font-size: 5rem;
+            margin-bottom: 24px;
+            border: 1px solid rgba(100, 100, 255, 0.2);
             overflow: hidden;
             position: relative;
+            box-shadow:
+                0 0 30px var(--detail-glow, rgba(0, 243, 255, 0.15)),
+                inset 0 0 40px rgba(0, 0, 0, 0.4);
         }
 
         .detail-image::after {
@@ -297,7 +348,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(135deg, transparent 40%, rgba(0, 243, 255, 0.1) 50%, transparent 60%);
+            background: linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, 0.08) 50%, transparent 60%);
             animation: shimmer 3s infinite;
         }
 
@@ -308,46 +359,54 @@
 
         .detail-title {
             font-family: 'Orbitron', sans-serif;
-            font-size: 1.5rem;
-            color: var(--neon-cyan);
-            margin-bottom: 8px;
-            text-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
+            font-size: 1.6rem;
+            color: #fff;
+            margin-bottom: 6px;
+            text-shadow: 0 0 20px var(--detail-glow, rgba(0, 243, 255, 0.4));
+            letter-spacing: 1px;
+        }
+
+        .detail-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 18px;
         }
 
         .detail-year {
             font-size: 0.9rem;
             color: var(--neon-pink);
-            margin-bottom: 15px;
             font-family: 'Orbitron', sans-serif;
         }
 
         .detail-genre {
             display: inline-block;
-            padding: 4px 12px;
-            background: rgba(0, 243, 255, 0.1);
-            border: 1px solid rgba(0, 243, 255, 0.3);
+            padding: 4px 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--detail-accent, rgba(0, 243, 255, 0.4));
             border-radius: 20px;
             font-size: 0.75rem;
-            color: var(--neon-cyan);
-            margin-bottom: 15px;
+            color: var(--detail-accent, var(--neon-cyan));
+            font-family: 'Noto Serif SC', serif;
         }
 
         .detail-desc {
-            font-size: 0.9rem;
-            line-height: 1.8;
-            color: rgba(200, 200, 255, 0.8);
+            font-size: 0.95rem;
+            line-height: 1.9;
+            color: rgba(200, 210, 255, 0.82);
             text-align: justify;
+            font-family: 'Noto Serif SC', serif;
         }
 
         .close-btn {
             position: absolute;
-            top: 15px;
-            right: 15px;
-            width: 30px;
-            height: 30px;
+            top: 18px;
+            right: 18px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
-            background: rgba(255, 0, 255, 0.2);
-            border: 1px solid rgba(255, 0, 255, 0.4);
+            background: rgba(255, 0, 255, 0.15);
+            border: 1px solid rgba(255, 0, 255, 0.35);
             color: var(--neon-pink);
             cursor: pointer;
             display: flex;
@@ -504,6 +563,31 @@
         #startup-screen.hidden {
             opacity: 0;
             visibility: hidden;
+            pointer-events: none;
+        }
+
+        /* ===== 氛围层 ===== */
+        .vignette {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 90;
+            background: radial-gradient(ellipse at center, transparent 0%, rgba(0, 0, 0, 0.6) 100%);
+        }
+
+        .scanlines {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 91;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0, 0, 0, 0.1) 2px,
+                rgba(0, 0, 0, 0.1) 4px
+            );
+            opacity: 0.12;
         }
 
         .startup-logo {
@@ -678,9 +762,10 @@
             .camera-container { width: 160px; height: 120px; }
             .gesture-hints { display: none; }
             .startup-logo { font-size: 2.5rem; }
-            .anime-node { width: 50px; height: 50px; font-size: 0.5rem; }
+            .anime-node { width: 58px; height: 58px; }
             .node-year { font-size: 0.45rem; }
-            .node-title { font-size: 0.35rem; max-width: 45px; }
+            .node-emoji { font-size: 1.3rem; margin: 2px 0; }
+            .node-title { font-size: 0.35rem; max-width: 50px; }
             .era-label { font-size: 0.6rem; }
         }
 
@@ -741,6 +826,10 @@
 </head>
 <body>
 
+    <!-- 氛围层 -->
+    <div class="vignette"></div>
+    <div class="scanlines"></div>
+
     <!-- 启动画面 -->
     <div id="startup-screen">
         <div class="startup-logo">NEBULA</div>
@@ -778,8 +867,10 @@
             <button class="close-btn" onclick="closeDetail()">×</button>
             <div class="detail-image" id="detail-image">🎬</div>
             <h2 class="detail-title" id="detail-title">作品名称</h2>
-            <div class="detail-year" id="detail-year">1995</div>
-            <span class="detail-genre" id="detail-genre">科幻 / 机甲</span>
+            <div class="detail-meta">
+                <div class="detail-year" id="detail-year">1995</div>
+                <span class="detail-genre" id="detail-genre">科幻 / 机甲</span>
+            </div>
             <p class="detail-desc" id="detail-desc">
                 作品描述将在这里显示...
             </p>
@@ -887,8 +978,8 @@
             SPIRAL_TURNS: 3,
             SPIRAL_MIN_RADIUS: 8,
             SPIRAL_MAX_RADIUS: 40,
-            STAR_COUNT: 300,
-            NEBULA_COUNT: 5,
+            NEBULA_3D_PARTICLES: 2500,
+            NEBULA_3D_CLOUDS: 5,
             STARTUP_DELAY_MS: 2000,
             ROTATION_DAMPING: 0.15
         };
@@ -942,6 +1033,40 @@
             return start + (end - start) * factor;
         }
 
+        function getGenreClass(genre) {
+            const map = {
+                '科幻': 'genre-scifi',
+                '冒险': 'genre-adventure',
+                '机甲': 'genre-mecha',
+                '喜剧': 'genre-comedy',
+                '奇幻': 'genre-fantasy',
+                '战斗': 'genre-battle',
+                '魔法': 'genre-magic',
+                '推理': 'genre-mystery',
+                '悬疑': 'genre-suspense',
+                '爱情': 'genre-romance',
+                '黑暗': 'genre-dark'
+            };
+            return map[genre] || 'genre-scifi';
+        }
+
+        function getGenreColor(genre) {
+            const colors = {
+                '科幻': '#00f3ff',
+                '冒险': '#ffcc00',
+                '机甲': '#4488ff',
+                '喜剧': '#ffee66',
+                '奇幻': '#b026ff',
+                '战斗': '#ff4444',
+                '魔法': '#ff66dd',
+                '推理': '#00ffaa',
+                '悬疑': '#aa66ff',
+                '爱情': '#ff88cc',
+                '黑暗': '#cc3333'
+            };
+            return colors[genre] || '#00f3ff';
+        }
+
         /**
          * 判断手指是否伸展：指尖到手腕的距离大于近端指节到手腕距离的 1.1 倍
          */
@@ -991,7 +1116,7 @@
 
             animeDatabase.forEach((anime, index) => {
                 const node = document.createElement('div');
-                node.className = 'anime-node';
+                node.className = `anime-node ${getGenreClass(anime.genre)}`;
                 node.dataset.index = String(index);
 
                 const progress = index / animeDatabase.length;
@@ -1004,9 +1129,12 @@
                 node.style.top = y + '%';
 
                 node.innerHTML = `
-                    <div>
-                        <div class="node-year">${anime.year}</div>
-                        <div class="node-title">${anime.title}</div>
+                    <div class="node-content">
+                        <div class="node-float" style="animation-delay: ${(index % 10) * 0.3}s">
+                            <div class="node-year">${anime.year}</div>
+                            <div class="node-emoji">${anime.emoji}</div>
+                            <div class="node-title">${anime.title}</div>
+                        </div>
                     </div>
                 `;
 
@@ -1026,7 +1154,7 @@
             createEraLabels(container, centerX, centerY);
 
             // 缓存节点内容与年代标签，避免每次旋转都查询 DOM
-            dom.nodeContents = [...container.querySelectorAll('.anime-node > div')];
+            dom.nodeContents = [...container.querySelectorAll('.anime-node > .node-content')];
             dom.eraLabels = [...container.querySelectorAll('.era-label')];
 
             applySpiralTransform();
@@ -1087,6 +1215,12 @@
             if (!anime) return;
 
             state.selectedNode = index;
+
+            const accent = getGenreColor(anime.genre);
+            const glow = accent + '35'; // 约 21% 透明度
+
+            dom.detailPanel.style.setProperty('--detail-accent', accent);
+            dom.detailPanel.style.setProperty('--detail-glow', glow);
 
             dom.detailImage.textContent = anime.emoji;
             dom.detailTitle.textContent = anime.title;
@@ -1370,74 +1504,150 @@
             return minDistance < CONFIG.HOVER_RADIUS ? nearest : null;
         }
 
-        // ===== 星云背景动画 =====
+        // ===== 3D 星云背景 =====
         function initNebulaBackground() {
             const canvas = document.getElementById('nebula-canvas');
-            const ctx = canvas.getContext('2d');
-
-            function resizeCanvas() {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
+            if (!window.THREE) {
+                // Three.js 未加载时的兜底：纯色背景
+                canvas.style.background = 'radial-gradient(ellipse at center, #0a0a20 0%, #050510 100%)';
+                return;
             }
-            resizeCanvas();
 
-            const stars = Array.from({ length: CONFIG.STAR_COUNT }, () => ({
-                x: Math.random() * canvas.width,
-                y: Math.random() * canvas.height,
-                size: Math.random() * 2,
-                opacity: Math.random(),
-                speed: Math.random() * 0.5 + 0.1
-            }));
+            const scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x050510, 0.0012);
 
-            const nebulaClouds = Array.from({ length: CONFIG.NEBULA_COUNT }, (_, i) => ({
-                x: Math.random() * canvas.width,
-                y: Math.random() * canvas.height,
-                radius: Math.random() * 300 + 200,
-                color: i % 2 === 0 ? 'rgba(0, 243, 255, 0.03)' : 'rgba(176, 38, 255, 0.03)',
-                speed: Math.random() * 0.2 + 0.05
-            }));
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.z = 600;
+
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            const palette = [
+                new THREE.Color(0x00f3ff),
+                new THREE.Color(0xff00ff),
+                new THREE.Color(0xb026ff),
+                new THREE.Color(0x00ffff),
+                new THREE.Color(0x4040ff)
+            ];
+
+            // 星尘粒子
+            const starGeometry = new THREE.BufferGeometry();
+            const starPositions = [];
+            const starColors = [];
+            const starSizes = [];
+
+            for (let i = 0; i < CONFIG.NEBULA_3D_PARTICLES; i++) {
+                const x = (Math.random() - 0.5) * 2500;
+                const y = (Math.random() - 0.5) * 1800;
+                const z = (Math.random() - 0.5) * 1200;
+                starPositions.push(x, y, z);
+
+                const color = palette[Math.floor(Math.random() * palette.length)];
+                starColors.push(color.r, color.g, color.b);
+
+                starSizes.push(Math.random() * 2.5);
+            }
+
+            starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
+            starGeometry.setAttribute('color', new THREE.Float32BufferAttribute(starColors, 3));
+            starGeometry.setAttribute('size', new THREE.Float32BufferAttribute(starSizes, 1));
+
+            const starMaterial = new THREE.PointsMaterial({
+                size: 2,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.85,
+                blending: THREE.AdditiveBlending,
+                sizeAttenuation: true
+            });
+
+            const starField = new THREE.Points(starGeometry, starMaterial);
+            scene.add(starField);
+
+            // 彩色星云团（大粒径半透明粒子）
+            const cloudGeometry = new THREE.BufferGeometry();
+            const cloudPositions = [];
+            const cloudColors = [];
+
+            for (let i = 0; i < CONFIG.NEBULA_3D_CLOUDS; i++) {
+                const x = (Math.random() - 0.5) * 1600;
+                const y = (Math.random() - 0.5) * 1000;
+                const z = (Math.random() - 0.5) * 800 - 200;
+                cloudPositions.push(x, y, z);
+
+                const color = palette[i % palette.length];
+                cloudColors.push(color.r, color.g, color.b);
+            }
+
+            cloudGeometry.setAttribute('position', new THREE.Float32BufferAttribute(cloudPositions, 3));
+            cloudGeometry.setAttribute('color', new THREE.Float32BufferAttribute(cloudColors, 3));
+
+            const cloudMaterial = new THREE.PointsMaterial({
+                size: 260,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.12,
+                blending: THREE.AdditiveBlending,
+                sizeAttenuation: true,
+                depthWrite: false
+            });
+
+            const nebulaClouds = new THREE.Points(cloudGeometry, cloudMaterial);
+            scene.add(nebulaClouds);
+
+            // 中心发光核心
+            const coreGeometry = new THREE.SphereGeometry(40, 32, 32);
+            const coreMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00f3ff,
+                transparent: true,
+                opacity: 0.08,
+                blending: THREE.AdditiveBlending
+            });
+            const core = new THREE.Mesh(coreGeometry, coreMaterial);
+            scene.add(core);
+
+            // 鼠标/手势视差目标
+            let targetCameraX = 0;
+            let targetCameraY = 0;
+
+            document.addEventListener('mousemove', (e) => {
+                targetCameraX = (e.clientX / window.innerWidth - 0.5) * 80;
+                targetCameraY = (e.clientY / window.innerHeight - 0.5) * 60;
+            });
+
+            // 每帧根据手势位置更新视差目标
+            function updateHandParallax() {
+                if (state.gestureMode === 'camera' && state.handX > 0) {
+                    targetCameraX = (state.handX / window.innerWidth - 0.5) * 80;
+                    targetCameraY = (state.handY / window.innerHeight - 0.5) * 60;
+                }
+            }
 
             function animate() {
-                ctx.fillStyle = '#050510';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                nebulaClouds.forEach(cloud => {
-                    const gradient = ctx.createRadialGradient(
-                        cloud.x, cloud.y, 0,
-                        cloud.x, cloud.y, cloud.radius
-                    );
-                    gradient.addColorStop(0, cloud.color);
-                    gradient.addColorStop(1, 'transparent');
-                    ctx.fillStyle = gradient;
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                    cloud.x += cloud.speed;
-                    if (cloud.x > canvas.width + cloud.radius) {
-                        cloud.x = -cloud.radius;
-                    }
-                });
-
-                stars.forEach(star => {
-                    ctx.beginPath();
-                    ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-                    ctx.fillStyle = `rgba(200, 200, 255, ${star.opacity})`;
-                    ctx.fill();
-
-                    star.opacity += (Math.random() - 0.5) * 0.02;
-                    star.opacity = Math.max(0.1, Math.min(1, star.opacity));
-
-                    star.y -= star.speed;
-                    if (star.y < 0) {
-                        star.y = canvas.height;
-                        star.x = Math.random() * canvas.width;
-                    }
-                });
-
                 requestAnimationFrame(animate);
+
+                updateHandParallax();
+                camera.position.x = lerp(camera.position.x, targetCameraX, 0.04);
+                camera.position.y = lerp(camera.position.y, -targetCameraY, 0.04);
+                camera.lookAt(scene.position);
+
+                starField.rotation.y += 0.0003;
+                starField.rotation.x += 0.0001;
+                nebulaClouds.rotation.y -= 0.00015;
+                core.rotation.y += 0.001;
+                core.scale.setScalar(1 + Math.sin(Date.now() * 0.001) * 0.05);
+
+                renderer.render(scene, camera);
             }
 
             animate();
-            window.addEventListener('resize', resizeCanvas);
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
         }
 
         // ===== 粒子系统（对象池） =====
