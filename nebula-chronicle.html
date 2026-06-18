@@ -150,7 +150,7 @@
             width: 96px;
             height: 96px;
             border-radius: 50%;
-            background: radial-gradient(circle at 30% 30%, rgba(20, 20, 60, 0.7), rgba(5, 5, 16, 0.85));
+            background-color: rgba(5, 5, 16, 0.9);
             border: 2px solid rgba(100, 100, 255, 0.35);
             box-shadow:
                 0 0 20px rgba(0, 243, 255, 0.15),
@@ -165,8 +165,22 @@
             font-family: 'Orbitron', sans-serif;
             text-align: center;
             overflow: hidden;
-            backdrop-filter: blur(12px);
             transform: translate(-50%, -50%);
+        }
+
+        .anime-node::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: radial-gradient(circle at center, rgba(0, 0, 0, 0.25) 0%, rgba(0, 0, 0, 0.65) 100%);
+            z-index: 0;
+            transition: background 0.4s;
+        }
+
+        .anime-node:hover::after,
+        .anime-node.active::after {
+            background: radial-gradient(circle at center, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.45) 100%);
         }
 
         .anime-node > .node-content {
@@ -176,6 +190,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            z-index: 1;
         }
 
         .anime-node > .node-content > .node-float {
@@ -199,7 +214,7 @@
             bottom: -3px;
             border-radius: 50%;
             background: conic-gradient(from 0deg, var(--genre-color, var(--neon-cyan)), var(--neon-purple), var(--neon-pink), var(--genre-color, var(--neon-cyan)));
-            z-index: -1;
+            z-index: 1;
             opacity: 0;
             transition: opacity 0.4s;
             filter: blur(1px);
@@ -225,6 +240,14 @@
                 inset 0 0 35px rgba(255, 0, 255, 0.15);
             border-color: var(--genre-color, rgba(0, 243, 255, 0.6));
             z-index: 100;
+        }
+
+        .anime-node::after {
+            z-index: 2;
+        }
+
+        .anime-node > .node-content {
+            z-index: 3;
         }
 
         .node-year {
@@ -341,6 +364,22 @@
                 inset 0 0 40px rgba(0, 0, 0, 0.4);
         }
 
+        .detail-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+        }
+
+        .detail-image .detail-emoji {
+            position: relative;
+            z-index: 2;
+            font-size: 5rem;
+            filter: drop-shadow(0 0 16px rgba(0, 0, 0, 0.8));
+        }
+
         .detail-image::after {
             content: '';
             position: absolute;
@@ -348,6 +387,7 @@
             left: 0;
             right: 0;
             bottom: 0;
+            z-index: 1;
             background: linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, 0.08) 50%, transparent 60%);
             animation: shimmer 3s infinite;
         }
@@ -865,7 +905,10 @@
         <!-- 详情面板 -->
         <div class="detail-panel" id="detail-panel">
             <button class="close-btn" onclick="closeDetail()">×</button>
-            <div class="detail-image" id="detail-image">🎬</div>
+            <div class="detail-image" id="detail-image">
+                <img src="" alt="" id="detail-img" style="display: none;">
+                <span class="detail-emoji" id="detail-emoji">🎬</span>
+            </div>
             <h2 class="detail-title" id="detail-title">作品名称</h2>
             <div class="detail-meta">
                 <div class="detail-year" id="detail-year">1995</div>
@@ -919,48 +962,342 @@
     <script>
         // ===== 动漫数据库 =====
         const animeDatabase = [
-            { year: 1963, title: "铁臂阿童木", genre: "科幻", emoji: "🤖", desc: `手冢治虫创作的经典科幻动画，讲述了机器人少年阿童木的冒险故事，是日本动画走向世界的先驱之作。` },
-            { year: 1965, title: "森林大帝", genre: "冒险", emoji: "🦁", desc: `手冢治虫的另一部经典作品，讲述了白狮雷欧的成长历程，深刻探讨了自然与人类的关系。` },
-            { year: 1972, title: "魔神Z", genre: "机甲", emoji: "🦾", desc: `永井豪创作的超级机器人动画开山之作，奠定了日本机甲动画的基础，影响深远。` },
-            { year: 1974, title: "宇宙战舰大和号", genre: "科幻", emoji: "🚀", desc: `日本动画史上的里程碑作品，以其宏大的宇宙叙事和深刻的人文关怀开创了SF动画新纪元。` },
-            { year: 1979, title: "机动战士高达", genre: "机甲", emoji: "🤖", desc: `富野由悠季创作的写实机器人动画，首次将战争与政治的严肃主题引入机器人动画。` },
-            { year: 1979, title: "银河铁道999", genre: "科幻", emoji: "🚂", desc: `松本零士的宇宙浪漫史诗，讲述了少年星野铁郎乘坐银河列车的成长之旅。` },
-            { year: 1981, title: "福星小子", genre: "喜剧", emoji: "😄", desc: `高桥留美子的早期代表作，以其独特的幽默感和想象力成为80年代喜剧动画的标杆。` },
-            { year: 1982, title: "超时空要塞", genre: "机甲", emoji: "🎵", desc: `将机甲战斗与偶像音乐完美融合的开创性作品，确立了「歌姬」在动画中的重要地位。` },
-            { year: 1984, title: "风之谷", genre: "奇幻", emoji: "🌿", desc: `宫崎骏执导的动画电影，讲述了娜乌西卡在污染世界中寻找生存之道的故事，环保主题深刻。` },
-            { year: 1986, title: "天空之城", genre: "冒险", emoji: "🏰", desc: `宫崎骏的经典冒险动画，以飞行岛屿拉普达为背景，充满了对科技与自然的思考。` },
-            { year: 1986, title: "龙珠", genre: "战斗", emoji: "⭐", desc: `鸟山明创作的热血战斗漫画改编，孙悟空的冒险故事风靡全球，成为日本流行文化符号。` },
-            { year: 1988, title: "龙猫", genre: "奇幻", emoji: "🐱", desc: `宫崎骏最温暖的作品之一，讲述了姐妹俩与森林精灵龙猫的奇妙相遇，治愈无数观众。` },
-            { year: 1988, title: "阿基拉", genre: "科幻", emoji: "🏍️", desc: `大友克洋执导的赛博朋克动画电影，以其惊人的视觉效果和深刻的社会批判成为动画史上的里程碑。` },
-            { year: 1992, title: "美少女战士", genre: "魔法", emoji: "🌙", desc: `武内直子创作的魔法少女动画，开创了「变身系」魔法少女的先河，影响了一代少女。` },
-            { year: 1995, title: "新世纪福音战士", genre: "机甲", emoji: "🟣", desc: `庵野秀明执导的心理机甲动画，以其深刻的心理描写和宗教隐喻彻底改变了动画界。` },
-            { year: 1995, title: "攻壳机动队", genre: "科幻", emoji: "🤖", desc: `押井守执导的赛博朋克经典，探讨了意识、灵魂与机械的哲学边界，影响了《黑客帝国》。` },
-            { year: 1996, title: "名侦探柯南", genre: "推理", emoji: "🔍", desc: `青山刚昌创作的长寿推理动画，小学生侦探江户川柯南的破案故事持续至今。` },
-            { year: 1997, title: "幽灵公主", genre: "奇幻", emoji: "🐺", desc: `宫崎骏的史诗级作品，以室町时代为背景，探讨了人类文明与自然神灵的冲突。` },
-            { year: 1997, title: "海贼王", genre: "冒险", emoji: "🏴‍☠️", desc: `尾田荣一郎创作的热血冒险漫画，路飞寻找ONE PIECE的冒险成为当代最具影响力的作品之一。` },
-            { year: 1998, title: "星际牛仔", genre: "科幻", emoji: "🎷", desc: `渡边信一郎执导的太空西部片，以其独特的爵士氛围和成人向叙事成为cult经典。` },
-            { year: 1998, title: "Serial Experiments Lain", genre: "科幻", emoji: "💻", desc: `实验性动画作品，深刻探讨了网络时代的人类身份认同，具有强烈的预言性质。` },
-            { year: 1999, title: " Hunter x Hunter", genre: "冒险", emoji: "🏹", desc: `富坚义博创作的少年漫画，以其独特的念能力系统和复杂剧情被誉为少年漫画的巅峰。` },
-            { year: 1999, title: "火影忍者", genre: "战斗", emoji: "🥷", desc: `岸本齐史创作的热血忍者漫画，漩涡鸣人的成长故事激励了无数少年。` },
-            { year: 2001, title: "千与千寻", genre: "奇幻", emoji: "🐉", desc: `宫崎骏的奥斯卡获奖作品，讲述了千寻在神灵世界的成长冒险，是日本动画的国际巅峰。` },
-            { year: 2003, title: "钢之炼金术师", genre: "奇幻", emoji: "⚗️", desc: `荒川弘创作的黑暗奇幻作品，以其严谨的设定和深刻的人性探讨成为21世纪最佳动画之一。` },
-            { year: 2004, title: "死神", genre: "战斗", emoji: "⚔️", desc: `久保带人创作的死神题材漫画，以其独特的视觉风格和战斗系统广受欢迎。` },
-            { year: 2006, title: "死亡笔记", genre: "悬疑", emoji: "📓", desc: `大场鸫原作、小畑健作画的智斗漫画，夜神月与L的智力对决堪称经典。` },
-            { year: 2006, title: "Code Geass", genre: "机甲", emoji: "♟️", desc: `以反乌托邦为背景的机甲动画，鲁路修的智慧与复仇构成了一部精彩的政治惊悚剧。` },
-            { year: 2007, title: "天元突破红莲螺岩", genre: "机甲", emoji: "🔥", desc: `今石洋之执导的热血机甲动画，以其夸张的表现力和燃情叙事成为热血动画的顶点。` },
-            { year: 2009, title: "化物语", genre: "奇幻", emoji: "🦇", desc: `新房昭之执导的西尾维新改编动画，以其独特的视觉风格和对话艺术开创了「物语系列」。` },
-            { year: 2011, title: "魔法少女小圆", genre: "魔法", emoji: "🎀", desc: `虚渊玄编剧的黑暗魔法少女动画，彻底颠覆了魔法少女题材的固有印象。` },
-            { year: 2011, title: "命运石之门", genre: "科幻", emoji: "⏰", desc: `以时间旅行为核心的科幻视觉小说改编，以其严谨的设定和感人的剧情成为科幻动画经典。` },
-            { year: 2012, title: "进击的巨人", genre: "战斗", emoji: "🗡️", desc: `谏山创创作的黑暗奇幻漫画，以其惊人的剧情反转和深刻的世界观成为现象级作品。` },
-            { year: 2013, title: "斩服少女", genre: "战斗", emoji: "✂️", desc: `今石洋之执导的夸张战斗动画，以其独特的视觉风格和女性 empowerment 主题备受好评。` },
-            { year: 2013, title: "你的名字", genre: "爱情", emoji: "💫", desc: `新海诚执导的动画电影，以其精美的画面和感人的跨时空爱情故事创下票房纪录。` },
-            { year: 2016, title: "Re:从零开始", genre: "奇幻", emoji: "⭕", desc: `以时间轮回为核心的异世界动画，菜月昴的死亡回归之旅探讨了意志与救赎。` },
-            { year: 2016, title: "鬼灭之刃", genre: "战斗", emoji: "⚔️", desc: `吾峠呼世晴创作的鬼杀队故事，以其精美的动画和感人的兄妹情成为现象级作品。` },
-            { year: 2019, title: "咒术回战", genre: "战斗", emoji: "👹", desc: `芥见下下创作的咒术师战斗漫画，以其现代化的设定和精彩的战斗场面广受欢迎。` },
-            { year: 2020, title: "电锯人", genre: "黑暗", emoji: "🔪", desc: `藤本树创作的黑暗少年漫画，以其独特的叙事风格和出人意料的剧情发展引发热议。` },
-            { year: 2022, title: "赛博朋克:边缘行者", genre: "科幻", emoji: "🌃", desc: `基于《赛博朋克2077》的动画，以其惊艳的视觉效果和悲剧性故事获得全球好评。` },
-            { year: 2023, title: "葬送的芙莉莲", genre: "奇幻", emoji: "🧝‍♀️", desc: `以勇者死后世界为视角的奇幻动画，以其独特的叙事节奏和深刻的生命思考备受赞誉。` },
-            { year: 2024, title: "迷宫饭", genre: "冒险", emoji: "🍖", desc: `九井谅子创作的地下城美食漫画，以其独特的设定和温馨的团队故事成为年度佳作。` }
+            {
+                year: 1963,
+                title: "铁臂阿童木",
+                genre: "科幻",
+                emoji: "🤖",
+                desc: `手冢治虫创作的经典科幻动画，讲述了机器人少年阿童木的冒险故事，是日本动画走向世界的先驱之作。`,
+                image: "images/0.jpg"
+            },
+            {
+                year: 1965,
+                title: "森林大帝",
+                genre: "冒险",
+                emoji: "🦁",
+                desc: `手冢治虫的另一部经典作品，讲述了白狮雷欧的成长历程，深刻探讨了自然与人类的关系。`,
+                image: "images/1.jpg"
+            },
+            {
+                year: 1972,
+                title: "魔神Z",
+                genre: "机甲",
+                emoji: "🦾",
+                desc: `永井豪创作的超级机器人动画开山之作，奠定了日本机甲动画的基础，影响深远。`,
+                image: "images/2.jpg"
+            },
+            {
+                year: 1974,
+                title: "宇宙战舰大和号",
+                genre: "科幻",
+                emoji: "🚀",
+                desc: `日本动画史上的里程碑作品，以其宏大的宇宙叙事和深刻的人文关怀开创了SF动画新纪元。`,
+                image: "images/3.jpg"
+            },
+            {
+                year: 1979,
+                title: "机动战士高达",
+                genre: "机甲",
+                emoji: "🤖",
+                desc: `富野由悠季创作的写实机器人动画，首次将战争与政治的严肃主题引入机器人动画。`,
+                image: "images/4.jpg"
+            },
+            {
+                year: 1979,
+                title: "银河铁道999",
+                genre: "科幻",
+                emoji: "🚂",
+                desc: `松本零士的宇宙浪漫史诗，讲述了少年星野铁郎乘坐银河列车的成长之旅。`,
+                image: "images/5.jpg"
+            },
+            {
+                year: 1981,
+                title: "福星小子",
+                genre: "喜剧",
+                emoji: "😄",
+                desc: `高桥留美子的早期代表作，以其独特的幽默感和想象力成为80年代喜剧动画的标杆。`,
+                image: "images/6.jpg"
+            },
+            {
+                year: 1982,
+                title: "超时空要塞",
+                genre: "机甲",
+                emoji: "🎵",
+                desc: `将机甲战斗与偶像音乐完美融合的开创性作品，确立了「歌姬」在动画中的重要地位。`,
+                image: "images/7.jpg"
+            },
+            {
+                year: 1984,
+                title: "风之谷",
+                genre: "奇幻",
+                emoji: "🌿",
+                desc: `宫崎骏执导的动画电影，讲述了娜乌西卡在污染世界中寻找生存之道的故事，环保主题深刻。`,
+                image: "images/8.jpg"
+            },
+            {
+                year: 1986,
+                title: "天空之城",
+                genre: "冒险",
+                emoji: "🏰",
+                desc: `宫崎骏的经典冒险动画，以飞行岛屿拉普达为背景，充满了对科技与自然的思考。`,
+                image: "images/9.jpg"
+            },
+            {
+                year: 1986,
+                title: "龙珠",
+                genre: "战斗",
+                emoji: "⭐",
+                desc: `鸟山明创作的热血战斗漫画改编，孙悟空的冒险故事风靡全球，成为日本流行文化符号。`,
+                image: "images/10.jpg"
+            },
+            {
+                year: 1988,
+                title: "龙猫",
+                genre: "奇幻",
+                emoji: "🐱",
+                desc: `宫崎骏最温暖的作品之一，讲述了姐妹俩与森林精灵龙猫的奇妙相遇，治愈无数观众。`,
+                image: "images/11.jpg"
+            },
+            {
+                year: 1988,
+                title: "阿基拉",
+                genre: "科幻",
+                emoji: "🏍️",
+                desc: `大友克洋执导的赛博朋克动画电影，以其惊人的视觉效果和深刻的社会批判成为动画史上的里程碑。`,
+                image: "images/12.jpg"
+            },
+            {
+                year: 1992,
+                title: "美少女战士",
+                genre: "魔法",
+                emoji: "🌙",
+                desc: `武内直子创作的魔法少女动画，开创了「变身系」魔法少女的先河，影响了一代少女。`,
+                image: "images/13.jpg"
+            },
+            {
+                year: 1995,
+                title: "新世纪福音战士",
+                genre: "机甲",
+                emoji: "🟣",
+                desc: `庵野秀明执导的心理机甲动画，以其深刻的心理描写和宗教隐喻彻底改变了动画界。`,
+                image: "images/14.jpg"
+            },
+            {
+                year: 1995,
+                title: "攻壳机动队",
+                genre: "科幻",
+                emoji: "🤖",
+                desc: `押井守执导的赛博朋克经典，探讨了意识、灵魂与机械的哲学边界，影响了《黑客帝国》。`,
+                image: "images/15.jpg"
+            },
+            {
+                year: 1996,
+                title: "名侦探柯南",
+                genre: "推理",
+                emoji: "🔍",
+                desc: `青山刚昌创作的长寿推理动画，小学生侦探江户川柯南的破案故事持续至今。`,
+                image: "images/16.jpg"
+            },
+            {
+                year: 1997,
+                title: "幽灵公主",
+                genre: "奇幻",
+                emoji: "🐺",
+                desc: `宫崎骏的史诗级作品，以室町时代为背景，探讨了人类文明与自然神灵的冲突。`,
+                image: "images/17.jpg"
+            },
+            {
+                year: 1997,
+                title: "海贼王",
+                genre: "冒险",
+                emoji: "🏴‍☠️",
+                desc: `尾田荣一郎创作的热血冒险漫画，路飞寻找ONE PIECE的冒险成为当代最具影响力的作品之一。`,
+                image: "images/18.jpg"
+            },
+            {
+                year: 1998,
+                title: "星际牛仔",
+                genre: "科幻",
+                emoji: "🎷",
+                desc: `渡边信一郎执导的太空西部片，以其独特的爵士氛围和成人向叙事成为cult经典。`,
+                image: "images/19.jpg"
+            },
+            {
+                year: 1998,
+                title: "Serial Experiments Lain",
+                genre: "科幻",
+                emoji: "💻",
+                desc: `实验性动画作品，深刻探讨了网络时代的人类身份认同，具有强烈的预言性质。`,
+                image: "images/20.jpg"
+            },
+            {
+                year: 1999,
+                title: " Hunter x Hunter",
+                genre: "冒险",
+                emoji: "🏹",
+                desc: `富坚义博创作的少年漫画，以其独特的念能力系统和复杂剧情被誉为少年漫画的巅峰。`,
+                image: "images/21.jpg"
+            },
+            {
+                year: 1999,
+                title: "火影忍者",
+                genre: "战斗",
+                emoji: "🥷",
+                desc: `岸本齐史创作的热血忍者漫画，漩涡鸣人的成长故事激励了无数少年。`,
+                image: "images/22.jpg"
+            },
+            {
+                year: 2001,
+                title: "千与千寻",
+                genre: "奇幻",
+                emoji: "🐉",
+                desc: `宫崎骏的奥斯卡获奖作品，讲述了千寻在神灵世界的成长冒险，是日本动画的国际巅峰。`,
+                image: "images/23.jpg"
+            },
+            {
+                year: 2003,
+                title: "钢之炼金术师",
+                genre: "奇幻",
+                emoji: "⚗️",
+                desc: `荒川弘创作的黑暗奇幻作品，以其严谨的设定和深刻的人性探讨成为21世纪最佳动画之一。`,
+                image: "images/24.jpg"
+            },
+            {
+                year: 2004,
+                title: "死神",
+                genre: "战斗",
+                emoji: "⚔️",
+                desc: `久保带人创作的死神题材漫画，以其独特的视觉风格和战斗系统广受欢迎。`,
+                image: "images/25.jpg"
+            },
+            {
+                year: 2006,
+                title: "死亡笔记",
+                genre: "悬疑",
+                emoji: "📓",
+                desc: `大场鸫原作、小畑健作画的智斗漫画，夜神月与L的智力对决堪称经典。`,
+                image: "images/26.jpg"
+            },
+            {
+                year: 2006,
+                title: "Code Geass",
+                genre: "机甲",
+                emoji: "♟️",
+                desc: `以反乌托邦为背景的机甲动画，鲁路修的智慧与复仇构成了一部精彩的政治惊悚剧。`,
+                image: "images/27.jpg"
+            },
+            {
+                year: 2007,
+                title: "天元突破红莲螺岩",
+                genre: "机甲",
+                emoji: "🔥",
+                desc: `今石洋之执导的热血机甲动画，以其夸张的表现力和燃情叙事成为热血动画的顶点。`,
+                image: "images/28.jpg"
+            },
+            {
+                year: 2009,
+                title: "化物语",
+                genre: "奇幻",
+                emoji: "🦇",
+                desc: `新房昭之执导的西尾维新改编动画，以其独特的视觉风格和对话艺术开创了「物语系列」。`,
+                image: "images/29.jpg"
+            },
+            {
+                year: 2011,
+                title: "魔法少女小圆",
+                genre: "魔法",
+                emoji: "🎀",
+                desc: `虚渊玄编剧的黑暗魔法少女动画，彻底颠覆了魔法少女题材的固有印象。`,
+                image: "images/30.jpg"
+            },
+            {
+                year: 2011,
+                title: "命运石之门",
+                genre: "科幻",
+                emoji: "⏰",
+                desc: `以时间旅行为核心的科幻视觉小说改编，以其严谨的设定和感人的剧情成为科幻动画经典。`,
+                image: "images/31.jpg"
+            },
+            {
+                year: 2012,
+                title: "进击的巨人",
+                genre: "战斗",
+                emoji: "🗡️",
+                desc: `谏山创创作的黑暗奇幻漫画，以其惊人的剧情反转和深刻的世界观成为现象级作品。`,
+                image: "images/32.jpg"
+            },
+            {
+                year: 2013,
+                title: "斩服少女",
+                genre: "战斗",
+                emoji: "✂️",
+                desc: `今石洋之执导的夸张战斗动画，以其独特的视觉风格和女性 empowerment 主题备受好评。`,
+                image: "images/33.jpg"
+            },
+            {
+                year: 2013,
+                title: "你的名字",
+                genre: "爱情",
+                emoji: "💫",
+                desc: `新海诚执导的动画电影，以其精美的画面和感人的跨时空爱情故事创下票房纪录。`,
+                image: "images/34.jpg"
+            },
+            {
+                year: 2016,
+                title: "Re:从零开始",
+                genre: "奇幻",
+                emoji: "⭕",
+                desc: `以时间轮回为核心的异世界动画，菜月昴的死亡回归之旅探讨了意志与救赎。`,
+                image: "images/35.jpg"
+            },
+            {
+                year: 2016,
+                title: "鬼灭之刃",
+                genre: "战斗",
+                emoji: "⚔️",
+                desc: `吾峠呼世晴创作的鬼杀队故事，以其精美的动画和感人的兄妹情成为现象级作品。`,
+                image: "images/36.jpg"
+            },
+            {
+                year: 2019,
+                title: "咒术回战",
+                genre: "战斗",
+                emoji: "👹",
+                desc: `芥见下下创作的咒术师战斗漫画，以其现代化的设定和精彩的战斗场面广受欢迎。`,
+                image: "images/37.jpg"
+            },
+            {
+                year: 2020,
+                title: "电锯人",
+                genre: "黑暗",
+                emoji: "🔪",
+                desc: `藤本树创作的黑暗少年漫画，以其独特的叙事风格和出人意料的剧情发展引发热议。`,
+                image: "images/38.jpg"
+            },
+            {
+                year: 2022,
+                title: "赛博朋克:边缘行者",
+                genre: "科幻",
+                emoji: "🌃",
+                desc: `基于《赛博朋克2077》的动画，以其惊艳的视觉效果和悲剧性故事获得全球好评。`,
+                image: "images/39.jpg"
+            },
+            {
+                year: 2023,
+                title: "葬送的芙莉莲",
+                genre: "奇幻",
+                emoji: "🧝‍♀️",
+                desc: `以勇者死后世界为视角的奇幻动画，以其独特的叙事节奏和深刻的生命思考备受赞誉。`,
+                image: "images/40.jpg"
+            },
+            {
+                year: 2024,
+                title: "迷宫饭",
+                genre: "冒险",
+                emoji: "🍖",
+                desc: `九井谅子创作的地下城美食漫画，以其独特的设定和温馨的团队故事成为年度佳作。`,
+                image: "images/41.jpg"
+            }
         ];
 
         // ===== 配置常量 =====
@@ -993,6 +1330,8 @@
             eraLabels: null,
             detailPanel: document.getElementById('detail-panel'),
             detailImage: document.getElementById('detail-image'),
+            detailImg: document.getElementById('detail-img'),
+            detailEmoji: document.getElementById('detail-emoji'),
             detailTitle: document.getElementById('detail-title'),
             detailYear: document.getElementById('detail-year'),
             detailGenre: document.getElementById('detail-genre'),
@@ -1118,6 +1457,11 @@
                 const node = document.createElement('div');
                 node.className = `anime-node ${getGenreClass(anime.genre)}`;
                 node.dataset.index = String(index);
+                if (anime.image) {
+                    node.style.backgroundImage = `url('${anime.image}')`;
+                    node.style.backgroundSize = 'cover';
+                    node.style.backgroundPosition = 'center';
+                }
 
                 const progress = index / animeDatabase.length;
                 const angle = progress * Math.PI * 2 * SPIRAL_TURNS;
@@ -1222,7 +1566,17 @@
             dom.detailPanel.style.setProperty('--detail-accent', accent);
             dom.detailPanel.style.setProperty('--detail-glow', glow);
 
-            dom.detailImage.textContent = anime.emoji;
+            if (anime.image) {
+                dom.detailImg.src = anime.image;
+                dom.detailImg.alt = anime.title;
+                dom.detailImg.style.display = 'block';
+                dom.detailEmoji.style.display = 'none';
+            } else {
+                dom.detailImg.style.display = 'none';
+                dom.detailEmoji.textContent = anime.emoji;
+                dom.detailEmoji.style.display = 'block';
+            }
+
             dom.detailTitle.textContent = anime.title;
             dom.detailYear.textContent = anime.year + '年';
             dom.detailGenre.textContent = anime.genre;
