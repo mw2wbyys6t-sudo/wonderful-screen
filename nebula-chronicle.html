@@ -44,7 +44,6 @@
             overflow: hidden;
             width: 100vw;
             height: 100vh;
-            cursor: none;
         }
 
         /* ===== 星云背景 Canvas ===== */
@@ -174,7 +173,7 @@
             inset: 0;
             border-radius: 50%;
             background: radial-gradient(circle at center, rgba(0, 0, 0, 0.25) 0%, rgba(0, 0, 0, 0.65) 100%);
-            z-index: 0;
+            z-index: 2;
             transition: background 0.4s;
         }
 
@@ -190,7 +189,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            z-index: 1;
+            z-index: 3;
         }
 
         .anime-node > .node-content > .node-float {
@@ -221,7 +220,8 @@
         }
 
         .anime-node:hover::before,
-        .anime-node.active::before {
+        .anime-node.active::before,
+        .anime-node:focus-visible::before {
             opacity: 0.9;
             animation: borderRotate 3s linear infinite;
         }
@@ -232,7 +232,8 @@
         }
 
         .anime-node:hover,
-        .anime-node.active {
+        .anime-node.active,
+        .anime-node:focus-visible {
             transform: translate(-50%, -50%) scale(1.45);
             box-shadow:
                 0 0 50px var(--genre-glow, rgba(0, 243, 255, 0.5)),
@@ -242,12 +243,9 @@
             z-index: 100;
         }
 
-        .anime-node::after {
-            z-index: 2;
-        }
-
-        .anime-node > .node-content {
-            z-index: 3;
+        .anime-node:focus-visible {
+            outline: 2px solid var(--neon-cyan);
+            outline-offset: 4px;
         }
 
         .node-year {
@@ -344,14 +342,10 @@
             height: 220px;
             background: radial-gradient(circle at 30% 30%, rgba(20, 20, 60, 0.6), rgba(5, 5, 16, 0.8));
             border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 5rem;
-            margin-bottom: 24px;
-            border: 1px solid rgba(100, 100, 255, 0.2);
             overflow: hidden;
             position: relative;
+            margin-bottom: 24px;
+            border: 1px solid rgba(100, 100, 255, 0.2);
             box-shadow:
                 0 0 30px var(--detail-glow, rgba(0, 243, 255, 0.15)),
                 inset 0 0 40px rgba(0, 0, 0, 0.4);
@@ -888,10 +882,10 @@
         </div>
 
         <!-- 详情面板 -->
-        <div class="detail-panel" id="detail-panel">
-            <button class="close-btn" onclick="closeDetail()">×</button>
+        <div class="detail-panel" id="detail-panel" role="dialog" aria-modal="true" aria-label="作品详情">
+            <button class="close-btn" onclick="closeDetail()" aria-label="关闭详情">×</button>
             <div class="detail-image" id="detail-image">
-                <img src="" alt="" id="detail-img">
+                <img src="" alt="" id="detail-img" onerror="this.style.display='none'">
             </div>
             <h2 class="detail-title" id="detail-title">作品名称</h2>
             <div class="detail-meta">
@@ -1343,6 +1337,7 @@
             lastGestureTime: 0,
             lastHandX: 0,
             particleTimer: null,
+            nebulaAnimationId: null,
             gestureMode: 'camera' // 'camera' | 'mouse'
         };
 
@@ -1355,38 +1350,26 @@
             return start + (end - start) * factor;
         }
 
+        const GENRE_META = {
+            '科幻':   { className: 'genre-scifi',   color: '#00f3ff' },
+            '冒险':   { className: 'genre-adventure', color: '#ffcc00' },
+            '机甲':   { className: 'genre-mecha',   color: '#4488ff' },
+            '喜剧':   { className: 'genre-comedy',  color: '#ffee66' },
+            '奇幻':   { className: 'genre-fantasy', color: '#b026ff' },
+            '战斗':   { className: 'genre-battle',  color: '#ff4444' },
+            '魔法':   { className: 'genre-magic',   color: '#ff66dd' },
+            '推理':   { className: 'genre-mystery', color: '#00ffaa' },
+            '悬疑':   { className: 'genre-suspense', color: '#aa66ff' },
+            '爱情':   { className: 'genre-romance', color: '#ff88cc' },
+            '黑暗':   { className: 'genre-dark',    color: '#cc3333' }
+        };
+
         function getGenreClass(genre) {
-            const map = {
-                '科幻': 'genre-scifi',
-                '冒险': 'genre-adventure',
-                '机甲': 'genre-mecha',
-                '喜剧': 'genre-comedy',
-                '奇幻': 'genre-fantasy',
-                '战斗': 'genre-battle',
-                '魔法': 'genre-magic',
-                '推理': 'genre-mystery',
-                '悬疑': 'genre-suspense',
-                '爱情': 'genre-romance',
-                '黑暗': 'genre-dark'
-            };
-            return map[genre] || 'genre-scifi';
+            return GENRE_META[genre]?.className || 'genre-scifi';
         }
 
         function getGenreColor(genre) {
-            const colors = {
-                '科幻': '#00f3ff',
-                '冒险': '#ffcc00',
-                '机甲': '#4488ff',
-                '喜剧': '#ffee66',
-                '奇幻': '#b026ff',
-                '战斗': '#ff4444',
-                '魔法': '#ff66dd',
-                '推理': '#00ffaa',
-                '悬疑': '#aa66ff',
-                '爱情': '#ff88cc',
-                '黑暗': '#cc3333'
-            };
-            return colors[genre] || '#00f3ff';
+            return GENRE_META[genre]?.color || '#00f3ff';
         }
 
         /**
@@ -1440,6 +1423,9 @@
                 const node = document.createElement('div');
                 node.className = `anime-node ${getGenreClass(anime.genre)}`;
                 node.dataset.index = String(index);
+                node.setAttribute('tabindex', '0');
+                node.setAttribute('role', 'button');
+                node.setAttribute('aria-label', `${anime.year}年 ${anime.title}，${anime.genre}`);
                 if (anime.image) {
                     node.style.backgroundImage = `url('${anime.image}')`;
                     node.style.backgroundSize = 'cover';
@@ -1465,6 +1451,12 @@
                 `;
 
                 node.addEventListener('click', () => showDetail(index));
+                node.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        showDetail(index);
+                    }
+                });
                 node.addEventListener('mouseenter', () => node.classList.add('active'));
                 node.addEventListener('mouseleave', () => {
                     if (state.selectedNode !== index) node.classList.remove('active');
@@ -1953,7 +1945,7 @@
             }
 
             function animate() {
-                requestAnimationFrame(animate);
+                state.nebulaAnimationId = requestAnimationFrame(animate);
 
                 updateHandParallax();
                 camera.position.x = lerp(camera.position.x, targetCameraX, 0.04);
@@ -2022,7 +2014,18 @@
             state.particleTimer = setInterval(spawnParticle, CONFIG.PARTICLE_INTERVAL_MS);
         }
 
-        // ===== 事件监听 =====
+        // ===== 清理与事件监听 =====
+        function cleanup() {
+            if (state.particleTimer) {
+                clearInterval(state.particleTimer);
+                state.particleTimer = null;
+            }
+            if (state.nebulaAnimationId) {
+                cancelAnimationFrame(state.nebulaAnimationId);
+                state.nebulaAnimationId = null;
+            }
+        }
+
         document.addEventListener('mousemove', (e) => {
             dom.cursorTracker.style.transform = `translate(${e.clientX - 10}px, ${e.clientY - 10}px)`;
         });
@@ -2030,6 +2033,8 @@
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') closeDetail();
         });
+
+        window.addEventListener('beforeunload', cleanup);
 
         window.addEventListener('load', () => {
             initNebulaBackground();
