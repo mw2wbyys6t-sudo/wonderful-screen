@@ -257,13 +257,6 @@
             letter-spacing: 1px;
         }
 
-        .node-emoji {
-            font-size: 2rem;
-            line-height: 1;
-            margin: 4px 0;
-            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));
-        }
-
         .node-title {
             font-size: 0.55rem;
             color: rgba(255, 255, 255, 0.85);
@@ -371,13 +364,6 @@
             position: absolute;
             inset: 0;
             z-index: 0;
-        }
-
-        .detail-image .detail-emoji {
-            position: relative;
-            z-index: 2;
-            font-size: 5rem;
-            filter: drop-shadow(0 0 16px rgba(0, 0, 0, 0.8));
         }
 
         .detail-image::after {
@@ -804,7 +790,6 @@
             .startup-logo { font-size: 2.5rem; }
             .anime-node { width: 58px; height: 58px; }
             .node-year { font-size: 0.45rem; }
-            .node-emoji { font-size: 1.3rem; margin: 2px 0; }
             .node-title { font-size: 0.35rem; max-width: 50px; }
             .era-label { font-size: 0.6rem; }
         }
@@ -906,8 +891,7 @@
         <div class="detail-panel" id="detail-panel">
             <button class="close-btn" onclick="closeDetail()">×</button>
             <div class="detail-image" id="detail-image">
-                <img src="" alt="" id="detail-img" style="display: none;">
-                <span class="detail-emoji" id="detail-emoji">🎬</span>
+                <img src="" alt="" id="detail-img">
             </div>
             <h2 class="detail-title" id="detail-title">作品名称</h2>
             <div class="detail-meta">
@@ -1331,7 +1315,6 @@
             detailPanel: document.getElementById('detail-panel'),
             detailImage: document.getElementById('detail-image'),
             detailImg: document.getElementById('detail-img'),
-            detailEmoji: document.getElementById('detail-emoji'),
             detailTitle: document.getElementById('detail-title'),
             detailYear: document.getElementById('detail-year'),
             detailGenre: document.getElementById('detail-genre'),
@@ -1476,7 +1459,6 @@
                     <div class="node-content">
                         <div class="node-float" style="animation-delay: ${(index % 10) * 0.3}s">
                             <div class="node-year">${anime.year}</div>
-                            <div class="node-emoji">${anime.emoji}</div>
                             <div class="node-title">${anime.title}</div>
                         </div>
                     </div>
@@ -1566,16 +1548,8 @@
             dom.detailPanel.style.setProperty('--detail-accent', accent);
             dom.detailPanel.style.setProperty('--detail-glow', glow);
 
-            if (anime.image) {
-                dom.detailImg.src = anime.image;
-                dom.detailImg.alt = anime.title;
-                dom.detailImg.style.display = 'block';
-                dom.detailEmoji.style.display = 'none';
-            } else {
-                dom.detailImg.style.display = 'none';
-                dom.detailEmoji.textContent = anime.emoji;
-                dom.detailEmoji.style.display = 'block';
-            }
+            dom.detailImg.src = anime.image || '';
+            dom.detailImg.alt = anime.title;
 
             dom.detailTitle.textContent = anime.title;
             dom.detailYear.textContent = anime.year + '年';
