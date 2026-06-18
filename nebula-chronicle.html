@@ -249,27 +249,29 @@
         }
 
         .node-year {
-            font-size: 0.6rem;
-            color: rgba(200, 220, 255, 0.85);
-            text-shadow: 0 0 8px rgba(0, 243, 255, 0.6);
+            font-size: 0.8rem;
+            color: rgba(220, 235, 255, 0.95);
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.8), 0 0 12px rgba(0, 243, 255, 0.7);
             letter-spacing: 1px;
+            font-weight: 600;
         }
 
         .node-title {
-            font-size: 0.55rem;
-            color: rgba(255, 255, 255, 0.85);
-            max-width: 80px;
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.95);
+            max-width: 100px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
             font-family: 'Noto Serif SC', serif;
+            text-shadow: 0 0 8px rgba(0, 0, 0, 0.9), 0 0 10px rgba(0, 243, 255, 0.3);
         }
 
         /* ===== 连接线 ===== */
         .connection-line {
             position: absolute;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(0, 243, 255, 0.3), transparent);
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(0, 243, 255, 0.45), transparent);
             transform-origin: left center;
             pointer-events: none;
             animation: linePulse 2s ease-in-out infinite;
@@ -283,10 +285,10 @@
         /* ===== 详情面板 ===== */
         .detail-panel {
             position: fixed;
-            right: -460px;
+            right: -100%;
             top: 50%;
             transform: translateY(-50%);
-            width: 420px;
+            width: min(420px, calc(100vw - 40px));
             max-height: 85vh;
             background: rgba(8, 8, 28, 0.72);
             backdrop-filter: blur(24px);
@@ -306,11 +308,28 @@
         }
 
         .detail-panel.open {
-            right: 30px;
+            right: 20px;
             opacity: 1;
             box-shadow:
                 0 0 80px var(--detail-glow, rgba(0, 243, 255, 0.18)),
                 inset 0 0 50px rgba(176, 38, 255, 0.05);
+        }
+
+        @media (max-width: 480px) {
+            .detail-panel {
+                top: auto;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                transform: none;
+                width: 100%;
+                max-height: 70vh;
+                border-radius: 24px 24px 0 0;
+            }
+
+            .detail-panel.open {
+                right: 0;
+            }
         }
 
         .detail-panel::before {
@@ -345,6 +364,33 @@
             position: absolute;
             inset: 0;
             z-index: 0;
+        }
+
+        .detail-image-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            padding: 20px;
+            z-index: 0;
+        }
+
+        .detail-image-placeholder .placeholder-title {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 1.2rem;
+            margin-bottom: 8px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .detail-image-placeholder .placeholder-genre {
+            font-size: 0.8rem;
+            color: var(--detail-accent, var(--neon-cyan));
+            font-family: 'Orbitron', sans-serif;
+            letter-spacing: 1px;
         }
 
         .detail-image::after {
@@ -476,6 +522,68 @@
             letter-spacing: 2px;
         }
 
+        .camera-controls {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            gap: 6px;
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .camera-container:hover .camera-controls,
+        .camera-controls:focus-within {
+            opacity: 1;
+        }
+
+        .camera-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            border: 1px solid rgba(0, 243, 255, 0.4);
+            background: rgba(5, 5, 16, 0.8);
+            color: var(--neon-cyan);
+            font-size: 1rem;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s ease;
+        }
+
+        .camera-btn:hover {
+            background: rgba(0, 243, 255, 0.25);
+        }
+
+        #camera-section.minimized .camera-container {
+            height: 40px;
+            border-color: rgba(0, 243, 255, 0.2);
+            background: rgba(5, 5, 16, 0.8);
+        }
+
+        #camera-section.minimized #input_video,
+        #camera-section.minimized #output_canvas,
+        #camera-section.minimized .gesture-indicator {
+            display: none;
+        }
+
+        #camera-section.minimized .camera-label {
+            display: none;
+        }
+
+        #camera-section.minimized .camera-controls {
+            opacity: 1;
+            position: static;
+            width: 100%;
+            justify-content: flex-end;
+            align-items: center;
+            height: 100%;
+            padding: 0 10px;
+        }
+
         .gesture-indicator {
             position: absolute;
             top: 10px;
@@ -497,6 +605,39 @@
             left: 30px;
             z-index: 100;
             pointer-events: auto;
+            transition: transform 0.3s ease;
+        }
+
+        .hint-toggle {
+            position: absolute;
+            top: -12px;
+            right: -12px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 1px solid rgba(0, 243, 255, 0.4);
+            background: rgba(5, 5, 16, 0.9);
+            color: var(--neon-cyan);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 2;
+            transition: transform 0.3s ease, background 0.3s ease;
+        }
+
+        .hint-toggle:hover {
+            background: rgba(0, 243, 255, 0.2);
+        }
+
+        .gesture-hints[data-collapsed="true"] .hint-toggle {
+            transform: rotate(180deg);
+        }
+
+        .gesture-hints[data-collapsed="true"] .hint-card {
+            opacity: 0;
+            transform: translateY(-10px) scale(0.95);
+            pointer-events: none;
         }
 
         .hint-card {
@@ -504,16 +645,17 @@
             backdrop-filter: blur(15px);
             border: 1px solid var(--glass-border);
             border-radius: 16px;
-            padding: 20px;
-            width: 280px;
+            padding: 18px;
+            width: 260px;
             box-shadow: 0 0 30px rgba(0, 243, 255, 0.1);
+            transition: opacity 0.3s ease, transform 0.3s ease;
         }
 
         .hint-title {
             font-family: 'Orbitron', sans-serif;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: var(--neon-cyan);
-            margin-bottom: 15px;
+            margin-bottom: 12px;
             text-align: center;
             letter-spacing: 2px;
         }
@@ -521,22 +663,22 @@
         .hint-item {
             display: flex;
             align-items: center;
-            margin-bottom: 12px;
-            font-size: 0.8rem;
-            color: rgba(200, 200, 255, 0.8);
+            margin-bottom: 10px;
+            font-size: 0.78rem;
+            color: rgba(210, 210, 255, 0.85);
         }
 
         .hint-icon {
-            width: 36px;
-            height: 36px;
-            margin-right: 12px;
+            width: 32px;
+            height: 32px;
+            margin-right: 10px;
             background: rgba(0, 243, 255, 0.1);
             border: 1px solid rgba(0, 243, 255, 0.3);
             border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
+            color: var(--neon-cyan);
             flex-shrink: 0;
         }
 
@@ -695,14 +837,15 @@
             position: fixed;
             top: 0;
             left: 0;
-            width: 20px;
-            height: 20px;
-            border: 2px solid var(--neon-cyan);
+            width: 12px;
+            height: 12px;
+            border: 1px solid rgba(0, 243, 255, 0.6);
             border-radius: 50%;
             pointer-events: none;
             z-index: 9999;
-            transition: transform 0.1s;
-            box-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+            transition: transform 0.08s;
+            box-shadow: 0 0 6px rgba(0, 243, 255, 0.35);
+            opacity: 0.7;
         }
 
         #cursor-tracker::after {
@@ -711,11 +854,11 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 4px;
-            height: 4px;
-            background: var(--neon-cyan);
+            width: 3px;
+            height: 3px;
+            background: rgba(0, 243, 255, 0.8);
             border-radius: 50%;
-            box-shadow: 0 0 10px var(--neon-cyan);
+            box-shadow: 0 0 4px var(--neon-cyan);
         }
 
         /* ===== 粒子效果 ===== */
@@ -853,7 +996,7 @@
         <div class="startup-subtitle">星云编年史 · 手势次元</div>
         <button class="start-btn" onclick="startExperience()">进入次元</button>
         <div class="loading-text" id="loading-text" style="display: none;">
-            正在初始化神经网络<span class="loading-dots"></span>
+            正在开启次元通道<span class="loading-dots"></span>
         </div>
     </div>
 
@@ -880,10 +1023,14 @@
         </div>
 
         <!-- 详情面板 -->
-        <div class="detail-panel" id="detail-panel" role="dialog" aria-modal="true" aria-label="作品详情">
+        <div class="detail-panel" id="detail-panel" role="dialog" aria-modal="true" aria-label="作品详情" tabindex="-1">
             <button class="close-btn" onclick="closeDetail()" aria-label="关闭详情">×</button>
             <div class="detail-image" id="detail-image">
-                <img src="" alt="" id="detail-img" onerror="this.style.display='none'">
+                <img src="" alt="" id="detail-img">
+                <div class="detail-image-placeholder" id="detail-placeholder">
+                    <div class="placeholder-title" id="placeholder-title">作品名称</div>
+                    <div class="placeholder-genre" id="placeholder-genre">科幻</div>
+                </div>
             </div>
             <h2 class="detail-title" id="detail-title">作品名称</h2>
             <div class="detail-meta">
@@ -906,26 +1053,39 @@
         </div>
 
         <!-- 手势提示 -->
-        <div class="gesture-hints">
+        <div class="gesture-hints" id="gesture-hints" data-collapsed="false">
+            <button class="hint-toggle" id="hint-toggle" aria-label="折叠手势提示" aria-expanded="true">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+                </svg>
+            </button>
             <div class="hint-card">
-                <div class="hint-title">✦ 手势指令 ✦</div>
+                <div class="hint-title">手势指令</div>
                 <div class="hint-item" id="hint-point">
-                    <div class="hint-icon">☝️</div>
+                    <div class="hint-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2l-4 8h3v10h2V10h3L12 2z"/></svg>
+                    </div>
                     <div>食指指向 - 悬停选中</div>
                 </div>
                 <div class="hint-item" id="hint-swipe">
-                    <div class="hint-icon">✋</div>
+                    <div class="hint-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
+                    </div>
                     <div>手掌滑动 - 旋转时间轴</div>
                 </div>
                 <div class="hint-item" id="hint-pinch">
-                    <div class="hint-icon">👌</div>
+                    <div class="hint-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="9" cy="12" r="2"/><circle cx="15" cy="12" r="2"/><path d="M12 7l-2 2h4l-2-2zM12 17l2-2h-4l2 2z"/></svg>
+                    </div>
                     <div>捏合手势 - 点击确认</div>
                 </div>
                 <div class="hint-item" id="hint-open">
-                    <div class="hint-icon">🖐</div>
+                    <div class="hint-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2c-4 0-7 3-7 7 0 3 2 5 4 6v4h6v-4c2-1 4-3 4-6 0-4-3-7-7-7z"/></svg>
+                    </div>
                     <div>五指张开 - 打开详情</div>
                 </div>
-                <div class="hint-lazy">✦ 懒人模式：鼠标点击/拖拽同样可用 ✦</div>
+                <div class="hint-lazy">懒人模式：鼠标点击/拖拽同样可用</div>
             </div>
         </div>
     </div>
@@ -1267,7 +1427,7 @@
             SPIRAL_MAX_RADIUS: 40,
             NEBULA_3D_PARTICLES: 2500,
             NEBULA_3D_CLOUDS: 5,
-            STARTUP_DELAY_MS: 2000,
+            STARTUP_DELAY_MS: 1200,
             ROTATION_DAMPING: 0.15
         };
 
@@ -1282,6 +1442,9 @@
             detailPanel: document.getElementById('detail-panel'),
             detailImage: document.getElementById('detail-image'),
             detailImg: document.getElementById('detail-img'),
+            detailPlaceholder: document.getElementById('detail-placeholder'),
+            placeholderTitle: document.getElementById('placeholder-title'),
+            placeholderGenre: document.getElementById('placeholder-genre'),
             detailTitle: document.getElementById('detail-title'),
             detailYear: document.getElementById('detail-year'),
             detailGenre: document.getElementById('detail-genre'),
@@ -1292,8 +1455,56 @@
             loadingText: document.getElementById('loading-text'),
             startBtn: document.querySelector('.start-btn'),
             video: document.getElementById('input_video'),
-            outputCanvas: document.getElementById('output_canvas')
+            outputCanvas: document.getElementById('output_canvas'),
+            gestureHints: document.getElementById('gesture-hints'),
+            hintToggle: document.getElementById('hint-toggle'),
+            cameraSection: document.getElementById('camera-section')
         };
+
+        // ===== UI 交互初始化 =====
+        function initUI() {
+            // 手势提示折叠
+            if (dom.hintToggle && dom.gestureHints) {
+                dom.hintToggle.addEventListener('click', () => {
+                    const collapsed = dom.gestureHints.getAttribute('data-collapsed') === 'true';
+                    dom.gestureHints.setAttribute('data-collapsed', String(!collapsed));
+                    dom.hintToggle.setAttribute('aria-expanded', String(collapsed));
+                    dom.hintToggle.setAttribute('aria-label', collapsed ? '折叠手势提示' : '展开手势提示');
+                });
+            }
+
+            // 摄像头最小化/关闭控制
+            initCameraControls();
+        }
+
+        function initCameraControls() {
+            const section = dom.cameraSection;
+            if (!section) return;
+
+            const controls = document.createElement('div');
+            controls.className = 'camera-controls';
+            controls.innerHTML = `
+                <button class="camera-btn camera-minimize" aria-label="最小化摄像头" title="最小化">−</button>
+                <button class="camera-btn camera-close" aria-label="关闭摄像头" title="关闭">×</button>
+            `;
+
+            const container = section.querySelector('.camera-container');
+            if (container) container.appendChild(controls);
+
+            const minimizeBtn = controls.querySelector('.camera-minimize');
+            const closeBtn = controls.querySelector('.camera-close');
+
+            minimizeBtn.addEventListener('click', () => {
+                section.classList.toggle('minimized');
+                minimizeBtn.setAttribute('aria-label', section.classList.contains('minimized') ? '展开摄像头' : '最小化摄像头');
+                minimizeBtn.textContent = section.classList.contains('minimized') ? '+' : '−';
+            });
+
+            closeBtn.addEventListener('click', () => {
+                section.style.display = 'none';
+                if (state.gestureMode !== 'mouse') setGestureMode('mouse');
+            });
+        }
 
         // ===== 全局状态 =====
         const state = {
@@ -1568,10 +1779,14 @@
             node.style.setProperty('--genre-color', genreColor);
             node.style.setProperty('--genre-glow', hexToRgba(genreColor, 0.45));
 
+            // 图片加载失败时，类型色渐变作为 fallback
+            const fallbackGradient = `radial-gradient(circle at 30% 30%, ${hexToRgba(genreColor, 0.25)}, rgba(5, 5, 16, 0.9))`;
             if (anime.image) {
-                node.style.backgroundImage = `url('${anime.image}')`;
-                node.style.backgroundSize = 'cover';
-                node.style.backgroundPosition = 'center';
+                node.style.backgroundImage = `url('${anime.image}'), ${fallbackGradient}`;
+                node.style.backgroundSize = 'cover, cover';
+                node.style.backgroundPosition = 'center, center';
+            } else {
+                node.style.backgroundImage = fallbackGradient;
             }
 
             node.style.left = position.x + '%';
@@ -1670,21 +1885,44 @@
             dom.detailPanel.style.setProperty('--detail-accent', accent);
             dom.detailPanel.style.setProperty('--detail-glow', glow);
 
-            dom.detailImg.src = anime.image || '';
-            dom.detailImg.alt = anime.title;
-
             dom.detailTitle.textContent = anime.title;
             dom.detailYear.textContent = anime.year + '年';
             dom.detailGenre.textContent = anime.genre;
             dom.detailDesc.textContent = anime.desc;
 
+            // 图片加载成功时显示图片，失败或缺失时显示占位
+            if (anime.image) {
+                dom.detailImg.src = anime.image;
+                dom.detailImg.alt = anime.title;
+                dom.detailImg.style.display = 'block';
+                dom.detailImg.onerror = () => {
+                    dom.detailImg.style.display = 'none';
+                    showDetailPlaceholder(anime);
+                };
+                dom.detailImg.onload = () => {
+                    if (dom.detailPlaceholder) dom.detailPlaceholder.style.display = 'none';
+                };
+            } else {
+                dom.detailImg.src = '';
+                dom.detailImg.style.display = 'none';
+                showDetailPlaceholder(anime);
+            }
+
             dom.detailPanel.classList.add('open');
+            dom.detailPanel.focus({ preventScroll: true });
 
             if (dom.nodes) {
                 dom.nodes.forEach((node, i) => {
                     node.classList.toggle('active', i === index);
                 });
             }
+        }
+
+        function showDetailPlaceholder(anime) {
+            if (!dom.detailPlaceholder) return;
+            dom.detailPlaceholder.style.display = 'flex';
+            if (dom.placeholderTitle) dom.placeholderTitle.textContent = anime.title;
+            if (dom.placeholderGenre) dom.placeholderGenre.textContent = anime.genre;
         }
 
         function closeDetail() {
@@ -2205,6 +2443,7 @@
 
         window.addEventListener('load', () => {
             initNebulaBackground();
+            initUI();
         });
     </script>
 </body>
