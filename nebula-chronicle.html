@@ -103,7 +103,45 @@
             100% { filter: brightness(1.3) drop-shadow(0 0 30px rgba(176, 38, 255, 0.6)); }
         }
 
-        /* ===== 时间树容器 ===== */
+        .music-toggle {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            border: 1px solid rgba(0, 243, 255, 0.35);
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            color: var(--neon-cyan);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 100;
+            pointer-events: auto;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .music-toggle:hover {
+            background: rgba(0, 243, 255, 0.15);
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.25);
+            transform: translateY(-2px);
+        }
+
+        .music-toggle[aria-pressed="true"] {
+            background: rgba(0, 243, 255, 0.2);
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.25);
+            animation: musicPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes musicPulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(0, 243, 255, 0.15); }
+            50% { box-shadow: 0 0 30px rgba(0, 243, 255, 0.35); }
+        }
+
+        /* ===== 时间树 ===== */
         #timeline-tree {
             position: absolute;
             top: 50%;
@@ -313,23 +351,6 @@
             box-shadow:
                 0 0 80px var(--detail-glow, rgba(0, 243, 255, 0.18)),
                 inset 0 0 50px rgba(176, 38, 255, 0.05);
-        }
-
-        @media (max-width: 480px) {
-            .detail-panel {
-                top: auto;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                transform: none;
-                width: 100%;
-                max-height: 70vh;
-                border-radius: 24px 24px 0 0;
-            }
-
-            .detail-panel.open {
-                right: 0;
-            }
         }
 
         .detail-panel::before {
@@ -924,9 +945,27 @@
             .gesture-hints { display: none; }
             .startup-logo { font-size: 2.5rem; }
             .anime-node { width: 58px; height: 58px; }
-            .node-year { font-size: 0.45rem; }
-            .node-title { font-size: 0.35rem; max-width: 50px; }
+            .node-year { font-size: 0.65rem; }
+            .node-title { font-size: 0.6rem; max-width: 60px; }
             .era-label { font-size: 0.6rem; }
+            .music-toggle { top: 15px; right: 15px; width: 38px; height: 38px; }
+        }
+
+        @media (max-width: 480px) {
+            .detail-panel {
+                top: auto;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                transform: none;
+                width: 100%;
+                max-height: 70vh;
+                border-radius: 24px 24px 0 0;
+            }
+
+            .detail-panel.open {
+                right: 0;
+            }
         }
 
         /* ===== 手势光标 ===== */
@@ -1013,6 +1052,13 @@
             <h1 class="main-title">NEBULA CHRONICLE</h1>
             <p class="sub-title">二次元动漫编年史 · 手势交互系统</p>
         </div>
+
+        <!-- 音乐开关 -->
+        <button class="music-toggle" id="music-toggle" aria-label="播放音乐" aria-pressed="false" title="音乐开关">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <path d="M8 5v14l11-7z"/>
+            </svg>
+        </button>
 
         <!-- 时间树 -->
         <div id="timeline-tree">
@@ -1431,6 +1477,168 @@
             ROTATION_DAMPING: 0.15
         };
 
+        // ===== 音乐引擎（Web Audio 生成星云氛围音乐） =====
+        const MusicEngine = {
+            audioContext: null,
+            masterGain: null,
+            isPlaying: false,
+            activeSources: [],
+            nextNoteTime: 0,
+            schedulerTimer: null,
+
+            init() {
+                if (this.audioContext) return;
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                this.audioContext = new AudioContext();
+                this.masterGain = this.audioContext.createGain();
+                this.masterGain.gain.value = 0.22;
+                this.masterGain.connect(this.audioContext.destination);
+            },
+
+            async play() {
+                this.init();
+                if (!this.audioContext) return;
+                if (this.audioContext.state === 'suspended') {
+                    await this.audioContext.resume();
+                }
+                if (this.isPlaying) return;
+                this.isPlaying = true;
+                this.startDrone();
+                this.startArpeggio();
+                this.updateButton();
+            },
+
+            stop() {
+                if (!this.isPlaying) return;
+                this.isPlaying = false;
+                this.activeSources.forEach(src => {
+                    try {
+                        src.stop();
+                        src.disconnect();
+                    } catch (err) { void err; }
+                });
+                this.activeSources = [];
+                if (this.schedulerTimer) {
+                    clearTimeout(this.schedulerTimer);
+                    this.schedulerTimer = null;
+                }
+                this.updateButton();
+            },
+
+            toggle() {
+                if (this.isPlaying) this.stop();
+                else this.play();
+            },
+
+            startDrone() {
+                // 深层星云铺垫：A2-E3-G3-B3 四度和声
+                const freqs = [110.00, 164.81, 196.00, 246.94];
+                freqs.forEach((f, i) => {
+                    const osc = this.audioContext.createOscillator();
+                    const gain = this.audioContext.createGain();
+                    const filter = this.audioContext.createBiquadFilter();
+
+                    osc.type = i % 2 === 0 ? 'sine' : 'triangle';
+                    osc.frequency.value = f;
+
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 500 + i * 100;
+                    filter.Q.value = 1.5;
+
+                    gain.gain.value = 0.04;
+
+                    osc.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(this.masterGain);
+
+                    osc.start();
+                    this.activeSources.push(osc);
+
+                    // 缓慢滤波器扫频，营造呼吸感
+                    const lfo = this.audioContext.createOscillator();
+                    const lfoGain = this.audioContext.createGain();
+                    lfo.frequency.value = 0.08 + i * 0.03;
+                    lfoGain.gain.value = 150;
+                    lfo.connect(lfoGain);
+                    lfoGain.connect(filter.frequency);
+                    lfo.start();
+                    this.activeSources.push(lfo);
+                });
+            },
+
+            startArpeggio() {
+                // 日式五声音阶，空灵短音符
+                const base = 261.63; // C4
+                const ratios = [1, 9 / 8, 5 / 4, 3 / 2, 5 / 3, 2];
+                this.nextNoteTime = this.audioContext.currentTime;
+                this.scheduleNotes(base, ratios);
+            },
+
+            scheduleNotes(base, ratios) {
+                if (!this.isPlaying) return;
+                const lookahead = 0.15;
+                while (this.nextNoteTime < this.audioContext.currentTime + lookahead) {
+                    const ratio = ratios[Math.floor(Math.random() * ratios.length)];
+                    const freq = base * ratio * (Math.random() > 0.85 ? 0.5 : 1);
+                    this.playSparkle(freq, this.nextNoteTime, 0.35 + Math.random() * 0.4);
+                    this.nextNoteTime += 0.6 + Math.random() * 1.2;
+                }
+                this.schedulerTimer = setTimeout(() => this.scheduleNotes(base, ratios), 120);
+            },
+
+            playSparkle(freq, time, duration) {
+                const osc = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+                const filter = this.audioContext.createBiquadFilter();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, time);
+                osc.frequency.exponentialRampToValueAtTime(freq * 1.02, time + duration);
+
+                filter.type = 'lowpass';
+                filter.frequency.value = 1200;
+                filter.Q.value = 4;
+
+                gain.gain.setValueAtTime(0, time);
+                gain.gain.linearRampToValueAtTime(0.05, time + 0.04);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+                // 轻微延迟，增加空间感
+                const delay = this.audioContext.createDelay();
+                delay.delayTime.value = 0.25;
+                const delayGain = this.audioContext.createGain();
+                delayGain.gain.value = 0.25;
+
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.masterGain);
+                gain.connect(delay);
+                delay.connect(delayGain);
+                delayGain.connect(this.masterGain);
+
+                osc.start(time);
+                osc.stop(time + duration + 0.1);
+                this.activeSources.push(osc);
+
+                // 自动清理已停止的音源引用
+                setTimeout(() => {
+                    const idx = this.activeSources.indexOf(osc);
+                    if (idx > -1) this.activeSources.splice(idx, 1);
+                }, (time - this.audioContext.currentTime + duration + 0.2) * 1000);
+            },
+
+            updateButton() {
+                const btn = document.getElementById('music-toggle');
+                if (!btn) return;
+                btn.setAttribute('aria-pressed', String(this.isPlaying));
+                btn.setAttribute('aria-label', this.isPlaying ? '暂停音乐' : '播放音乐');
+                btn.innerHTML = this.isPlaying
+                    ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>'
+                    : '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+            }
+        };
+
         // ===== DOM 缓存 =====
         const dom = {
             startupScreen: document.getElementById('startup-screen'),
@@ -1458,11 +1666,17 @@
             outputCanvas: document.getElementById('output_canvas'),
             gestureHints: document.getElementById('gesture-hints'),
             hintToggle: document.getElementById('hint-toggle'),
-            cameraSection: document.getElementById('camera-section')
+            cameraSection: document.getElementById('camera-section'),
+            musicToggle: document.getElementById('music-toggle')
         };
 
         // ===== UI 交互初始化 =====
         function initUI() {
+            // 音乐开关
+            if (dom.musicToggle) {
+                dom.musicToggle.addEventListener('click', () => MusicEngine.toggle());
+            }
+
             // 手势提示折叠
             if (dom.hintToggle && dom.gestureHints) {
                 dom.hintToggle.addEventListener('click', () => {
@@ -1705,6 +1919,9 @@
 
             generateTimelineTree();
             preloadImages();
+
+            // 在用户手势后启动氛围音乐（绕过浏览器自动播放限制）
+            MusicEngine.play().catch(error => console.warn('音乐启动失败:', error));
 
             setTimeout(() => {
                 dom.startupScreen.classList.add('hidden');
@@ -2429,6 +2646,7 @@
                 cancelAnimationFrame(state.nebulaAnimationId);
                 state.nebulaAnimationId = null;
             }
+            MusicEngine.stop();
         }
 
         document.addEventListener('mousemove', (e) => {
