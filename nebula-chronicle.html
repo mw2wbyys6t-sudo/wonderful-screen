@@ -1250,8 +1250,6 @@
             }
         ];
 
-        AnimeDB.init(rawAnimeData);
-
         // ===== 配置常量 =====
         const CONFIG = {
             CAMERA_WIDTH: 320,
@@ -1465,6 +1463,9 @@
                 }
             }
         };
+
+        // 初始化数据（必须放在 AnimeDB 定义之后）
+        AnimeDB.init(rawAnimeData);
 
         /**
          * 判断手指是否伸展：指尖到手腕的距离大于近端指节到手腕距离的 1.1 倍
