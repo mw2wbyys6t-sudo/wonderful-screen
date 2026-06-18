@@ -265,19 +265,6 @@
             font-family: 'Noto Serif SC', serif;
         }
 
-        /* 类型主题色 */
-        .anime-node.genre-scifi   { --genre-color: #00f3ff; --genre-glow: rgba(0, 243, 255, 0.45); }
-        .anime-node.genre-adventure { --genre-color: #ffcc00; --genre-glow: rgba(255, 204, 0, 0.45); }
-        .anime-node.genre-mecha   { --genre-color: #4488ff; --genre-glow: rgba(68, 136, 255, 0.45); }
-        .anime-node.genre-comedy  { --genre-color: #ffee66; --genre-glow: rgba(255, 238, 102, 0.45); }
-        .anime-node.genre-fantasy { --genre-color: #b026ff; --genre-glow: rgba(176, 38, 255, 0.45); }
-        .anime-node.genre-battle  { --genre-color: #ff4444; --genre-glow: rgba(255, 68, 68, 0.45); }
-        .anime-node.genre-magic   { --genre-color: #ff66dd; --genre-glow: rgba(255, 102, 221, 0.45); }
-        .anime-node.genre-mystery { --genre-color: #00ffaa; --genre-glow: rgba(0, 255, 170, 0.45); }
-        .anime-node.genre-suspense { --genre-color: #aa66ff; --genre-glow: rgba(170, 102, 255, 0.45); }
-        .anime-node.genre-romance { --genre-color: #ff88cc; --genre-glow: rgba(255, 136, 204, 0.45); }
-        .anime-node.genre-dark    { --genre-color: #cc3333; --genre-glow: rgba(204, 51, 51, 0.45); }
-
         /* ===== 连接线 ===== */
         .connection-line {
             position: absolute;
@@ -950,8 +937,23 @@
     <div id="cursor-tracker"></div>
 
     <script>
-        // ===== 动漫数据库 =====
-        const animeDatabase = [
+        /*
+         * ============================================================
+         *  数据维护说明
+         * ============================================================
+         *  1. 新增作品：在下面的 rawAnimeData 数组中追加对象即可。
+         *     必填字段：year, title, genre, desc
+         *     可选字段：image, studio, director, aliases, tags
+         *  2. 新增分类：在 GENRE_PALETTE 中添加分类名与主题色，
+         *     系统会自动为新分类生成颜色，无需再修改 CSS。
+         *  3. 控制台工具：页面加载后可在浏览器控制台使用
+         *     AnimeDB.add({...}) / AnimeDB.update(index, {...}) /
+         *     AnimeDB.remove(index) / AnimeDB.search(keyword)
+         * ============================================================
+         */
+
+        // ===== 动漫数据库（后续只需扩展此数组） =====
+        const rawAnimeData = [
             {
                 year: 1963,
                 title: "铁臂阿童木",
@@ -1248,6 +1250,8 @@
             }
         ];
 
+        AnimeDB.init(rawAnimeData);
+
         // ===== 配置常量 =====
         const CONFIG = {
             CAMERA_WIDTH: 320,
@@ -1321,27 +1325,146 @@
             return start + (end - start) * factor;
         }
 
-        const GENRE_META = {
-            '科幻':   { className: 'genre-scifi',   color: '#00f3ff' },
-            '冒险':   { className: 'genre-adventure', color: '#ffcc00' },
-            '机甲':   { className: 'genre-mecha',   color: '#4488ff' },
-            '喜剧':   { className: 'genre-comedy',  color: '#ffee66' },
-            '奇幻':   { className: 'genre-fantasy', color: '#b026ff' },
-            '战斗':   { className: 'genre-battle',  color: '#ff4444' },
-            '魔法':   { className: 'genre-magic',   color: '#ff66dd' },
-            '推理':   { className: 'genre-mystery', color: '#00ffaa' },
-            '悬疑':   { className: 'genre-suspense', color: '#aa66ff' },
-            '爱情':   { className: 'genre-romance', color: '#ff88cc' },
-            '黑暗':   { className: 'genre-dark',    color: '#cc3333' }
+        // ===== 数据层：类型配置 =====
+        // 新增分类时，只需在此添加名称与主题色即可，CSS 会自动生成
+        const GENRE_PALETTE = {
+            '科幻':  '#00f3ff',
+            '冒险':  '#ffcc00',
+            '机甲':  '#4488ff',
+            '喜剧':  '#ffee66',
+            '奇幻':  '#b026ff',
+            '战斗':  '#ff4444',
+            '魔法':  '#ff66dd',
+            '推理':  '#00ffaa',
+            '悬疑':  '#aa66ff',
+            '爱情':  '#ff88cc',
+            '黑暗':  '#cc3333'
         };
 
-        function getGenreClass(genre) {
-            return GENRE_META[genre]?.className || 'genre-scifi';
+        function getGenreColor(genre) {
+            return GENRE_PALETTE[genre] || '#00f3ff';
         }
 
-        function getGenreColor(genre) {
-            return GENRE_META[genre]?.color || '#00f3ff';
+        function hexToRgba(hex, alpha) {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
         }
+
+        // ===== 数据层：模型与校验 =====
+        const AnimeSchema = {
+            required: ['year', 'title', 'genre', 'desc'],
+            optional: ['image', 'studio', 'director', 'aliases', 'tags'],
+
+            validate(anime) {
+                const errors = [];
+                for (const key of this.required) {
+                    if (anime[key] === undefined || anime[key] === null || anime[key] === '') {
+                        errors.push(`缺少必填字段: ${key}`);
+                    }
+                }
+                if (anime.genre && !GENRE_PALETTE[anime.genre]) {
+                    errors.push(`未知分类 "${anime.genre}"，请先在 GENRE_PALETTE 中定义`);
+                }
+                return errors;
+            }
+        };
+
+        // ===== 数据层：仓库 =====
+        const AnimeDB = {
+            _data: [],
+
+            init(items) {
+                this._data = items.map(item => this.normalize(item));
+                this.validateAll();
+                return this;
+            },
+
+            normalize(anime) {
+                return {
+                    year: anime.year,
+                    title: anime.title,
+                    genre: anime.genre,
+                    desc: anime.desc,
+                    image: anime.image || '',
+                    studio: anime.studio || '',
+                    director: anime.director || '',
+                    aliases: anime.aliases || '',
+                    tags: Array.isArray(anime.tags) ? anime.tags : []
+                };
+            },
+
+            get all() { return this._data; },
+            get count() { return this._data.length; },
+
+            get(index) { return this._data[index]; },
+            add(anime) { return this._insert(anime, this._data.length); },
+            insert(index, anime) { return this._insert(anime, index); },
+
+            _insert(anime, index) {
+                const errors = AnimeSchema.validate(anime);
+                if (errors.length) {
+                    console.error('AnimeDB 添加失败:', errors.join('; '));
+                    return false;
+                }
+                this._data.splice(index, 0, this.normalize(anime));
+                return true;
+            },
+
+            update(index, patch) {
+                if (index < 0 || index >= this._data.length) return false;
+                const updated = { ...this._data[index], ...patch };
+                const errors = AnimeSchema.validate(updated);
+                if (errors.length) {
+                    console.error('AnimeDB 更新失败:', errors.join('; '));
+                    return false;
+                }
+                this._data[index] = this.normalize(updated);
+                return true;
+            },
+
+            remove(index) {
+                if (index < 0 || index >= this._data.length) return false;
+                this._data.splice(index, 1);
+                return true;
+            },
+
+            validateAll() {
+                this._data.forEach((anime, index) => {
+                    const errors = AnimeSchema.validate(anime);
+                    if (errors.length) {
+                        console.warn(`AnimeDB 第 ${index} 条校验警告 [${anime.title || '?'}]:`, errors.join('; '));
+                    }
+                });
+            },
+
+            filterByGenre(genre) { return this._data.filter(a => a.genre === genre); },
+            filterByYearRange(start, end) { return this._data.filter(a => a.year >= start && a.year <= end); },
+
+            search(keyword) {
+                const k = String(keyword).toLowerCase();
+                return this._data.filter(a =>
+                    String(a.title).toLowerCase().includes(k) ||
+                    String(a.desc).toLowerCase().includes(k) ||
+                    String(a.genre).includes(keyword)
+                );
+            },
+
+            toJSON() { return JSON.stringify(this._data, null, 2); },
+
+            fromJSON(json) {
+                try {
+                    const items = JSON.parse(json);
+                    if (!Array.isArray(items)) throw new Error('数据必须是数组');
+                    this.init(items);
+                    return true;
+                } catch (e) {
+                    console.error('AnimeDB 导入失败:', e.message);
+                    return false;
+                }
+            }
+        };
 
         /**
          * 判断手指是否伸展：指尖到手腕的距离大于近端指节到手腕距离的 1.1 倍
@@ -1386,7 +1509,7 @@
 
         // ===== 图片预加载 =====
         function preloadImages() {
-            animeDatabase.forEach(anime => {
+            AnimeDB.all.forEach(anime => {
                 if (anime.image) {
                     const img = new Image();
                     img.src = anime.image;
@@ -1394,75 +1517,98 @@
             });
         }
 
-        // ===== 生成时间树 =====
+        // ===== 时间树渲染 =====
         function generateTimelineTree() {
             const container = dom.spiralContainer;
             const centerX = 50;
             const centerY = 50;
             const { SPIRAL_MIN_RADIUS: minRadius, SPIRAL_MAX_RADIUS: maxRadius, SPIRAL_TURNS } = CONFIG;
+            const total = AnimeDB.count;
 
-            animeDatabase.forEach((anime, index) => {
-                const node = document.createElement('div');
-                node.className = `anime-node ${getGenreClass(anime.genre)}`;
-                node.dataset.index = String(index);
-                node.setAttribute('tabindex', '0');
-                node.setAttribute('role', 'button');
-                node.setAttribute('aria-label', `${anime.year}年 ${anime.title}，${anime.genre}`);
-                if (anime.image) {
-                    node.style.backgroundImage = `url('${anime.image}')`;
-                    node.style.backgroundSize = 'cover';
-                    node.style.backgroundPosition = 'center';
-                }
-
-                const progress = index / animeDatabase.length;
-                const angle = progress * Math.PI * 2 * SPIRAL_TURNS;
-                const radius = minRadius + (maxRadius - minRadius) * progress;
-                const x = centerX + radius * Math.cos(angle);
-                const y = centerY + radius * Math.sin(angle);
-
-                node.style.left = x + '%';
-                node.style.top = y + '%';
-
-                node.innerHTML = `
-                    <div class="node-content">
-                        <div class="node-float" style="animation-delay: ${(index % 10) * 0.3}s">
-                            <div class="node-year">${anime.year}</div>
-                            <div class="node-title">${anime.title}</div>
-                        </div>
-                    </div>
-                `;
-
-                node.addEventListener('click', () => showDetail(index));
-                node.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        showDetail(index);
-                    }
-                });
-                node.addEventListener('mouseenter', () => node.classList.add('active'));
-                node.addEventListener('mouseleave', () => {
-                    if (state.selectedNode !== index) node.classList.remove('active');
-                });
-
+            AnimeDB.all.forEach((anime, index) => {
+                const position = calculateNodePosition(index, total, centerX, centerY, minRadius, maxRadius, SPIRAL_TURNS);
+                const node = createNodeElement(anime, index, position);
                 container.appendChild(node);
 
                 if (index > 0) {
-                    createConnectionLine(container, index, progress, angle, radius, x, y, centerX, centerY, minRadius, maxRadius);
+                    createConnectionLine(container, index, position.progress, position.angle, position.radius, position.x, position.y, centerX, centerY, minRadius, maxRadius);
                 }
             });
 
             createEraLabels(container, centerX, centerY);
-
-            // 缓存节点内容与年代标签，避免每次旋转都查询 DOM
-            dom.nodes = [...container.querySelectorAll('.anime-node')];
-            dom.nodeContents = [...container.querySelectorAll('.anime-node > .node-content')];
-            dom.eraLabels = [...container.querySelectorAll('.era-label')];
-
+            cacheTimelineNodes();
             applySpiralTransform();
         }
 
+        function calculateNodePosition(index, total, centerX, centerY, minRadius, maxRadius, spiralTurns) {
+            const progress = index / total;
+            const angle = progress * Math.PI * 2 * spiralTurns;
+            const radius = minRadius + (maxRadius - minRadius) * progress;
+            return {
+                progress,
+                angle,
+                radius,
+                x: centerX + radius * Math.cos(angle),
+                y: centerY + radius * Math.sin(angle)
+            };
+        }
+
+        function createNodeElement(anime, index, position) {
+            const node = document.createElement('div');
+            const genreColor = getGenreColor(anime.genre);
+
+            node.className = 'anime-node';
+            node.dataset.index = String(index);
+            node.setAttribute('tabindex', '0');
+            node.setAttribute('role', 'button');
+            node.setAttribute('aria-label', `${anime.year}年 ${anime.title}，${anime.genre}`);
+
+            // 类型主题色通过 CSS 变量直接设置，新增分类无需改 CSS
+            node.style.setProperty('--genre-color', genreColor);
+            node.style.setProperty('--genre-glow', hexToRgba(genreColor, 0.45));
+
+            if (anime.image) {
+                node.style.backgroundImage = `url('${anime.image}')`;
+                node.style.backgroundSize = 'cover';
+                node.style.backgroundPosition = 'center';
+            }
+
+            node.style.left = position.x + '%';
+            node.style.top = position.y + '%';
+
+            node.innerHTML = `
+                <div class="node-content">
+                    <div class="node-float" style="animation-delay: ${(index % 10) * 0.3}s">
+                        <div class="node-year">${anime.year}</div>
+                        <div class="node-title">${anime.title}</div>
+                    </div>
+                </div>
+            `;
+
+            node.addEventListener('click', () => showDetail(index));
+            node.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    showDetail(index);
+                }
+            });
+            node.addEventListener('mouseenter', () => node.classList.add('active'));
+            node.addEventListener('mouseleave', () => {
+                if (state.selectedNode !== index) node.classList.remove('active');
+            });
+
+            return node;
+        }
+
+        function cacheTimelineNodes() {
+            const container = dom.spiralContainer;
+            dom.nodes = [...container.querySelectorAll('.anime-node')];
+            dom.nodeContents = [...container.querySelectorAll('.anime-node > .node-content')];
+            dom.eraLabels = [...container.querySelectorAll('.era-label')];
+        }
+
         function createConnectionLine(container, index, progress, angle, radius, x, y, centerX, centerY, minRadius, maxRadius) {
-            const prevProgress = (index - 1) / animeDatabase.length;
+            const prevProgress = (index - 1) / AnimeDB.all.length;
             const prevAngle = prevProgress * Math.PI * 2 * CONFIG.SPIRAL_TURNS;
             const prevRadius = minRadius + (maxRadius - minRadius) * prevProgress;
             const prevX = centerX + prevRadius * Math.cos(prevAngle);
@@ -1512,7 +1658,7 @@
             if (now - state.lastDetailOpenTime < CONFIG.DETAIL_OPEN_COOLDOWN_MS) return;
             state.lastDetailOpenTime = now;
 
-            const anime = animeDatabase[index];
+            const anime = AnimeDB.all[index];
             if (!anime) return;
 
             state.selectedNode = index;
