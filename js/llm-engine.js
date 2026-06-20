@@ -227,8 +227,35 @@ function findAnime(target) {
  */
 const LLMAssistant = {
     isProcessing: false,
+    chatMode: false,      // true: 闲聊模式，false: 命令模式
+    history: [],          // 闲聊历史 { role, content }
+    maxHistory: 10,       // 保留最近 10 轮
     onAction: null,       // function(action)
     onFeedback: null,     // function(message)
+    onChatUpdate: null,   // function(history)
+
+    setChatMode(enabled) {
+        this.chatMode = !!enabled;
+        if (!enabled) this.clearHistory();
+    },
+
+    toggleChatMode() {
+        this.setChatMode(!this.chatMode);
+        return this.chatMode;
+    },
+
+    clearHistory() {
+        this.history = [];
+        if (this.onChatUpdate) this.onChatUpdate(this.history);
+    },
+
+    addHistory(role, content) {
+        this.history.push({ role, content });
+        if (this.history.length > this.maxHistory * 2) {
+            this.history = this.history.slice(-this.maxHistory * 2);
+        }
+        if (this.onChatUpdate) this.onChatUpdate(this.history);
+    },
 
     async process(text, context = {}) {
         if (this.isProcessing) return;
@@ -236,11 +263,7 @@ const LLMAssistant = {
         this._feedback('思考中…');
 
         try {
-            const messages = [
-                { role: 'system', content: buildSystemPrompt(context) },
-                { role: 'user', content: text }
-            ];
-
+            const messages = this._buildMessages(text, context);
             const content = await LLMClient.chat(messages);
             const action = parseAction(content) || {
                 action: LLMActionType.CHAT,
@@ -248,6 +271,13 @@ const LLMAssistant = {
                 message: content
             };
 
+            // 闲聊模式下，所有回复统一按 chat 处理，不执行跳转/打开面板等动作
+            if (this.chatMode) {
+                action.action = LLMActionType.CHAT;
+            }
+
+            this.addHistory('user', text);
+            this.addHistory('assistant', action.message || '');
             this._execute(action, context);
         } catch (error) {
             console.warn('LLM 处理失败，降级到本地命令:', error.message);
@@ -255,6 +285,23 @@ const LLMAssistant = {
         } finally {
             this.isProcessing = false;
         }
+    },
+
+    _buildMessages(text, context) {
+        const systemPrompt = buildSystemPrompt(context) +
+            '\n\n## 闲聊模式说明\n' +
+            (this.chatMode
+                ? '当前处于闲聊模式。用户说的话都是日常闲聊，请用轻松自然的口吻回复，不需要执行任何操作。'
+                : '当前处于命令模式。请根据用户指令执行对应操作并返回 JSON。');
+
+        const messages = [{ role: 'system', content: systemPrompt }];
+
+        // 命令模式下也保留少量历史，让 LLM 能联系上下文理解指代
+        const recentHistory = this.history.slice(-Math.min(this.history.length, 6));
+        messages.push(...recentHistory);
+
+        messages.push({ role: 'user', content: text });
+        return messages;
     },
 
     _feedback(message) {

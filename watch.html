@@ -467,6 +467,133 @@
             transform: translateY(0);
         }
 
+        /* ===== 闲聊开关 ===== */
+        .chat-toggle {
+            position: fixed;
+            top: 30px;
+            right: 82px;
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            border: 1px solid rgba(0, 255, 255, 0.35);
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            color: var(--neon-cyan);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 100;
+            pointer-events: auto;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .chat-toggle:hover {
+            background: rgba(0, 255, 255, 0.15);
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.25);
+            transform: translateY(-2px);
+        }
+
+        .chat-toggle[aria-pressed="true"] {
+            background: rgba(0, 255, 255, 0.2);
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.35);
+            animation: chatPulse 1.6s ease-in-out infinite;
+        }
+
+        @keyframes chatPulse {
+            0%, 100% { box-shadow: 0 0 15px rgba(0, 255, 255, 0.2); }
+            50% { box-shadow: 0 0 30px rgba(0, 255, 255, 0.45); }
+        }
+
+        .chat-panel {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: min(360px, calc(100vw - 60px));
+            max-height: min(480px, calc(100vh - 120px));
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 255, 255, 0.25);
+            border-radius: 16px;
+            z-index: 99;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .chat-panel.open {
+            display: flex;
+        }
+
+        .chat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.15);
+            color: var(--neon-cyan);
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .chat-header button {
+            background: transparent;
+            border: none;
+            color: var(--neon-cyan);
+            cursor: pointer;
+            font-size: 1.1rem;
+            line-height: 1;
+            padding: 2px 6px;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .chat-header button:hover {
+            background: rgba(0, 255, 255, 0.15);
+        }
+
+        .chat-history {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .chat-bubble {
+            max-width: 85%;
+            padding: 10px 14px;
+            border-radius: 14px;
+            font-size: 0.9rem;
+            line-height: 1.45;
+            word-break: break-word;
+        }
+
+        .chat-bubble.user {
+            align-self: flex-end;
+            background: rgba(255, 0, 255, 0.18);
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+
+        .chat-bubble.assistant {
+            align-self: flex-start;
+            background: rgba(0, 255, 255, 0.12);
+            color: #fff;
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-status {
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.6);
+            text-align: center;
+            min-height: 30px;
+        }
+
         /* ===== 手势光标 ===== */
         #hand-cursor {
             position: fixed;
@@ -673,6 +800,28 @@
     </button>
     <div class="voice-feedback" id="voice-feedback"></div>
 
+    <!-- 闲聊模式开关 -->
+    <button class="chat-toggle" id="chat-toggle" aria-label="开启闲聊模式" aria-pressed="false" title="闲聊模式">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+            <circle cx="9" cy="10" r="1.5"/>
+            <circle cx="15" cy="10" r="1.5"/>
+        </svg>
+    </button>
+
+    <!-- 闲聊面板 -->
+    <div class="chat-panel" id="chat-panel" aria-label="闲聊对话">
+        <div class="chat-header">
+            <span>语音闲聊</span>
+            <div>
+                <button id="chat-clear" title="清空对话" aria-label="清空对话">🗑</button>
+                <button id="chat-close" title="关闭面板" aria-label="关闭面板">×</button>
+            </div>
+        </div>
+        <div class="chat-history" id="chat-history"></div>
+        <div class="chat-status" id="chat-status">点击气泡开启闲聊</div>
+    </div>
+
     <!-- 主内容 -->
     <main class="watch-main">
         <div class="video-stage" id="video-stage">
@@ -761,6 +910,10 @@
             cameraSection: document.getElementById('camera-section'),
             voiceToggle: document.getElementById('voice-toggle'),
             voiceFeedback: document.getElementById('voice-feedback'),
+            chatToggle: document.getElementById('chat-toggle'),
+            chatPanel: document.getElementById('chat-panel'),
+            chatHistory: document.getElementById('chat-history'),
+            chatStatus: document.getElementById('chat-status'),
             btnPlay: document.getElementById('btn-play'),
             btnMute: document.getElementById('btn-mute')
         };
@@ -934,6 +1087,58 @@
             showVoiceFeedback(seconds > 0 ? `快进 ${seconds} 秒` : `后退 ${Math.abs(seconds)} 秒`);
         }
 
+        // ===== 闲聊模式初始化 =====
+        function initChatMode() {
+            if (!dom.chatToggle || !dom.chatPanel) return;
+
+            dom.chatToggle.style.display = VoiceEngine.isSupported() ? 'flex' : 'none';
+
+            dom.chatToggle.addEventListener('click', () => {
+                const enabled = LLMAssistant.toggleChatMode();
+                dom.chatToggle.setAttribute('aria-pressed', String(enabled));
+                dom.chatPanel.classList.toggle('open', enabled);
+                dom.chatStatus.textContent = enabled ? '正在聆听…' : '点击气泡开启闲聊';
+                if (enabled) {
+                    const voiceToggle = dom.voiceToggle;
+                    if (voiceToggle && voiceToggle.style.display !== 'none' && !VoiceEngine.isListening) {
+                        VoiceEngine.onResult = handleVoiceCommand;
+                        VoiceEngine.start();
+                        updateVoiceButton(true);
+                    }
+                }
+            });
+
+            document.getElementById('chat-close').addEventListener('click', () => {
+                LLMAssistant.setChatMode(false);
+                dom.chatToggle.setAttribute('aria-pressed', 'false');
+                dom.chatPanel.classList.remove('open');
+                dom.chatStatus.textContent = '点击气泡开启闲聊';
+            });
+
+            document.getElementById('chat-clear').addEventListener('click', () => {
+                LLMAssistant.clearHistory();
+                dom.chatHistory.innerHTML = '';
+                dom.chatStatus.textContent = '对话已清空';
+            });
+
+            LLMAssistant.onChatUpdate = (history) => {
+                dom.chatHistory.innerHTML = '';
+                history.forEach(item => {
+                    const bubble = document.createElement('div');
+                    bubble.className = `chat-bubble ${item.role}`;
+                    bubble.textContent = item.content;
+                    dom.chatHistory.appendChild(bubble);
+                });
+                dom.chatHistory.scrollTop = dom.chatHistory.scrollHeight;
+            };
+
+            LLMAssistant.onFeedback = (message) => {
+                if (dom.chatPanel.classList.contains('open')) {
+                    dom.chatStatus.textContent = message;
+                }
+            };
+        }
+
         // ===== UI 交互 =====
         function initUI() {
             // 手势提示折叠
@@ -964,6 +1169,9 @@
                     }
                 });
             }
+
+            // 闲聊模式
+            initChatMode();
         }
 
         function initCameraControls() {
