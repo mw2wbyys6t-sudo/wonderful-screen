@@ -17,6 +17,8 @@
     <!-- 共享数据与工具 -->
     <script src="js/shared-data.js"></script>
     <script src="js/shared-utils.js"></script>
+    <script src="js/llm-config.js"></script>
+    <script src="js/llm-engine.js"></script>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1010,6 +1012,28 @@
 
         function handleVoiceCommand(text) {
             showVoiceFeedback(`识别：${text}`);
+
+            // 优先走 LLM 语音助手
+            if (window.LLMAssistant) {
+                LLMAssistant.onFeedback = showVoiceFeedback;
+                LLMAssistant.onAction = (action, ctx) => {
+                    switch (action.action) {
+                        case 'play':
+                            togglePlay();
+                            break;
+                        case 'close':
+                            window.location.href = 'nebula-chronicle.html';
+                            break;
+                        case 'chat':
+                        default:
+                            showVoiceFeedback(action.message || '收到');
+                    }
+                };
+                LLMAssistant.process(text, { page: 'watch' });
+                return;
+            }
+
+            // 无 LLM 时的本地兜底
             const lower = text.toLowerCase().replace(/[，。？！]/g, ' ').trim();
 
             if (lower.includes('关闭') || lower.includes('退出') || lower.includes('返回')) {

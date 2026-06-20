@@ -4,12 +4,7 @@ errors = []
 
 def main():
     with sync_playwright() as p:
-        import os
-        cached_chrome = '/root/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome'
-        launch_opts = {'headless': True}
-        if os.path.isfile(cached_chrome):
-            launch_opts['executable_path'] = cached_chrome
-        browser = p.chromium.launch(**launch_opts)
+        browser = p.firefox.launch(headless=True)
         context = browser.new_context(
             viewport={'width': 1280, 'height': 800}
         )

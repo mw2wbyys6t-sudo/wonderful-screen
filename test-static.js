@@ -137,6 +137,19 @@ function createMockedWindow(htmlPath, search = '') {
     };
     win.navigator.userAgent = 'Mozilla/5.0 (X11; Linux x86_64) Chrome/120.0';
 
+    // Mock fetch for LLM
+    win.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ choices: [{ message: { content: '{"action":"chat","target":"","message":"你好"}' } }] }) });
+
+    // Mock speech synthesis
+    win.speechSynthesis = {
+        speak: () => {},
+        cancel: () => {},
+        getVoices: () => []
+    };
+    win.SpeechSynthesisUtterance = class {
+        constructor(text) { this.text = text; }
+    };
+
     // Load HTML without scripts first
     const htmlWithoutScripts = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
     win.document.write(htmlWithoutScripts);
@@ -145,8 +158,12 @@ function createMockedWindow(htmlPath, search = '') {
     // Inline shared scripts
     const sharedDataJs = fs.readFileSync('/workspace/js/shared-data.js', 'utf-8');
     const sharedUtilsJs = fs.readFileSync('/workspace/js/shared-utils.js', 'utf-8');
+    const llmConfigJs = fs.readFileSync('/workspace/js/llm-config.js', 'utf-8');
+    const llmEngineJs = fs.readFileSync('/workspace/js/llm-engine.js', 'utf-8');
     win.eval(sharedDataJs);
     win.eval(sharedUtilsJs);
+    win.eval(llmConfigJs);
+    win.eval(llmEngineJs);
 
     // Execute inline scripts in a single shared scope
     const scripts = extractScripts(html);
@@ -163,7 +180,8 @@ function createMockedWindow(htmlPath, search = '') {
                 startExperience: (typeof startExperience !== 'undefined') ? startExperience : null,
                 showDetail: (typeof showDetail !== 'undefined') ? showDetail : null,
                 handleVoiceCommand: (typeof handleVoiceCommand !== 'undefined') ? handleVoiceCommand : null,
-                initPage: (typeof initPage !== 'undefined') ? initPage : null
+                initPage: (typeof initPage !== 'undefined') ? initPage : null,
+                LLMAssistant: (typeof LLMAssistant !== 'undefined') ? LLMAssistant : null
             };
         `;
         win.eval(inlineCode + '\n;' + exposeCode);
@@ -195,6 +213,8 @@ async function testMainPage() {
 
     const animeDB = win.eval('AnimeDB');
     assert(animeDB && animeDB.count > 0, 'AnimeDB data is loaded');
+    assert(win.__test && win.__test.LLMAssistant, 'LLMAssistant is loaded');
+    assert(win.LLM_CONFIG && win.LLM_CONFIG.apiKey, 'LLM_CONFIG is loaded');
 
     // Directly invoke startup flow
     try {
@@ -260,6 +280,7 @@ async function testWatchPage() {
     assert(noSource, 'no-source placeholder exists');
 
     assert(win.__test && typeof win.__test.handleVoiceCommand === 'function', 'handleVoiceCommand is defined');
+    assert(win.__test && win.__test.LLMAssistant, 'watch page LLMAssistant is loaded');
 
     win.close();
 }

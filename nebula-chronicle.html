@@ -17,7 +17,8 @@
     <!-- 共享数据与工具 -->
     <script src="js/shared-data.js"></script>
     <script src="js/shared-utils.js"></script>
-
+    <script src="js/llm-config.js"></script>
+    <script src="js/llm-engine.js"></script>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2368,6 +2369,40 @@
 
         function handleVoiceCommand(text) {
             showVoiceFeedback(`识别：${text}`);
+
+            // 优先走 LLM 语音助手
+            if (window.LLMAssistant) {
+                LLMAssistant.onFeedback = showVoiceFeedback;
+                LLMAssistant.onAction = (action, ctx) => {
+                    switch (action.action) {
+                        case 'play':
+                            if (action.index >= 0) {
+                                window.location.href = `watch.html?index=${action.index}`;
+                            }
+                            break;
+                        case 'info':
+                            if (action.index >= 0) {
+                                selectNode(action.index);
+                                openDetail();
+                            }
+                            break;
+                        case 'recommend':
+                        case 'navigate':
+                            showVoiceFeedback(action.message);
+                            break;
+                        case 'close':
+                            closeDetail();
+                            break;
+                        case 'chat':
+                        default:
+                            showVoiceFeedback(action.message || '收到');
+                    }
+                };
+                LLMAssistant.process(text, { page: 'main' });
+                return;
+            }
+
+            // 无 LLM 时的本地兜底
             const lower = text.toLowerCase().replace(/[，。？！]/g, ' ').trim();
             if (lower.includes('关闭') || lower.includes('退出')) {
                 closeDetail();
