@@ -142,7 +142,7 @@ const rawAnimeData = [
         genre: "机甲",
         desc: `庵野秀明执导的心理机甲动画，以其深刻的心理描写和宗教隐喻彻底改变了动画界。`,
         image: "images/14.jpg",
-        bilibili: "",
+        bilibili: "BV1NL411M7mT",
         videoUrl: ""
     },
     {
@@ -340,7 +340,7 @@ const rawAnimeData = [
         genre: "战斗",
         desc: `吾峠呼世晴创作的鬼杀队故事，以其精美的动画和感人的兄妹情成为现象级作品。`,
         image: "images/36.jpg",
-        bilibili: "",
+        bilibili: "BV1Wb411K7u6",
         videoUrl: ""
     },
     {
@@ -349,7 +349,7 @@ const rawAnimeData = [
         genre: "战斗",
         desc: `芥见下下创作的咒术师战斗漫画，以其现代化的设定和精彩的战斗场面广受欢迎。`,
         image: "images/37.jpg",
-        bilibili: "",
+        bilibili: "BV1A5411K7NH",
         videoUrl: ""
     },
     {
@@ -376,7 +376,7 @@ const rawAnimeData = [
         genre: "奇幻",
         desc: `以勇者死后世界为视角的奇幻动画，以其独特的叙事节奏和深刻的生命思考备受赞誉。`,
         image: "images/40.jpg",
-        bilibili: "",
+        bilibili: "BV18j411i7iu",
         videoUrl: ""
     },
     {
