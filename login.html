@@ -63,14 +63,15 @@
             100% { transform: scale(1.18) translate(-1.5%, -1%); }
         }
 
-        /* 暗角与色调层 */
+        /* 暗角与色调层：右侧更暗以突出登录卡片，中央保留人物亮度 */
         .vignette {
             position: fixed;
             inset: 0;
             z-index: 1;
             background:
-                radial-gradient(circle at 50% 35%, transparent 0%, rgba(3, 3, 10, 0.45) 55%, rgba(3, 3, 10, 0.85) 100%),
-                linear-gradient(180deg, rgba(3, 3, 10, 0.3) 0%, rgba(3, 3, 10, 0.1) 40%, rgba(3, 3, 10, 0.6) 100%);
+                radial-gradient(circle at 45% 35%, transparent 0%, rgba(3, 3, 10, 0.35) 50%, rgba(3, 3, 10, 0.75) 100%),
+                linear-gradient(90deg, rgba(3, 3, 10, 0.2) 0%, rgba(3, 3, 10, 0.1) 45%, rgba(3, 3, 10, 0.55) 80%, rgba(3, 3, 10, 0.7) 100%),
+                linear-gradient(180deg, rgba(3, 3, 10, 0.35) 0%, rgba(3, 3, 10, 0.05) 40%, rgba(3, 3, 10, 0.55) 100%);
             pointer-events: none;
         }
 
@@ -134,10 +135,10 @@
             height: 100%;
             display: flex;
             flex-direction: column;
-            align-items: center;
+            align-items: flex-end;
             justify-content: center;
             perspective: 1200px;
-            padding: 40px 20px;
+            padding: 40px min(5vw, 80px);
         }
 
         /* 顶部标题 */
@@ -179,7 +180,9 @@
         /* ===== 玻璃登录卡片 ===== */
         .login-scene {
             position: relative;
-            width: min(92vw, 440px);
+            width: min(42vw, 420px);
+            min-width: 320px;
+            margin-top: 50px;
         }
 
         .glass-back {
@@ -396,8 +399,7 @@
         .slide-indicators {
             position: absolute;
             bottom: 42px;
-            left: 50%;
-            transform: translateX(-50%);
+            left: 42px;
             display: flex;
             gap: 10px;
             z-index: 10;
@@ -423,16 +425,16 @@
         .character-label {
             position: absolute;
             bottom: 78px;
-            left: 50%;
-            transform: translateX(-50%);
+            left: 42px;
             z-index: 10;
             font-family: 'ZCOOL XiaoWei', serif;
-            font-size: 14px;
-            color: rgba(255, 255, 255, 0.55);
-            letter-spacing: 3px;
+            font-size: 15px;
+            color: rgba(255, 255, 255, 0.65);
+            letter-spacing: 4px;
             opacity: 0;
             transition: opacity 0.8s ease;
             pointer-events: none;
+            text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
         }
 
         .character-label.visible {
@@ -440,6 +442,30 @@
         }
 
         /* 响应式 */
+        @media (max-width: 900px) {
+            .scene {
+                align-items: center;
+                padding: 40px 20px;
+            }
+            .login-scene {
+                width: min(92vw, 440px);
+                margin-top: 70px;
+            }
+            .vignette {
+                background:
+                    radial-gradient(circle at 50% 35%, transparent 0%, rgba(3, 3, 10, 0.45) 50%, rgba(3, 3, 10, 0.85) 100%),
+                    linear-gradient(180deg, rgba(3, 3, 10, 0.35) 0%, rgba(3, 3, 10, 0.15) 45%, rgba(3, 3, 10, 0.7) 100%);
+            }
+            .slide-indicators,
+            .character-label {
+                left: 50%;
+                transform: translateX(-50%);
+            }
+            .character-label {
+                bottom: 80px;
+            }
+        }
+
         @media (max-width: 480px) {
             .glass-card {
                 padding: 34px 26px;
@@ -450,6 +476,9 @@
             }
             .main-title {
                 letter-spacing: 6px;
+            }
+            .login-scene {
+                min-width: auto;
             }
         }
     </style>
@@ -507,16 +536,16 @@
     </div>
 
     <script>
-        // 角色轮播数据
+        // 角色轮播数据：focus 为 object-position，确保人物主体不被遮挡
         const characters = [
-            { file: 'violet-evergarden.png', name: '薇尔莉特 · 伊芙加登' },
-            { file: 'akiyama-mio.jpg', name: '秋山澪' },
-            { file: 'tachibana-kanade.jpg', name: '立华奏' },
-            { file: 'shana.jpg', name: '夏娜' },
-            { file: 'kato-megumi.jpg', name: '加藤惠' },
-            { file: 'rem.jpg', name: '雷姆' },
-            { file: 'elaina.jpg', name: '伊蕾娜' },
-            { file: 'misaka-mikoto.jpg', name: '御坂美琴' }
+            { file: 'violet-evergarden.png', name: '薇尔莉特 · 伊芙加登', focus: '50% 28%' },
+            { file: 'akiyama-mio.jpg', name: '秋山澪', focus: '52% 32%' },
+            { file: 'tachibana-kanade.jpg', name: '立华奏', focus: '50% 30%' },
+            { file: 'shana.jpg', name: '夏娜', focus: '50% 35%' },
+            { file: 'kato-megumi.jpg', name: '加藤惠', focus: '46% 30%' },
+            { file: 'rem.jpg', name: '雷姆', focus: '50% 28%' },
+            { file: 'elaina.jpg', name: '伊蕾娜', focus: '48% 26%' },
+            { file: 'misaka-mikoto.jpg', name: '御坂美琴', focus: '46% 30%' }
         ];
 
         const slideshow = document.getElementById('slideshow');
@@ -530,7 +559,17 @@
             characters.forEach((char, index) => {
                 const slide = document.createElement('div');
                 slide.className = 'slide' + (index === 0 ? ' active' : '');
-                slide.innerHTML = `<img src="images/login/${char.file}" alt="${char.name}" loading="${index === 0 ? 'eager' : 'lazy'}">`;
+
+                const img = document.createElement('img');
+                img.src = `images/login/${char.file}`;
+                img.alt = char.name;
+                img.loading = index === 0 ? 'eager' : 'lazy';
+                img.style.objectPosition = char.focus || '50% 50%';
+                img.style.objectFit = 'cover';
+                img.style.width = '100%';
+                img.style.height = '100%';
+                slide.appendChild(img);
+
                 slideshow.appendChild(slide);
 
                 const dot = document.createElement('button');
