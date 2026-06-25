@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liquid Glass Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #050714;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+        }
+
+        /* 动态光斑背景层 */
+        .ambient-light {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.55;
+            animation: float 12s ease-in-out infinite;
+        }
+
+        .orb-1 {
+            width: 420px;
+            height: 420px;
+            background: radial-gradient(circle, #4da6ff 0%, #2d5af5 70%, transparent 100%);
+            top: -80px;
+            left: -80px;
+            animation-delay: 0s;
+        }
+
+        .orb-2 {
+            width: 360px;
+            height: 360px;
+            background: radial-gradient(circle, #b892ff 0%, #7c4dff 70%, transparent 100%);
+            bottom: -60px;
+            right: -60px;
+            animation-delay: -4s;
+        }
+
+        .orb-3 {
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, #52d1c1 0%, #0099cc 70%, transparent 100%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation-delay: -8s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translate(0, 0) scale(1);
+            }
+            25% {
+                transform: translate(30px, -40px) scale(1.05);
+            }
+            50% {
+                transform: translate(-20px, 20px) scale(0.95);
+            }
+            75% {
+                transform: translate(40px, 30px) scale(1.02);
+            }
+        }
+
+        /* 深度层叠容器 */
+        .scene {
+            position: relative;
+            z-index: 1;
+            width: min(92vw, 480px);
+            perspective: 1200px;
+        }
+
+        /* 后排装饰玻璃层 */
+        .glass-back {
+            position: absolute;
+            width: 90%;
+            height: 92%;
+            top: 10px;
+            left: 5%;
+            border-radius: 36px;
+            background: rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+            transform: translateZ(-60px) rotateX(4deg);
+        }
+
+        /* 主玻璃卡片 */
+        .glass-card {
+            position: relative;
+            width: 100%;
+            padding: 48px 40px;
+            border-radius: 36px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(28px);
+            -webkit-backdrop-filter: blur(28px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.25),
+                inset 0 1px 0 rgba(255, 255, 255, 0.25),
+                inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+            overflow: hidden;
+            transform-style: preserve-3d;
+            transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        /* 顶部轮廓高光 */
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 36px;
+            padding: 1px;
+            background: linear-gradient(
+                180deg,
+                rgba(255, 255, 255, 0.35) 0%,
+                rgba(255, 255, 255, 0.08) 40%,
+                transparent 70%
+            );
+            -webkit-mask:
+                linear-gradient(#fff 0 0) content-box,
+                linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
+
+        /* 鼠标跟随高光 */
+        .sheen {
+            position: absolute;
+            width: 280px;
+            height: 280px;
+            border-radius: 50%;
+            background: radial-gradient(
+                circle,
+                rgba(255, 255, 255, 0.22) 0%,
+                rgba(255, 255, 255, 0.08) 35%,
+                transparent 70%
+            );
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            mix-blend-mode: overlay;
+        }
+
+        .glass-card:hover .sheen {
+            opacity: 1;
+        }
+
+        /* 内容层 */
+        .content {
+            position: relative;
+            z-index: 2;
+            color: #fff;
+            text-align: center;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 18px;
+            border-radius: 100px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 28px;
+        }
+
+        .badge-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #52d1c1;
+            box-shadow: 0 0 12px #52d1c1;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.7; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.15); }
+        }
+
+        h1 {
+            font-size: 42px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 16px;
+            text-shadow: 0 2px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        p {
+            font-size: 17px;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.72);
+            margin-bottom: 36px;
+            max-width: 320px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .cta-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px 36px;
+            border-radius: 100px;
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.35s ease;
+            box-shadow:
+                0 4px 20px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        .cta-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow:
+                0 8px 32px rgba(77, 166, 255, 0.25),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+
+        .cta-button::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 100px;
+            padding: 1px;
+            background: linear-gradient(
+                180deg,
+                rgba(255, 255, 255, 0.45) 0%,
+                rgba(255, 255, 255, 0.05) 60%,
+                transparent 100%
+            );
+            -webkit-mask:
+                linear-gradient(#fff 0 0) content-box,
+                linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
+
+        /* 提示 */
+        .hint {
+            position: fixed;
+            bottom: 28px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 13px;
+            z-index: 2;
+            letter-spacing: 0.02em;
+        }
+
+        /* 响应式微调 */
+        @media (max-width: 480px) {
+            .glass-card {
+                padding: 36px 28px;
+                border-radius: 28px;
+            }
+            h1 {
+                font-size: 32px;
+            }
+            p {
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="ambient-light">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <div class="scene">
+        <div class="glass-back"></div>
+        <div class="glass-card" id="glassCard">
+            <div class="sheen" id="sheen"></div>
+            <div class="content">
+                <div class="badge">
+                    <span class="badge-dot"></span>
+                    Liquid Glass 风格演示
+                </div>
+                <h1>星云编年史</h1>
+                <p>这是为登录页设计的液态玻璃质感预览。<br>移动鼠标体验跟随高光效果。</p>
+                <button class="cta-button">进入站点</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="hint">移动鼠标 · 查看玻璃表面高光流动</div>
+
+    <script>
+        const card = document.getElementById('glassCard');
+        const sheen = document.getElementById('sheen');
+        let targetX = 0, targetY = 0;
+        let currentX = 0, currentY = 0;
+
+        // 鼠标跟随：延迟高光，模拟液体流动感
+        card.addEventListener('mousemove', (e) => {
+            const rect = card.getBoundingClientRect();
+            targetX = e.clientX - rect.left;
+            targetY = e.clientY - rect.top;
+        });
+
+        card.addEventListener('mouseleave', () => {
+            sheen.style.opacity = '0';
+        });
+
+        card.addEventListener('mouseenter', () => {
+            sheen.style.opacity = '1';
+        });
+
+        function animateSheen() {
+            currentX += (targetX - currentX) * 0.12;
+            currentY += (targetY - currentY) * 0.12;
+            sheen.style.left = currentX + 'px';
+            sheen.style.top = currentY + 'px';
+            requestAnimationFrame(animateSheen);
+        }
+        animateSheen();
+
+        // 轻微的 3D 倾斜跟随
+        card.addEventListener('mousemove', (e) => {
+            const rect = card.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / rect.width - 0.5;
+            const y = (e.clientY - rect.top) / rect.height - 0.5;
+            card.style.transform = `rotateY(${x * 6}deg) rotateX(${-y * 6}deg)`;
+        });
+
+        card.addEventListener('mouseleave', () => {
+            card.style.transform = 'rotateY(0deg) rotateX(0deg)';
+        });
+    </script>
+</body>
+</html>
