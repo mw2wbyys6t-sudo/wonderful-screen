@@ -6,7 +6,8 @@
 
 若仓库已启用 GitHub Pages，可直接访问：
 
-- **登录页**：https://mw2wbyys6t-sudo.github.io/wonderful-screen/login.html
+- **启动页/登录页**：https://mw2wbyys6t-sudo.github.io/wonderful-screen/liquid-glass-demo.html
+- **原登录页**：https://mw2wbyys6t-sudo.github.io/wonderful-screen/login.html
 - **主应用**：https://mw2wbyys6t-sudo.github.io/wonderful-screen/nebula-chronicle.html
 - **播放页**：https://mw2wbyys6t-sudo.github.io/wonderful-screen/watch.html
 
@@ -34,32 +35,32 @@
 - 语音指令可控制播放、暂停、上一部、下一部等操作
 - 播放页支持 Bilibili BV 号或本地视频源
 
-### 4. Liquid Glass 风格登录页
-- 独立登录页 `/login.html`，采用苹果 Liquid Glass 设计语言
-- 8 位历届世界最萌大会（ISML）冠军女主角海报轮播：
-  薇尔莉特 · 伊芙加登、秋山澪、立华奏、夏娜、加藤惠、雷姆、伊蕾娜、御坂美琴
-- 玻璃态登录卡片、鼠标跟随高光、动态光斑、Ken Burns 背景动效
-- 登录后自动跳转至主应用
+### 4. Liquid Glass 风格启动页/登录页
+- **一体化入口页 `/liquid-glass-demo.html`**：15 秒星云世界观启动动画无缝衔接登录界面
+  - Three.js 3D 场景：液态玻璃角色卡片、菱形星座连线、中央魔法阵、星云漩涡粒子
+  - GSAP 动画时间线：星云苏醒 → 玻璃凝聚 → 角色觉醒 → 编年史展开 → 星图坍缩 → 星云漩涡 → 标题浮现 → 登录界面升起
+  - WebGL 不可用静态降级：自动切换为标题 + 登录卡片，保证所有设备可登录
+- 独立登录页 `/login.html`：8 位 ISML 冠军女主角海报轮播 + Liquid Glass 玻璃卡片
+- 角色海报：薇尔莉特 · 伊芙加登、秋山澪、立华奏、夏娜、加藤惠、雷姆、伊蕾娜、御坂美琴
+
+### 5. 角色展示短片
+- `/videos/character_showcase.mp4`：8 位萌王角色 Ken Burns 展示短片
+- 1920×1080 / 41.6 秒 / 约 15 MB，可直接作为项目宣传或 BGM 背景素材
 
 ## 项目结构
 
 ```
 /workspace
-├── login.html              # Liquid Glass 风格登录页
+├── liquid-glass-demo.html  # 启动页 + 登录页一体化（推荐入口）
+├── login.html              # 原 Liquid Glass 风格登录页
 ├── nebula-chronicle.html   # 主应用：星云编年史 + AI 助手
 ├── watch.html              # 播放页：手势/语音控制视频播放
-├── liquid-glass-demo.html  # Liquid Glass 效果 Demo
-├── images/                 # 动漫封面图与登录角色海报
-│   ├── login/
-│   │   ├── violet-evergarden.png
-│   │   ├── akiyama-mio.jpg
-│   │   ├── tachibana-kanade.jpg
-│   │   ├── shana.jpg
-│   │   ├── kato-megumi.jpg
-│   │   ├── rem.jpg
-│   │   ├── elaina.jpg
-│   │   └── misaka-mikoto.jpg
-│   └── 0.jpg ~ 41.jpg      # 动漫编年史封面
+├── images/                 # 动漫封面图、角色海报与特效贴图
+│   ├── login/              # 8 张 ISML 萌王角色海报
+│   ├── generated/          # 星云背景、魔法阵、玻璃圆盘
+│   └── effects/            # 粒子光晕、光条、焦散、标题装饰
+├── videos/                 # 角色展示短片
+│   └── character_showcase.mp4
 ├── js/
 │   ├── shared-data.js      # 动漫数据库与视频链接
 │   ├── shared-utils.js     # 公共工具函数
@@ -69,7 +70,8 @@
 ├── check-syntax.js         # 内联脚本语法检查
 ├── test-pages.py           # Playwright 页面功能测试
 ├── test-static.js          # 静态资源测试
-└── docs/                   # 需求与设计文档
+├── generate_pv.py          # 角色展示短片生成脚本
+└── docs/                   # 需求、审查、设计与视频报告
 ```
 
 ## 快速开始
