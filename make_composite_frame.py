@@ -2,18 +2,19 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 import math
 import os
 
-WIDTH, HEIGHT = 1280, 720
-CENTER_X, CENTER_Y = WIDTH // 2, HEIGHT // 2 + 20
+WIDTH, HEIGHT = 1920, 1080
+CENTER_X, CENTER_Y = WIDTH // 2, HEIGHT // 2 + 30
 
 CHARACTERS = [
-    ("akiyama-mio.jpg", "Mio"),
-    ("tachibana-kanade.jpg", "Kanade"),
-    ("shana.jpg", "Shana"),
-    ("kato-megumi.jpg", "Megumi"),
-    ("rem.jpg", "Rem"),
-    ("violet-evergarden.png", "Violet"),
-    ("elaina.jpg", "Elaina"),
-    ("misaka-mikoto.jpg", "Mikoto"),
+    # filename, label, bottom_crop_pct (exclude watermark area), top_offset_pct
+    ("akiyama-mio.jpg", "Mio", 0.28, 0.0),
+    ("tachibana-kanade.jpg", "Kanade", 0.10, 0.0),
+    ("shana.jpg", "Shana", 0.30, 0.0),
+    ("kato-megumi.jpg", "Megumi", 0.30, 0.0),
+    ("rem.jpg", "Rem", 0.08, 0.0),
+    ("violet-evergarden.png", "Violet", 0.08, 0.0),
+    ("elaina.jpg", "Elaina", 0.28, 0.0),
+    ("misaka-mikoto.jpg", "Mikoto", 0.05, 0.0),
 ]
 
 BG_PATH = "images/generated/nebula-bg.jpg"
@@ -43,8 +44,8 @@ bg = Image.alpha_composite(bg.convert("RGBA"), glow1).convert("RGB")
 draw = ImageDraw.Draw(bg)
 
 # Card arrangement in ellipse
-card_w, card_h = 130, 180
-rx, ry = 480, 220
+card_w, card_h = 195, 270
+rx, ry = 720, 330
 angles = [i * (2 * math.pi / 8) - math.pi / 2 for i in range(8)]
 
 positions = []
@@ -72,14 +73,21 @@ for i in range(len(positions)):
 
 # Place character cards
 base_dir = "images/login"
-for i, (filename, name) in enumerate(CHARACTERS):
+for i, (filename, name, bottom_crop, top_offset) in enumerate(CHARACTERS):
     path = os.path.join(base_dir, filename)
     if not os.path.exists(path):
         print(f"Missing {path}")
         continue
     img = Image.open(path).convert("RGBA")
-    # Crop to portrait ratio
     src_w, src_h = img.size
+
+    # First crop away watermark area at bottom and apply top offset
+    crop_top = int(src_h * top_offset)
+    crop_bottom = int(src_h * (1 - bottom_crop))
+    img = img.crop((0, crop_top, src_w, crop_bottom))
+    src_w, src_h = img.size
+
+    # Crop to portrait ratio, focus on center/upper body
     target_ratio = card_w / card_h
     src_ratio = src_w / src_h
     if src_ratio > target_ratio:
@@ -88,9 +96,19 @@ for i, (filename, name) in enumerate(CHARACTERS):
         img = img.crop((left, 0, left + new_w, src_h))
     else:
         new_h = int(src_w / target_ratio)
-        top = (src_h - new_h) // 2
+        # bias toward top to keep face visible
+        top = int((src_h - new_h) * 0.25)
         img = img.crop((0, top, src_w, top + new_h))
     img = img.resize((card_w, card_h), Image.LANCZOS)
+
+    # Bottom gradient overlay to hide any remaining text edge
+    gradient = Image.new("RGBA", (card_w, card_h), (0, 0, 0, 0))
+    gd = ImageDraw.Draw(gradient)
+    fade_height = int(card_h * 0.18)
+    for y in range(fade_height):
+        alpha = int(180 * (y / fade_height))
+        gd.line([(0, card_h - fade_height + y), (card_w, card_h - fade_height + y)], fill=(0, 0, 0, alpha))
+    img = Image.alpha_composite(img, gradient)
 
     # Glass card frame
     card = Image.new("RGBA", (card_w + 10, card_h + 10), (0, 0, 0, 0))
@@ -135,11 +153,9 @@ draw = ImageDraw.Draw(bg)
 
 # Try to load a font
 try:
-    font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 56)
-    font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
+    font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 84)
 except:
     font_large = ImageFont.load_default()
-    font_small = ImageFont.load_default()
 
 title = "NEBULA CHRONICLE"
 bbox = draw.textbbox((0, 0), title, font=font_large)

@@ -84,8 +84,8 @@
 |------|------|
 | 模型 | `google/veo-3.1-i2v`（Modellix） |
 | 时长 | 8 秒 |
-| 分辨率 | 1280 × 720 |
-| 费用 | $0.336 |
+| 分辨率 | **1920 × 1080**（已升级 1080p） |
+| 费用 | $0.336 × 2 = $0.672（720p 测试一版 + 1080p 最终版） |
 | 文件 | `/workspace/images/generated/nebula-trailer-v2.mp4` |
 | 首帧合成 | `/workspace/images/generated/nebula-trailer-frame.jpg` |
 
@@ -93,10 +93,10 @@
 
 - ✅ 8 位指定角色全部保留，可清晰辨认
 - ✅ 标题「NEBULA CHRONICLE」居中且清晰
-- ✅ 卡片整体沿环形旋转，星座连线有脉动光效
+- ✅ 卡片整体沿环形旋转，星座连线有光效
 - ✅ 背景星云与粒子氛围符合预期
-- ⚠️ 部分角色原图带有日文/中文水印文字，视频中被一并保留
-- ⚠️ 当前为 720p，如需更高清可重新生成 1080p（费用会更高）
+- ✅ 通过裁剪 + 底部渐变遮罩去除了角色海报上的大部分水印文字
+- ✅ 已升级至 **1080p**，画面清晰度显著提升
 
 **接入方式**：已将该视频作为 `index.html` 沉浸模式（cinematic）的背景视频，默认静音、自动循环播放；切换至轻量模式时自动暂停以节省资源。
 
@@ -125,9 +125,9 @@
 |------|---------|------|
 | `index.html` 沉浸模式 | `/data/tool/browser_snapshots/index-cinematic.png` | 背景视频播放中，登录卡片与标题可见 |
 | `index.html` 轻量模式 | `/data/tool/browser_snapshots/index-lightweight.png` | 轮播背景 + 角色信息 + 登录卡片 |
-| 宣传短片 0s | `/data/tool/browser_snapshots/nebula-trailer-0s.png` | 8 张角色卡片围绕标题的初始构图 |
-| 宣传短片 4s | `/data/tool/browser_snapshots/nebula-trailer-4s.png` | 卡片旋转、星座连线脉动 |
-| 宣传短片 7s | `/data/tool/browser_snapshots/nebula-trailer-7s.png` | 末尾帧，构图完整 |
+| 1080p 宣传片 0s | `/data/tool/browser_snapshots/nebula-trailer-v2-0s.png` | 8 张角色卡片围绕标题的初始构图 |
+| 1080p 宣传片 4s | `/data/tool/browser_snapshots/nebula-trailer-v2-4s.png` | 卡片旋转、星座连线脉动 |
+| 1080p 宣传片 7s | `/data/tool/browser_snapshots/nebula-trailer-v2-7s.png` | 末尾帧，构图完整 |
 
 **注意**：当前测试浏览器环境对 WebGL 支持有限，`index.html` 沉浸模式中的 Three.js 守护星座环在截图时未能完整渲染，但背景视频、UI 与交互均可正常使用。代码中的 WebGL 路径在支持 WebGL 的真实浏览器中可正常渲染。后续可在真实 Chrome/Edge 中进一步验证。
 
@@ -158,8 +158,8 @@
 
 1. **是否继续阶段 B + C？**（纯前端升级，不调用外部模型，成本最低）
 2. **是否提交当前代码到 GitHub 仓库？** 当前已完成 A + D + E + F，可 push 一版。
-3. **是否重新生成 1080p 宣传片？** 当前为 720p，如需更高清可重跑（费用约 $0.336 起）。
-4. **BGM 音色是否满意？** 当前为程序化 drone（A1/A2/A3 + LFO + 延迟），如需真实音乐文件，可替换为本地音频。
+3. **BGM 音色是否满意？** 当前为程序化 drone（A1/A2/A3 + LFO + 延迟），如需真实音乐文件，可替换为本地音频。
+4. **是否需要 further 去水印？** 当前通过裁剪 + 渐变遮罩已去除大部分水印；如需完全无水印，可考虑调用图像编辑模型或重新生成角色海报（成本更高）。
 
 ---
 
