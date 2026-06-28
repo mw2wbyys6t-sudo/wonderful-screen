@@ -1033,6 +1033,35 @@
     <video id="bg-video" autoplay muted loop playsinline poster="images/generated/nebula-bg.jpg">
         <source src="images/generated/nebula-trailer-v2.mp4" type="video/mp4">
     </video>
+    <script>
+        // 处理 file:// / solo-remote-file:// 等协议下视频加载失败的情况
+        (function() {
+            const video = document.getElementById('bg-video');
+            if (!video) return;
+
+            function hideVideo() {
+                video.style.display = 'none';
+                video.pause();
+            }
+
+            // 非 HTTP/HTTPS 协议下直接禁用视频，避免 ERR_ABORTED
+            const proto = location.protocol;
+            if (proto === 'file:' || proto.startsWith('solo-remote-file')) {
+                hideVideo();
+                return;
+            }
+
+            video.addEventListener('error', hideVideo, { once: true });
+            video.addEventListener('stalled', function() {
+                if (video.readyState < 2) hideVideo();
+            }, { once: true });
+
+            // 兜底：若 3 秒后仍未开始播放，隐藏视频
+            setTimeout(function() {
+                if (video.paused && video.readyState < 2) hideVideo();
+            }, 3000);
+        })();
+    </script>
 
     <!-- 动态光斑 -->
     <div class="ambient-light">
