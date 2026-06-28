@@ -1,0 +1,173 @@
+<style>
+  .mock-stage {
+    position: relative;
+    width: 100%;
+    max-width: 960px;
+    aspect-ratio: 16 / 9;
+    margin: 0 auto;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #03030a;
+    box-shadow: 0 0 80px rgba(0, 243, 255, 0.12);
+  }
+  .mock-portal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 420px;
+    height: 420px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, rgba(255,42,109,0.35), rgba(176,38,255,0.25), rgba(0,243,255,0.3), rgba(255,42,109,0.35));
+    filter: blur(28px);
+    opacity: 0.55;
+    animation: portalSpin 12s linear infinite;
+  }
+  .mock-portal-inner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 320px;
+    height: 320px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: inset 0 0 60px rgba(0,243,255,0.08);
+  }
+  .mock-character {
+    position: absolute;
+    left: 50%;
+    bottom: 12%;
+    transform: translateX(-50%);
+    width: 220px;
+    height: 320px;
+    background: linear-gradient(180deg, rgba(255,200,220,0.35) 0%, rgba(100,180,255,0.15) 60%, transparent 100%);
+    border-radius: 110px 110px 0 0;
+    box-shadow: 0 0 80px rgba(255,200,180,0.2);
+  }
+  .mock-title {
+    position: absolute;
+    top: 14%;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    z-index: 10;
+  }
+  .mock-title .main {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+    font-size: 44px;
+    font-weight: 300;
+    letter-spacing: 0.22em;
+    color: #f5f5f7;
+    text-transform: uppercase;
+  }
+  .mock-title .sub {
+    margin-top: 12px;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.15em;
+    color: rgba(245,245,247,0.55);
+  }
+  .mock-enter {
+    position: absolute;
+    bottom: 8%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 42px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.22);
+    background: rgba(255,255,255,0.06);
+    backdrop-filter: blur(12px);
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    color: rgba(245,245,247,0.92);
+    z-index: 10;
+  }
+  .mock-loader {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    z-index: 20;
+  }
+  .mock-loader-ring {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    border-top-color: rgba(245,245,247,0.9);
+    border-right-color: rgba(0,243,255,0.6);
+    animation: mockSpin 1s linear infinite;
+  }
+  .mock-loader-text {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: rgba(245,245,247,0.5);
+  }
+  @keyframes portalSpin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+  @keyframes mockSpin { to { transform: rotate(360deg); } }
+
+  .design-notes {
+    max-width: 960px;
+    margin: 24px auto 0;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+  .note {
+    padding: 16px;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid rgba(0,0,0,0.06);
+  }
+  .note h4 { margin-bottom: 8px; font-size: 14px; }
+  .note p { font-size: 13px; color: #555; line-height: 1.5; }
+</style>
+
+<h2>融合方案：WebGL 星门 × 动漫主视觉 × Apple 字体</h2>
+<p class="subtitle">D + B 的融合，用 Apple 式极简排版压住华丽背景</p>
+
+<div class="mock-stage">
+  <div class="mock-portal"></div>
+  <div class="mock-portal-inner"></div>
+  <div class="mock-character"></div>
+
+  <div class="mock-title">
+    <div class="main">NEBULA CHRONICLE</div>
+    <div class="sub">八位萌王 · 一场星之和声</div>
+  </div>
+
+  <div class="mock-enter">进入星云世界</div>
+
+  <div class="mock-loader">
+    <div class="mock-loader-ring"></div>
+    <div class="mock-loader-text">加载中</div>
+  </div>
+</div>
+
+<div class="design-notes">
+  <div class="note">
+    <h4>核心构图</h4>
+    <p>中央 WebGL 星云漩涡作为视觉锚点，角色立绘从漩涡下方浮现，标题用超大字重压顶，底部只留一个玻璃质感进入按钮。</p>
+  </div>
+  <div class="note">
+    <h4>Apple 字体处理</h4>
+    <p>标题用 SF Pro Display / PingFang SC，字重 300，字距拉宽，全大写；副标题更小、更淡、字距略宽，形成层级。</p>
+  </div>
+  <div class="note">
+    <h4>加载动画</h4>
+    <p>页面初始化时显示细线转圈加载（Apple 风格），视频/WebGL 资源就绪后淡出，露出主界面。</p>
+  </div>
+  <div class="note">
+    <h4>动效节奏</h4>
+    <p>漩涡缓慢旋转、角色轻微呼吸浮动、标题淡入、按钮 hover 微亮。整体克制，不抢主体。</p>
+  </div>
+</div>
