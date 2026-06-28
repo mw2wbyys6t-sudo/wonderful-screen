@@ -1,0 +1,158 @@
+<style>
+  .mock-stage {
+    position: relative;
+    width: 100%;
+    max-width: 960px;
+    aspect-ratio: 16 / 9;
+    margin: 0 auto;
+    border-radius: 16px;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 50% 40%, rgba(255, 42, 109, 0.25) 0%, transparent 45%),
+      radial-gradient(circle at 20% 70%, rgba(0, 243, 255, 0.2) 0%, transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(176, 38, 255, 0.2) 0%, transparent 40%),
+      linear-gradient(180deg, #0a0a1a 0%, #050714 50%, #0a0a1a 100%);
+    box-shadow: 0 0 60px rgba(0, 243, 255, 0.15);
+  }
+  .mock-video-placeholder {
+    position: absolute;
+    inset: 0;
+    opacity: 0.6;
+    background:
+      repeating-conic-gradient(from 0deg at 50% 50%, rgba(255,255,255,0.03) 0deg 5deg, transparent 5deg 10deg);
+  }
+  .mock-character-ring {
+    position: absolute;
+    inset: 8%;
+    border: 1px dashed rgba(255,255,255,0.12);
+    border-radius: 50%;
+  }
+  .mock-character {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: rgba(255,255,255,0.8);
+  }
+  .mock-title {
+    position: absolute;
+    top: 32%;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+  }
+  .mock-title h1 {
+    font-size: 42px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    color: #f0f0ff;
+    text-shadow: 0 0 30px rgba(0, 243, 255, 0.5), 0 0 60px rgba(255, 42, 109, 0.3);
+    margin-bottom: 8px;
+  }
+  .mock-title .subtitle {
+    font-size: 14px;
+    color: rgba(240, 240, 255, 0.72);
+    letter-spacing: 0.3em;
+  }
+  .mock-start-btn {
+    position: absolute;
+    bottom: 12%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 14px 56px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.35);
+    background: linear-gradient(135deg, rgba(255,42,109,0.85), rgba(176,38,255,0.85));
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    box-shadow: 0 0 30px rgba(255, 42, 109, 0.4);
+  }
+  .mock-loader {
+    position: absolute;
+    top: 8%;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .mock-loader-ring {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    border-top-color: #00f3ff;
+    border-right-color: #ff2a6d;
+    animation: mockSpin 1s linear infinite;
+  }
+  .mock-loader-text {
+    font-size: 10px;
+    color: rgba(255,255,255,0.55);
+    letter-spacing: 0.2em;
+  }
+  @keyframes mockSpin { to { transform: rotate(360deg); } }
+</style>
+
+<h2>方案草图：三页合一后的新 index.html</h2>
+<p class="subtitle">全屏视频背景 + 居中标题 + 底部大按钮 + 角色环绕装饰 + 转圈加载</p>
+
+<div class="mock-stage">
+  <div class="mock-video-placeholder"></div>
+  <div class="mock-character-ring"></div>
+  <div class="mock-character" style="top:0;left:50%;transform:translate(-50%,-50%)">Mio</div>
+  <div class="mock-character" style="right:0;top:50%;transform:translate(50%,-50%)">Kanade</div>
+  <div class="mock-character" style="bottom:0;left:50%;transform:translate(-50%,50%)">Shana</div>
+  <div class="mock-character" style="left:0;top:50%;transform:translate(-50%,-50%)">Megumi</div>
+  <div class="mock-character" style="top:15%;right:15%">Rem</div>
+  <div class="mock-character" style="bottom:15%;right:15%">Violet</div>
+  <div class="mock-character" style="bottom:15%;left:15%">Elaina</div>
+  <div class="mock-character" style="top:15%;left:15%">Mikoto</div>
+
+  <div class="mock-loader">
+    <div class="mock-loader-ring"></div>
+    <div class="mock-loader-text">STAR BEAT 加载中</div>
+  </div>
+
+  <div class="mock-title">
+    <h1>NEBULA CHRONICLE</h1>
+    <div class="subtitle">星云编年史 · 8 位萌王的星之和声</div>
+  </div>
+
+  <div class="mock-start-btn">进入星云世界</div>
+</div>
+
+<div class="section">
+  <h3>三种实现方案</h3>
+  <div class="options">
+    <div class="option" data-choice="light" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>轻量视频版</h3>
+        <p>只保留全屏视频 + 标题 + 一个「进入」按钮。删除所有 Three.js、轮播、登录输入。成本最低，加载最快。</p>
+      </div>
+    </div>
+    <div class="option" data-choice="rich" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>视频 + 角色环绕版</h3>
+        <p>在 A 的基础上，增加 8 位角色头像围绕标题缓慢旋转的守护环，更有 BanG Dream! 团体感。少量 CSS/Canvas 动画。</p>
+      </div>
+    </div>
+    <div class="option" data-choice=" deluxe" onclick="toggleSelect(this)">
+      <div class="letter">C</div>
+      <div class="content">
+        <h3>视频 + 微交互豪华版</h3>
+        <p>在 B 的基础上，加入标题发光脉动、按钮流光、鼠标视差、点击涟漪、背景音乐开关。最贴近手游启动画面。</p>
+      </div>
+    </div>
+  </div>
+</div>
