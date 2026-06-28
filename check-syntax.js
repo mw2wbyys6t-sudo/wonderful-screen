@@ -26,8 +26,6 @@ function checkFile(filePath) {
 [
     'nebula-chronicle.html',
     'watch.html',
-    'liquid-glass-demo.html',
-    'login.html',
     'index.html'
 ].forEach(file => checkFile(path.join(__dirname, file)));
 

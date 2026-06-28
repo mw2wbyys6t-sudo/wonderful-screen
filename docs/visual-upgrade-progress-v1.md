@@ -1,6 +1,8 @@
 # 星云编年史 · 视觉升级进度报告 v1
 
 > 记录 2026-06-28 基于用户决策完成的阶段 A + D + F 实施情况，以及后续阶段计划。
+> 
+> **更新 1**：已将 `liquid-glass-demo.html` 与 `login.html` 融合为统一的 `index.html`，删除旧两个文件。
 
 ---
 
@@ -21,7 +23,17 @@
 
 ## 二、已完成内容（阶段 A + D + F）
 
-### 2.1 `liquid-glass-demo.html`：叙事与交互重构
+### 2.0 页面融合：统一入口 `index.html`
+
+应用户要求，将 `liquid-glass-demo.html`（沉浸 WebGL 启动动画）与 `login.html`（轻量轮播登录）融合为单一入口页 `index.html`。
+
+- **沉浸模式**：复现 Three.js/GSAP 星云启动动画，结束后切换为「左侧角色信息 + 右侧登录卡片」布局。
+- **轻量模式**：直接显示轮播背景、左侧角色信息、右侧登录卡片。
+- **一键切换**：左上角按钮可在两模式间切换；切回沉浸模式会重新加载页面以保证 Three.js 状态干净。
+- **智能降级**：移动端、WebGL 不可用或 `prefers-reduced-motion` 时自动进入轻量模式。
+- **已删除旧文件**：`liquid-glass-demo.html`、`login.html`。
+
+### 2.1 `index.html` 沉浸模式：叙事与交互重构
 
 **阶段 A — 情绪与叙事重构**
 
@@ -123,10 +135,10 @@
 
 ## 六、文件变更清单
 
-- 修改：`/workspace/liquid-glass-demo.html`
-- 修改：`/workspace/login.html`
-- 新建：`/workspace/index.html`
+- 新建：`/workspace/index.html`（融合后的统一入口页）
+- 删除：`/workspace/liquid-glass-demo.html`
+- 删除：`/workspace/login.html`
 - 新建：`/workspace/favicon.svg`
 - 修改：`/workspace/README.md`
 - 修改：`/workspace/check-syntax.js`
-- 新建：`/workspace/docs/visual-upgrade-progress-v1.md`
+- 修改：`/workspace/docs/visual-upgrade-progress-v1.md`
