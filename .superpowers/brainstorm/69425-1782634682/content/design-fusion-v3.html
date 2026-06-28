@@ -1,0 +1,177 @@
+<style>
+  .mock-stage {
+    position: relative;
+    width: 100%;
+    max-width: 960px;
+    aspect-ratio: 16 / 9;
+    margin: 0 auto;
+    border-radius: 16px;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 50% 55%, rgba(124, 77, 255, 0.18) 0%, transparent 50%),
+      radial-gradient(circle at 25% 30%, rgba(0, 243, 255, 0.12) 0%, transparent 40%),
+      radial-gradient(circle at 75% 70%, rgba(255, 42, 109, 0.12) 0%, transparent 40%),
+      linear-gradient(180deg, #050714 0%, #03030a 100%);
+    box-shadow: 0 0 80px rgba(0, 243, 255, 0.12);
+  }
+  .mock-portal {
+    position: absolute;
+    top: 52%;
+    left: 50%;
+    width: 340px;
+    height: 340px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, rgba(255,42,109,0.25), rgba(176,38,255,0.2), rgba(0,243,255,0.25), rgba(255,42,109,0.25));
+    filter: blur(24px);
+    opacity: 0.5;
+    animation: portalSpin 14s linear infinite;
+  }
+  .mock-portal-ring {
+    position: absolute;
+    top: 52%;
+    left: 50%;
+    width: 260px;
+    height: 260px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: inset 0 0 50px rgba(0,243,255,0.06);
+  }
+  .mock-character-hero {
+    position: absolute;
+    left: 50%;
+    bottom: 20%;
+    transform: translateX(-50%);
+    width: 170px;
+    height: 230px;
+    border-radius: 85px 85px 0 0;
+    background: linear-gradient(180deg, rgba(255,220,230,0.45) 0%, rgba(150,200,255,0.2) 70%, transparent 100%);
+    box-shadow: 0 0 60px rgba(255,200,200,0.25);
+  }
+  .mock-title {
+    position: absolute;
+    top: 10%;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    z-index: 10;
+  }
+  .mock-title .main {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', 'PingFang SC', sans-serif;
+    font-size: 26px;
+    font-weight: 300;
+    letter-spacing: 0.22em;
+    color: #f5f5f7;
+    text-transform: uppercase;
+  }
+  .mock-title .sub {
+    margin-top: 10px;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    color: rgba(245,245,247,0.5);
+  }
+  .mock-glass-card {
+    position: absolute;
+    bottom: 8%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 13px 40px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(12px);
+    z-index: 10;
+  }
+  .mock-glass-card .btn-text {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    color: rgba(245,245,247,0.95);
+  }
+  .mock-glass-card .btn-sub {
+    margin-top: 4px;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    color: rgba(245,245,247,0.45);
+    text-align: center;
+  }
+  .mock-loader {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    z-index: 20;
+  }
+  .mock-loader-ring {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    border-top-color: rgba(245,245,247,0.9);
+    border-right-color: rgba(0,243,255,0.5);
+    animation: mockSpin 1s linear infinite;
+  }
+  .mock-loader-text {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: rgba(245,245,247,0.45);
+  }
+  @keyframes portalSpin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+  @keyframes mockSpin { to { transform: rotate(360deg); } }
+
+  .change-notes {
+    max-width: 960px;
+    margin: 24px auto 0;
+    padding: 16px;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid rgba(0,0,0,0.06);
+  }
+  .change-notes h4 { margin-bottom: 10px; font-size: 14px; }
+  .change-notes ul { font-size: 13px; color: #555; line-height: 1.8; padding-left: 18px; }
+</style>
+
+<h2>调整后的融合方案 v3</h2>
+<p class="subtitle">标题缩小、去掉底部角色导航，让画面更干净</p>
+
+<div class="mock-stage">
+  <div class="mock-portal"></div>
+  <div class="mock-portal-ring"></div>
+  <div class="mock-character-hero"></div>
+
+  <div class="mock-title">
+    <div class="main">NEBULA CHRONICLE</div>
+    <div class="sub">八位萌王 · 星之和声</div>
+  </div>
+
+  <div class="mock-glass-card">
+    <div class="btn-text">进入星云世界</div>
+    <div class="btn-sub">无需登录 · 直接体验</div>
+  </div>
+
+  <div class="mock-loader">
+    <div class="mock-loader-ring"></div>
+    <div class="mock-loader-text">STAR BEAT 加载中</div>
+  </div>
+</div>
+
+<div class="change-notes">
+  <h4>本次调整</h4>
+  <ul>
+    <li>标题字号从 40px 缩小到 26px，更克制、不抢角色和星门视觉</li>
+    <li>移除底部 8 位角色缩略导航，底部只保留玻璃进入按钮</li>
+    <li>中央角色主视觉和星门成为绝对焦点，整体更干净</li>
+  </ul>
+</div>
