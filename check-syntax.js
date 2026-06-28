@@ -23,8 +23,12 @@ function checkFile(filePath) {
     });
 }
 
-checkFile(path.join(__dirname, 'nebula-chronicle.html'));
-checkFile(path.join(__dirname, 'watch.html'));
+[
+    'nebula-chronicle.html',
+    'watch.html',
+    'index.html'
+].forEach(file => checkFile(path.join(__dirname, file)));
+
 console.log('\nAlso checking shared JS files:');
 ['js/shared-data.js', 'js/shared-utils.js'].forEach(file => {
     const fullPath = path.join(__dirname, file);
