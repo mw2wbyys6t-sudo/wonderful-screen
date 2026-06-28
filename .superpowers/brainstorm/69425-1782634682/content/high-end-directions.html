@@ -1,0 +1,166 @@
+<style>
+  .directions {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+  .dir-card {
+    border-radius: 16px;
+    overflow: hidden;
+    border: 2px solid rgba(0,0,0,0.08);
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .dir-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+  }
+  .dir-preview {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+  }
+  /* AAA Game Cinematic */
+  .dir-aaa {
+    background:
+      radial-gradient(circle at 50% 40%, rgba(255,60,120,0.35) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(0,200,255,0.25) 0%, transparent 45%),
+      linear-gradient(180deg, #080810 0%, #12051a 100%);
+  }
+  .dir-aaa .vignette {
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 50% 50%, transparent 0%, rgba(0,0,0,0.6) 80%, rgba(0,0,0,0.9) 100%);
+  }
+  .dir-aaa .title {
+    position: absolute; top: 42%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 28px; font-weight: 900; letter-spacing: 0.15em; color: #fff;
+    text-shadow: 0 0 40px rgba(255,60,120,0.8), 0 0 80px rgba(0,200,255,0.4);
+  }
+  .dir-aaa .enter {
+    position: absolute; bottom: 18%; left: 50%; transform: translateX(-50%);
+    padding: 8px 28px; border-radius: 999px; background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.3); color: #fff; font-size: 11px; letter-spacing: 0.2em;
+  }
+  /* Anime Key Visual */
+  .dir-anime {
+    background:
+      radial-gradient(circle at 30% 50%, rgba(255,200,100,0.25) 0%, transparent 45%),
+      radial-gradient(circle at 70% 30%, rgba(100,200,255,0.25) 0%, transparent 45%),
+      linear-gradient(180deg, #1a0a20 0%, #0a0a18 100%);
+  }
+  .dir-anime .character {
+    position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
+    width: 120px; height: 160px; background: linear-gradient(180deg, rgba(255,200,220,0.4), rgba(100,180,255,0.2));
+    border-radius: 60px 60px 0 0;
+    box-shadow: 0 0 60px rgba(255,200,150,0.3);
+  }
+  .dir-anime .title {
+    position: absolute; top: 18%; left: 50%; transform: translateX(-50%);
+    font-size: 22px; font-weight: 900; color: #fff;
+    text-shadow: 0 0 20px rgba(255,200,100,0.8);
+  }
+  /* Minimalist Luxury */
+  .dir-minimal {
+    background: #0a0a0a;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .dir-minimal .title {
+    font-size: 32px; font-weight: 300; letter-spacing: 0.25em; color: #fff;
+  }
+  .dir-minimal .line {
+    width: 60px; height: 1px; background: linear-gradient(90deg, transparent, #fff, transparent);
+    margin: 12px 0;
+  }
+  .dir-minimal .sub {
+    font-size: 10px; letter-spacing: 0.3em; color: rgba(255,255,255,0.5);
+  }
+  .dir-minimal .orb {
+    position: absolute; width: 200px; height: 200px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%);
+    top: 50%; left: 50%; transform: translate(-50%, -50%);
+  }
+  /* WebGL Portal */
+  .dir-portal {
+    background: #02020a;
+  }
+  .dir-portal .portal {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 140px; height: 140px; border-radius: 50%;
+    background: conic-gradient(from 0deg, #ff2a6d, #b026ff, #00f3ff, #ff2a6d);
+    filter: blur(16px);
+    opacity: 0.7;
+    animation: portalSpin 4s linear infinite;
+  }
+  .dir-portal .ring {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 120px; height: 120px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  .dir-portal .title {
+    position: absolute; top: 18%; left: 50%; transform: translateX(-50%);
+    font-size: 18px; font-weight: 900; color: #fff; letter-spacing: 0.2em;
+  }
+  @keyframes portalSpin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+  .dir-info {
+    padding: 16px;
+    background: #fff;
+  }
+  .dir-info h3 { margin-bottom: 6px; font-size: 16px; }
+  .dir-info p { font-size: 13px; color: #666; line-height: 1.5; }
+</style>
+
+<h2>高端视觉冲击方向</h2>
+<p class="subtitle">BanG Dream! 只是参考例子，下面是 4 种真正能吸引人的大门页方向，请选一种</p>
+
+<div class="directions">
+  <div class="dir-card" data-choice="aaa" onclick="toggleSelect(this)">
+    <div class="dir-preview dir-aaa">
+      <div class="vignette"></div>
+      <div class="title">NEBULA</div>
+      <div class="enter">PRESS START</div>
+    </div>
+    <div class="dir-info">
+      <h3>A. 3A 游戏电影感</h3>
+      <p>全屏视频/动态背景、巨大发光标题、暗角聚焦、单一进入按钮。像《原神》《崩坏》启动页。</p>
+    </div>
+  </div>
+
+  <div class="dir-card" data-choice="anime" onclick="toggleSelect(this)">
+    <div class="dir-preview dir-anime">
+      <div class="title">NEBULA CHRONICLE</div>
+      <div class="character"></div>
+    </div>
+    <div class="dir-info">
+      <h3>B. 动漫主视觉角色风</h3>
+      <p>中央角色立绘/特写、温暖逆光、标题在上方、底部按钮。像 Galgame 或手游首屏。</p>
+    </div>
+  </div>
+
+  <div class="dir-card" data-choice="minimal" onclick="toggleSelect(this)">
+    <div class="dir-preview dir-minimal">
+      <div class="orb"></div>
+      <div class="title">NEBULA</div>
+      <div class="line"></div>
+      <div class="sub">CHRONICLE</div>
+    </div>
+    <div class="dir-info">
+      <h3>C. 极简奢华风</h3>
+      <p>纯黑/深色背景、大字报排版、极细线条、微妙光晕。像高端品牌官网或 Apple 活动页。</p>
+    </div>
+  </div>
+
+  <div class="dir-card" data-choice="portal" onclick="toggleSelect(this)">
+    <div class="dir-preview dir-portal">
+      <div class="title">NEBULA</div>
+      <div class="portal"></div>
+      <div class="ring"></div>
+    </div>
+    <div class="dir-info">
+      <h3>D. 交互式 WebGL 星门</h3>
+      <p>中央 3D 星云漩涡随鼠标旋转、角色环绕、点击进入。技术感最强，沉浸式。</p>
+    </div>
+  </div>
+</div>
