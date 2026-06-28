@@ -141,16 +141,17 @@
 |------|------|------|
 | 8 张角色海报 | `/workspace/images/login/` | 玻璃卡片贴图、视频首帧素材 |
 | 星云背景图 | `/workspace/images/generated/nebula-bg.jpg` | 加载画面背景 |
-| 星云宣传片 | `/workspace/images/generated/nebula-trailer-v2.mp4` | 可作为轮播视频之一 |
 | Three.js 角色卡逻辑 | `liquid-glass-demo.html` | 玻璃卡片动画基础 |
+| 现有宣传片 | `/workspace/images/generated/nebula-trailer-v2.mp4` | **本次不再复用**，重新生成与动漫内容相关的视频 |
 
 ### 5.2 需要生成的新资产
 
 | 资产 | 数量 | 工具 | 说明 |
 |------|------|------|------|
-| 角色视频 1 | 1 | Seedance / Kling V3 / MiniMax | 8 位角色在星云中旋转，偏静态展示 |
-| 角色视频 2 | 1 | Seedance / Kling V3 / MiniMax | 角色卡片发光、散开重组 |
-| 角色视频 3（可选） | 1 | Seedance / Kling V3 / MiniMax | 单个角色特写，情感向 |
+| 角色视频 1 | 1 | Seedance / Kling V3 / MiniMax | 8 位角色各自标志性场景/元素在星云主题下融合，偏史诗感 |
+| 角色视频 2 | 1 | Seedance / Kling V3 / MiniMax | 角色琉璃卡片发光、封印解除式散开重组 |
+| 角色视频 3（可选） | 1 | Seedance / Kling V3 / MiniMax | 角色情感向特写或经典pose动态化 |
+| 视频提示词/首帧 | — | ChatGPT（辅助） / Seedream / Python PIL | 用 ChatGPT 打磨与原作相关的提示词和首帧概念图 |
 | 音效占位文件 | 3 | MiniMax / 后期生成 | 加载循环音、角色浮现音、点击确认音 |
 
 ---
