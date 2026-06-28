@@ -1030,36 +1030,43 @@
     <div id="space-bg"></div>
 
     <!-- 沉浸模式：动态背景视频 -->
-    <video id="bg-video" autoplay muted loop playsinline poster="images/generated/nebula-bg.jpg">
-        <source src="images/generated/nebula-trailer-v2.mp4" type="video/mp4">
-    </video>
+    <video id="bg-video" autoplay muted loop playsinline poster="images/generated/nebula-bg.jpg"></video>
     <script>
-        // 处理 file:// / solo-remote-file:// 等协议下视频加载失败的情况
+        // 仅在 HTTP/HTTPS 协议下加载背景视频，避免 file:// / solo-remote-file:// 触发 ERR_ABORTED
         (function() {
             const video = document.getElementById('bg-video');
             if (!video) return;
 
-            function hideVideo() {
-                video.style.display = 'none';
-                video.pause();
-            }
-
-            // 非 HTTP/HTTPS 协议下直接禁用视频，避免 ERR_ABORTED
             const proto = location.protocol;
-            if (proto === 'file:' || proto.startsWith('solo-remote-file')) {
-                hideVideo();
+            const isHttp = proto === 'http:' || proto === 'https:';
+
+            // GitHub Pages 和本地服务器都走 HTTP/HTTPS，允许加载
+            // file:// / solo-remote-file:// 直接隐藏 video 元素
+            if (!isHttp) {
+                video.style.display = 'none';
                 return;
             }
+
+            const source = document.createElement('source');
+            source.src = 'images/generated/nebula-trailer-v2.mp4';
+            source.type = 'video/mp4';
+            source.addEventListener('error', hideVideo, { once: true });
+            video.appendChild(source);
+
+            // 显式触发加载与播放，确保动态注入的 source 被识别
+            video.load();
+            video.play().catch(function() {
+                // 浏览器策略阻止自动播放时，用户手动切换模式再试
+            });
 
             video.addEventListener('error', hideVideo, { once: true });
             video.addEventListener('stalled', function() {
                 if (video.readyState < 2) hideVideo();
             }, { once: true });
 
-            // 兜底：若 3 秒后仍未开始播放，隐藏视频
             setTimeout(function() {
                 if (video.paused && video.readyState < 2) hideVideo();
-            }, 3000);
+            }, 5000);
         })();
     </script>
 
