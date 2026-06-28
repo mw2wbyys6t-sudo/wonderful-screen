@@ -14,6 +14,7 @@
             --neon-pink: #ff2a6d;
             --deep-space: #03030a;
             --star-white: #f0f0ff;
+            --theme-color: #00f3ff;
         }
 
         * {
@@ -66,15 +67,23 @@
             100% { transform: scale(1.18) translate(-1.5%, -1%); }
         }
 
-        /* 暗角与色调层：右侧更暗以突出登录卡片，中央保留人物亮度 */
+        /* 暗角与色调层 */
         .vignette {
             position: fixed;
             inset: 0;
             z-index: 1;
             background:
-                radial-gradient(circle at 45% 35%, transparent 0%, rgba(3, 3, 10, 0.35) 50%, rgba(3, 3, 10, 0.75) 100%),
-                linear-gradient(90deg, rgba(3, 3, 10, 0.2) 0%, rgba(3, 3, 10, 0.1) 45%, rgba(3, 3, 10, 0.55) 80%, rgba(3, 3, 10, 0.7) 100%),
+                radial-gradient(circle at 35% 40%, transparent 0%, rgba(3, 3, 10, 0.35) 45%, rgba(3, 3, 10, 0.8) 100%),
+                linear-gradient(90deg, rgba(3, 3, 10, 0.1) 0%, rgba(3, 3, 10, 0.05) 40%, rgba(3, 3, 10, 0.6) 75%, rgba(3, 3, 10, 0.75) 100%),
                 linear-gradient(180deg, rgba(3, 3, 10, 0.35) 0%, rgba(3, 3, 10, 0.05) 40%, rgba(3, 3, 10, 0.55) 100%);
+            pointer-events: none;
+        }
+
+        /* ===== 粒子背景 ===== */
+        #particle-canvas {
+            position: fixed;
+            inset: 0;
+            z-index: 2;
             pointer-events: none;
         }
 
@@ -82,7 +91,7 @@
         .ambient-light {
             position: fixed;
             inset: 0;
-            z-index: 2;
+            z-index: 3;
             pointer-events: none;
             overflow: hidden;
         }
@@ -137,11 +146,10 @@
             width: 100%;
             height: 100%;
             display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            justify-content: center;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 min(5vw, 80px);
             perspective: 1200px;
-            padding: 40px min(5vw, 80px);
         }
 
         /* 顶部标题 */
@@ -152,6 +160,7 @@
             transform: translateX(-50%);
             text-align: center;
             pointer-events: none;
+            z-index: 10;
         }
 
         .main-title {
@@ -180,12 +189,66 @@
             100% { filter: brightness(1.25); }
         }
 
+        /* ===== 左侧角色信息区 ===== */
+        .character-section {
+            position: relative;
+            width: min(42vw, 520px);
+            min-width: 300px;
+            align-self: flex-end;
+            padding-bottom: 80px;
+            pointer-events: none;
+        }
+
+        .character-info-card {
+            background: rgba(3, 3, 10, 0.35);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-left: 3px solid var(--theme-color);
+            border-radius: 0 20px 20px 0;
+            padding: 24px 28px;
+            transform: translateX(-20px);
+            opacity: 0;
+            transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+        }
+
+        .character-info-card.visible {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .character-year {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 13px;
+            letter-spacing: 3px;
+            color: var(--theme-color);
+            text-shadow: 0 0 14px color-mix(in srgb, var(--theme-color) 60%, transparent);
+            margin-bottom: 8px;
+        }
+
+        .character-name {
+            font-family: 'Noto Serif SC', serif;
+            font-size: clamp(1.8rem, 4vw, 2.8rem);
+            font-weight: 700;
+            letter-spacing: 4px;
+            margin-bottom: 12px;
+            color: #fff;
+            text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .character-quote {
+            font-size: 14px;
+            line-height: 1.7;
+            color: rgba(255, 255, 255, 0.7);
+            font-style: italic;
+        }
+
         /* ===== 玻璃登录卡片 ===== */
         .login-scene {
             position: relative;
             width: min(42vw, 420px);
             min-width: 320px;
-            margin-top: 50px;
         }
 
         .glass-back {
@@ -214,11 +277,12 @@
             border: 1px solid rgba(255, 255, 255, 0.18);
             box-shadow:
                 0 12px 48px rgba(0, 0, 0, 0.35),
+                0 0 36px color-mix(in srgb, var(--theme-color) 8%, transparent),
                 inset 0 1px 0 rgba(255, 255, 255, 0.22),
                 inset 0 -1px 0 rgba(255, 255, 255, 0.04);
             overflow: hidden;
             transform-style: preserve-3d;
-            transition: transform 0.45s cubic-bezier(0.23, 1, 0.32, 1);
+            transition: all 0.45s cubic-bezier(0.23, 1, 0.32, 1);
         }
 
         /* 顶部轮廓高光 */
@@ -242,16 +306,52 @@
             pointer-events: none;
         }
 
+        /* 动态光流 */
+        .glass-card::after {
+            content: '';
+            position: absolute;
+            inset: -50%;
+            background: conic-gradient(
+                from 0deg,
+                transparent 0deg,
+                rgba(255, 255, 255, 0.04) 30deg,
+                transparent 60deg,
+                color-mix(in srgb, var(--theme-color) 6%, transparent) 90deg,
+                transparent 120deg,
+                rgba(255, 255, 255, 0.03) 150deg,
+                transparent 180deg,
+                color-mix(in srgb, var(--theme-color) 4%, transparent) 210deg,
+                transparent 240deg,
+                rgba(255, 255, 255, 0.02) 270deg,
+                transparent 300deg,
+                transparent 360deg
+            );
+            animation: lightRotate 14s linear infinite;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.6s ease;
+        }
+
+        .glass-card:hover::after,
+        .glass-card:focus-within::after {
+            opacity: 1;
+        }
+
+        @keyframes lightRotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
         /* 鼠标跟随高光 */
         .sheen {
             position: absolute;
-            width: 320px;
-            height: 320px;
+            width: 340px;
+            height: 340px;
             border-radius: 50%;
             background: radial-gradient(
                 circle,
-                rgba(255, 255, 255, 0.2) 0%,
-                rgba(255, 255, 255, 0.07) 35%,
+                rgba(255, 255, 255, 0.18) 0%,
+                color-mix(in srgb, var(--theme-color) 8%, transparent) 35%,
                 transparent 70%
             );
             pointer-events: none;
@@ -289,8 +389,8 @@
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background: var(--neon-cyan);
-            box-shadow: 0 0 14px var(--neon-cyan);
+            background: var(--theme-color);
+            box-shadow: 0 0 14px var(--theme-color);
             animation: pulse 2.2s ease-in-out infinite;
         }
 
@@ -343,9 +443,11 @@
         }
 
         .form-group input:focus {
-            border-color: rgba(0, 243, 255, 0.5);
+            border-color: var(--theme-color);
             background: rgba(0, 0, 0, 0.3);
-            box-shadow: 0 0 20px rgba(0, 243, 255, 0.12);
+            box-shadow:
+                0 0 0 3px color-mix(in srgb, var(--theme-color) 12%, transparent),
+                0 0 24px color-mix(in srgb, var(--theme-color) 30%, transparent);
         }
 
         .login-button {
@@ -354,7 +456,7 @@
             padding: 16px;
             border-radius: 16px;
             border: 1px solid rgba(255, 255, 255, 0.22);
-            background: linear-gradient(135deg, rgba(0, 243, 255, 0.18), rgba(176, 38, 255, 0.18));
+            background: linear-gradient(135deg, color-mix(in srgb, var(--theme-color) 22%, transparent), rgba(176, 38, 255, 0.18));
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             color: #fff;
@@ -370,32 +472,52 @@
                 inset 0 1px 0 rgba(255, 255, 255, 0.2);
         }
 
-        .login-button:hover {
-            transform: translateY(-2px);
-            background: linear-gradient(135deg, rgba(0, 243, 255, 0.28), rgba(176, 38, 255, 0.28));
-            box-shadow:
-                0 10px 36px rgba(0, 243, 255, 0.18),
-                inset 0 1px 0 rgba(255, 255, 255, 0.25);
-        }
-
         .login-button::before {
             content: '';
             position: absolute;
-            inset: 0;
-            border-radius: 16px;
-            padding: 1px;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
             background: linear-gradient(
-                180deg,
-                rgba(255, 255, 255, 0.4) 0%,
-                rgba(255, 255, 255, 0.05) 60%,
-                transparent 100%
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.3),
+                transparent
             );
-            -webkit-mask:
-                linear-gradient(#fff 0 0) content-box,
-                linear-gradient(#fff 0 0);
-            -webkit-mask-composite: xor;
-            mask-composite: exclude;
+            transition: left 0.6s ease;
+        }
+
+        .login-button:hover:not(:disabled)::before {
+            left: 100%;
+        }
+
+        .login-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow:
+                0 10px 36px color-mix(in srgb, var(--theme-color) 22%, transparent),
+                inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        }
+
+        .login-button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        .login-button .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.35);
+            transform: scale(0);
+            animation: ripple 0.6s linear;
             pointer-events: none;
+        }
+
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
         }
 
         /* 轮播指示器 */
@@ -419,53 +541,81 @@
         }
 
         .indicator.active {
-            background: var(--neon-cyan);
-            box-shadow: 0 0 12px var(--neon-cyan);
-            transform: scale(1.3);
+            background: var(--theme-color);
+            box-shadow: 0 0 12px var(--theme-color);
+            transform: scale(1.4);
         }
 
-        /* 角色名称浮动标签 */
-        .character-label {
-            position: absolute;
-            bottom: 78px;
-            left: 42px;
-            z-index: 10;
-            font-family: 'ZCOOL XiaoWei', serif;
-            font-size: 15px;
-            color: rgba(255, 255, 255, 0.65);
-            letter-spacing: 4px;
-            opacity: 0;
-            transition: opacity 0.8s ease;
-            pointer-events: none;
-            text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+        /* 音频控制 */
+        #audio-toggle {
+            position: fixed;
+            top: 28px;
+            right: 28px;
+            z-index: 100;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            background: rgba(0, 0, 0, 0.25);
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 18px;
+            cursor: pointer;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .character-label.visible {
-            opacity: 1;
+        #audio-toggle:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.35);
+        }
+
+        #audio-toggle[aria-pressed="true"] {
+            color: var(--theme-color);
+            border-color: color-mix(in srgb, var(--theme-color) 50%, transparent);
+            box-shadow: 0 0 20px color-mix(in srgb, var(--theme-color) 30%, transparent);
         }
 
         /* 响应式 */
         @media (max-width: 900px) {
             .scene {
+                flex-direction: column;
+                justify-content: center;
                 align-items: center;
-                padding: 40px 20px;
+                padding: 100px 24px 40px;
+                gap: 24px;
+            }
+            .character-section {
+                width: 100%;
+                min-width: auto;
+                align-self: center;
+                padding-bottom: 0;
+                order: 2;
+            }
+            .character-info-card {
+                border-radius: 20px;
+                border-left: none;
+                border-top: 3px solid var(--theme-color);
+                text-align: center;
+                padding: 18px 22px;
             }
             .login-scene {
                 width: min(92vw, 440px);
-                margin-top: 70px;
+                order: 1;
             }
             .vignette {
                 background:
                     radial-gradient(circle at 50% 35%, transparent 0%, rgba(3, 3, 10, 0.45) 50%, rgba(3, 3, 10, 0.85) 100%),
                     linear-gradient(180deg, rgba(3, 3, 10, 0.35) 0%, rgba(3, 3, 10, 0.15) 45%, rgba(3, 3, 10, 0.7) 100%);
             }
-            .slide-indicators,
-            .character-label {
+            .slide-indicators {
                 left: 50%;
                 transform: translateX(-50%);
-            }
-            .character-label {
-                bottom: 80px;
+                bottom: 24px;
             }
         }
 
@@ -484,6 +634,15 @@
                 min-width: auto;
             }
         }
+
+        /* 减少运动偏好 */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -492,6 +651,9 @@
 
     <!-- 暗角与色调层 -->
     <div class="vignette"></div>
+
+    <!-- 粒子背景 -->
+    <canvas id="particle-canvas"></canvas>
 
     <!-- 动态光斑 -->
     <div class="ambient-light">
@@ -505,6 +667,14 @@
         <div class="title-section">
             <h1 class="main-title">NEBULA CHRONICLE</h1>
             <p class="sub-title">星云编年史 · 探索二次元的次元之门</p>
+        </div>
+
+        <div class="character-section">
+            <div class="character-info-card" id="characterInfoCard">
+                <div class="character-year" id="characterYear"></div>
+                <h2 class="character-name" id="characterName"></h2>
+                <p class="character-quote" id="characterQuote"></p>
+            </div>
         </div>
 
         <div class="login-scene">
@@ -534,26 +704,31 @@
             </div>
         </div>
 
-        <div class="character-label" id="characterLabel"></div>
         <div class="slide-indicators" id="indicators"></div>
     </div>
 
+    <button id="audio-toggle" title="背景音乐" aria-label="开启背景音乐" aria-pressed="false">♪</button>
+
     <script>
-        // 角色轮播数据：focus 为 object-position，确保人物主体不被遮挡
+        // 角色轮播数据
         const characters = [
-            { file: 'violet-evergarden.png', name: '薇尔莉特 · 伊芙加登', focus: '50% 28%' },
-            { file: 'akiyama-mio.jpg', name: '秋山澪', focus: '52% 32%' },
-            { file: 'tachibana-kanade.jpg', name: '立华奏', focus: '50% 30%' },
-            { file: 'shana.jpg', name: '夏娜', focus: '50% 35%' },
-            { file: 'kato-megumi.jpg', name: '加藤惠', focus: '46% 30%' },
-            { file: 'rem.jpg', name: '雷姆', focus: '50% 28%' },
-            { file: 'elaina.jpg', name: '伊蕾娜', focus: '48% 26%' },
-            { file: 'misaka-mikoto.jpg', name: '御坂美琴', focus: '46% 30%' }
+            { file: 'violet-evergarden.png', name: '薇尔莉特 · 伊芙加登', year: '2019 世萌萌王', color: '#b892ff', quote: '爱，究竟是什么意思？', focus: '50% 28%' },
+            { file: 'akiyama-mio.jpg', name: '秋山澪', year: '2010/2011 世萌萌王', color: '#ff9ec8', quote: '不要再这样看着我……', focus: '52% 32%' },
+            { file: 'tachibana-kanade.jpg', name: '立华奏', year: '2012 世萌萌王', color: '#c7f0ff', quote: '我希望你能活下去。', focus: '50% 30%' },
+            { file: 'shana.jpg', name: '夏娜', year: '2016 世萌萌王', color: '#ff4d4d', quote: '吵死了！吵死了！吵死了！', focus: '50% 35%' },
+            { file: 'kato-megumi.jpg', name: '加藤惠', year: '2017 世萌萌王', color: '#ffb7c5', quote: '我，一直在你身边哦。', focus: '46% 30%' },
+            { file: 'rem.jpg', name: '雷姆', year: '2018 世萌萌王', color: '#7fd3ff', quote: '雷姆相信昴。', focus: '50% 28%' },
+            { file: 'elaina.jpg', name: '伊蕾娜', year: '2021 世萌萌王', color: '#e8e8ff', quote: '请问有什么委托吗？', focus: '48% 26%' },
+            { file: 'misaka-mikoto.jpg', name: '御坂美琴', year: '人气之王', color: '#00bfff', quote: '你指尖跃动的电光，是我此生不变的信仰。', focus: '46% 30%' }
         ];
 
         const slideshow = document.getElementById('slideshow');
         const indicators = document.getElementById('indicators');
-        const characterLabel = document.getElementById('characterLabel');
+        const characterInfoCard = document.getElementById('characterInfoCard');
+        const characterYear = document.getElementById('characterYear');
+        const characterName = document.getElementById('characterName');
+        const characterQuote = document.getElementById('characterQuote');
+        const rootStyle = document.documentElement.style;
         let currentSlide = 0;
         let slideInterval;
 
@@ -581,7 +756,7 @@
                 dot.addEventListener('click', () => goToSlide(index));
                 indicators.appendChild(dot);
             });
-            updateLabel(0);
+            updateCharacterInfo(0, true);
             startAutoPlay();
         }
 
@@ -596,7 +771,7 @@
 
             slides[currentSlide].classList.add('active');
             dots[currentSlide].classList.add('active');
-            updateLabel(currentSlide);
+            updateCharacterInfo(currentSlide);
 
             resetAutoPlay();
         }
@@ -606,12 +781,25 @@
             goToSlide(next);
         }
 
-        function updateLabel(index) {
-            characterLabel.classList.remove('visible');
+        function updateCharacterInfo(index, initial = false) {
+            const char = characters[index];
+            rootStyle.setProperty('--theme-color', char.color);
+
+            if (initial) {
+                characterYear.textContent = char.year;
+                characterName.textContent = char.name;
+                characterQuote.textContent = `「${char.quote}」`;
+                characterInfoCard.classList.add('visible');
+                return;
+            }
+
+            characterInfoCard.classList.remove('visible');
             setTimeout(() => {
-                characterLabel.textContent = characters[index].name;
-                characterLabel.classList.add('visible');
-            }, 300);
+                characterYear.textContent = char.year;
+                characterName.textContent = char.name;
+                characterQuote.textContent = `「${char.quote}」`;
+                characterInfoCard.classList.add('visible');
+            }, 400);
         }
 
         function startAutoPlay() {
@@ -621,6 +809,67 @@
         function resetAutoPlay() {
             clearInterval(slideInterval);
             startAutoPlay();
+        }
+
+        // 粒子背景
+        function initParticles() {
+            const canvas = document.getElementById('particle-canvas');
+            const ctx = canvas.getContext('2d');
+            let particleRafId;
+
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resize();
+            window.addEventListener('resize', resize, { passive: true });
+
+            const particles = [];
+            const count = Math.min(180, Math.floor((canvas.width * canvas.height) / 9000));
+
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2 + 0.5,
+                    speedX: (Math.random() - 0.5) * 0.3,
+                    speedY: (Math.random() - 0.5) * 0.3,
+                    opacity: Math.random() * 0.5 + 0.1,
+                    twinkle: Math.random() * Math.PI * 2
+                });
+            }
+
+            let frame = 0;
+            function draw() {
+                particleRafId = requestAnimationFrame(draw);
+                frame++;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                particles.forEach(p => {
+                    p.x += p.speedX;
+                    p.y += p.speedY;
+
+                    if (p.x < 0) p.x = canvas.width;
+                    if (p.x > canvas.width) p.x = 0;
+                    if (p.y < 0) p.y = canvas.height;
+                    if (p.y > canvas.height) p.y = 0;
+
+                    const twinkle = Math.sin(frame * 0.02 + p.twinkle) * 0.3 + 0.7;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255, 255, 255, ${p.opacity * twinkle})`;
+                    ctx.fill();
+                });
+            }
+            draw();
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    cancelAnimationFrame(particleRafId);
+                } else {
+                    draw();
+                }
+            });
         }
 
         // Liquid Glass 鼠标跟随高光
@@ -663,6 +912,20 @@
         });
 
         // 登录表单
+        const loginBtn = document.querySelector('.login-button');
+
+        loginBtn.addEventListener('click', (e) => {
+            const rect = loginBtn.getBoundingClientRect();
+            const ripple = document.createElement('span');
+            ripple.className = 'ripple';
+            const size = Math.max(rect.width, rect.height);
+            ripple.style.width = ripple.style.height = size + 'px';
+            ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+            ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+            loginBtn.appendChild(ripple);
+            setTimeout(() => ripple.remove(), 600);
+        });
+
         document.getElementById('loginForm').addEventListener('submit', (e) => {
             e.preventDefault();
             const username = document.getElementById('username').value.trim();
@@ -670,15 +933,98 @@
 
             if (!username || !password) return;
 
-            // 模拟登录验证（演示用途，后续可替换为真实接口）
-            sessionStorage.setItem('nebulaUser', username);
-            window.location.href = 'nebula-chronicle.html';
+            loginBtn.disabled = true;
+            const originalText = loginBtn.textContent;
+            loginBtn.textContent = '星门开启中…';
+
+            setTimeout(() => {
+                sessionStorage.setItem('nebulaUser', username);
+                window.location.href = 'nebula-chronicle.html';
+            }, 800);
         });
+
+        // 程序化环境音乐
+        let audioNodes = null;
+        let audioMuted = true;
+        const audioToggle = document.getElementById('audio-toggle');
+
+        function initAudio() {
+            if (audioNodes) return;
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+
+            const ctx = new AudioCtx();
+            const master = ctx.createGain();
+            master.gain.value = 0;
+            master.connect(ctx.destination);
+
+            const drones = [
+                { freq: 55, gain: 0.12, type: 'sine' },
+                { freq: 110, gain: 0.06, type: 'triangle' },
+                { freq: 220, gain: 0.03, type: 'sine' }
+            ];
+
+            const oscillators = [];
+            const gains = [];
+
+            drones.forEach(d => {
+                const osc = ctx.createOscillator();
+                const g = ctx.createGain();
+                osc.type = d.type;
+                osc.frequency.value = d.freq;
+                g.gain.value = d.gain;
+                osc.connect(g);
+                g.connect(master);
+                osc.start();
+                oscillators.push(osc);
+                gains.push(g);
+            });
+
+            const lfo = ctx.createOscillator();
+            lfo.type = 'sine';
+            lfo.frequency.value = 0.08;
+            const lfoGain = ctx.createGain();
+            lfoGain.gain.value = 0.04;
+            lfo.connect(lfoGain);
+            lfoGain.connect(master.gain);
+            lfo.start();
+
+            const delay = ctx.createDelay();
+            delay.delayTime.value = 0.45;
+            const delayGain = ctx.createGain();
+            delayGain.gain.value = 0.25;
+            master.connect(delay);
+            delay.connect(delayGain);
+            delayGain.connect(ctx.destination);
+
+            audioNodes = { ctx, master, oscillators, gains, lfo, lfoGain, delay, delayGain };
+        }
+
+        function toggleAudio() {
+            if (!audioNodes) initAudio();
+            if (!audioNodes) return;
+
+            audioMuted = !audioMuted;
+            audioToggle.setAttribute('aria-pressed', !audioMuted);
+            audioToggle.textContent = audioMuted ? '♪' : '♫';
+
+            const now = audioNodes.ctx.currentTime;
+            if (!audioMuted) {
+                audioNodes.ctx.resume();
+                audioNodes.master.gain.cancelScheduledValues(now);
+                audioNodes.master.gain.linearRampToValueAtTime(0.3, now + 2.5);
+            } else {
+                audioNodes.master.gain.cancelScheduledValues(now);
+                audioNodes.master.gain.linearRampToValueAtTime(0, now + 0.8);
+            }
+        }
+
+        audioToggle.addEventListener('click', toggleAudio);
 
         // 启动
         initSlideshow();
+        initParticles();
 
-        // 页面卸载前清理轮播
         window.addEventListener('beforeunload', () => {
             clearInterval(slideInterval);
         });

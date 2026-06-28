@@ -6,8 +6,9 @@
 
 若仓库已启用 GitHub Pages，可直接访问：
 
+- **首页（自动跳转启动页）**：https://mw2wbyys6t-sudo.github.io/wonderful-screen/
 - **启动页/登录页**：https://mw2wbyys6t-sudo.github.io/wonderful-screen/liquid-glass-demo.html
-- **原登录页**：https://mw2wbyys6t-sudo.github.io/wonderful-screen/login.html
+- **轻量登录页**：https://mw2wbyys6t-sudo.github.io/wonderful-screen/login.html
 - **主应用**：https://mw2wbyys6t-sudo.github.io/wonderful-screen/nebula-chronicle.html
 - **播放页**：https://mw2wbyys6t-sudo.github.io/wonderful-screen/watch.html
 
@@ -36,11 +37,15 @@
 - 播放页支持 Bilibili BV 号或本地视频源
 
 ### 4. Liquid Glass 风格启动页/登录页
-- **一体化入口页 `/liquid-glass-demo.html`**：15 秒星云世界观启动动画无缝衔接登录界面
+- **一体化入口页 `/liquid-glass-demo.html`**：星云世界观启动动画无缝衔接登录界面
   - Three.js 3D 场景：液态玻璃角色卡片、菱形星座连线、中央魔法阵、星云漩涡粒子
-  - GSAP 动画时间线：星云苏醒 → 玻璃凝聚 → 角色觉醒 → 编年史展开 → 星图坍缩 → 星云漩涡 → 标题浮现 → 登录界面升起
+  - GSAP 动画时间线：星云苏醒 → 玻璃凝聚 → 角色觉醒 → 编年史展开 → 星图散开成粒子 → 星云漩涡 → 标题水印 + 登录界面升起 → 角色凝聚为守护星座环
+  - 交互反馈：输入框主题色发光、按钮流光扫过/涟漪、登录成功星尘爆发、空格跳过动画
+  - 程序化环境背景音乐（需用户手动开启）
   - WebGL 不可用静态降级：自动切换为标题 + 登录卡片，保证所有设备可登录
-- 独立登录页 `/login.html`：8 位 ISML 冠军女主角海报轮播 + Liquid Glass 玻璃卡片
+- 轻量登录页 `/login.html`：8 位 ISML 冠军女主角海报轮播 + 左侧角色信息卡片 + 右侧 Liquid Glass 登录卡片
+  - 轮播切换时角色信息、主题色、玻璃卡片光效实时联动
+  - Canvas 粒子背景与鼠标跟随玻璃高光
 - 角色海报：薇尔莉特 · 伊芙加登、秋山澪、立华奏、夏娜、加藤惠、雷姆、伊蕾娜、御坂美琴
 
 ### 5. 角色展示短片
@@ -51,10 +56,12 @@
 
 ```
 /workspace
+├── index.html              # 首页：自动跳转 liquid-glass-demo.html
 ├── liquid-glass-demo.html  # 启动页 + 登录页一体化（推荐入口）
-├── login.html              # 原 Liquid Glass 风格登录页
+├── login.html              # 轻量 Liquid Glass 风格登录页
 ├── nebula-chronicle.html   # 主应用：星云编年史 + AI 助手
 ├── watch.html              # 播放页：手势/语音控制视频播放
+├── favicon.svg             # 网站图标
 ├── images/                 # 动漫封面图、角色海报与特效贴图
 │   ├── login/              # 8 张 ISML 萌王角色海报
 │   ├── generated/          # 星云背景、魔法阵、玻璃圆盘
@@ -85,7 +92,9 @@ python3 -m http.server 8080
 
 然后打开浏览器访问：
 
-- 登录页：http://localhost:8080/login.html
+- 首页：http://localhost:8080/
+- 启动页：http://localhost:8080/liquid-glass-demo.html
+- 轻量登录页：http://localhost:8080/login.html
 - 主应用：http://localhost:8080/nebula-chronicle.html
 - 播放页：http://localhost:8080/watch.html?index=14
 

@@ -25,6 +25,7 @@
             --glass-bg: rgba(255, 255, 255, 0.08);
             --glass-border: rgba(255, 255, 255, 0.18);
             --glass-highlight: rgba(255, 255, 255, 0.35);
+            --theme-color: #00f3ff;
         }
 
         html, body {
@@ -42,9 +43,10 @@
             inset: 0;
             z-index: 0;
             background:
-                radial-gradient(ellipse at 50% 50%, rgba(124, 77, 255, 0.15) 0%, transparent 55%),
-                radial-gradient(ellipse at 20% 30%, rgba(77, 166, 255, 0.12) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 70%, rgba(184, 146, 255, 0.1) 0%, transparent 45%),
+                radial-gradient(ellipse at 50% 45%, rgba(124, 77, 255, 0.18) 0%, transparent 55%),
+                radial-gradient(ellipse at 20% 30%, rgba(77, 166, 255, 0.14) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 70%, rgba(184, 146, 255, 0.12) 0%, transparent 45%),
+                radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.04) 0%, transparent 35%),
                 linear-gradient(180deg, var(--bg-deep) 0%, var(--bg-darker) 100%);
         }
 
@@ -53,7 +55,7 @@
             position: absolute;
             inset: 0;
             background: url('images/generated/nebula-bg.jpg') center/cover no-repeat;
-            opacity: 0.35;
+            opacity: 0.4;
             mix-blend-mode: screen;
         }
 
@@ -161,6 +163,12 @@
             transform: scale(1);
         }
 
+        #title-layer.watermark {
+            opacity: 0.38;
+            transform: scale(0.85);
+            filter: blur(0.5px);
+        }
+
         #title-layer h1 {
             font-size: clamp(48px, 8vw, 96px);
             font-weight: 900;
@@ -224,13 +232,13 @@
             justify-content: center;
             pointer-events: none;
             opacity: 0;
-            transform: translateY(60px);
+            transform: translateY(60px) scale(0.96);
             transition: opacity 1s ease, transform 1s cubic-bezier(0.23, 1, 0.32, 1);
         }
 
         #login-layer.visible {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateY(0) scale(1);
             pointer-events: auto;
         }
 
@@ -252,6 +260,15 @@
             overflow: hidden;
             transform-style: preserve-3d;
             touch-action: none;
+            transition: box-shadow 0.4s ease;
+        }
+
+        .glass-card.glow-cyan {
+            box-shadow:
+                0 24px 80px rgba(0, 0, 0, 0.35),
+                0 0 50px rgba(0, 243, 255, 0.18),
+                inset 0 1px 0 rgba(255, 255, 255, 0.28),
+                inset 0 -1px 0 rgba(255, 255, 255, 0.05);
         }
 
         .glass-card::before {
@@ -285,10 +302,46 @@
             pointer-events: none;
         }
 
+        /* 动态光流 */
+        .light-flow {
+            position: absolute;
+            inset: -50%;
+            background: conic-gradient(
+                from 0deg,
+                transparent 0deg,
+                rgba(255, 255, 255, 0.06) 30deg,
+                transparent 60deg,
+                rgba(0, 243, 255, 0.04) 90deg,
+                transparent 120deg,
+                rgba(184, 146, 255, 0.04) 150deg,
+                transparent 180deg,
+                rgba(255, 255, 255, 0.05) 210deg,
+                transparent 240deg,
+                rgba(0, 243, 255, 0.03) 270deg,
+                transparent 300deg,
+                rgba(184, 146, 255, 0.03) 330deg,
+                transparent 360deg
+            );
+            animation: lightRotate 12s linear infinite;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.6s ease;
+        }
+
+        .glass-card:hover .light-flow,
+        .glass-card:focus-within .light-flow {
+            opacity: 1;
+        }
+
+        @keyframes lightRotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
         .sheen {
             position: absolute;
-            width: 280px;
-            height: 280px;
+            width: 320px;
+            height: 320px;
             border-radius: 50%;
             background: radial-gradient(
                 circle,
@@ -301,6 +354,10 @@
             opacity: 0;
             transition: opacity 0.4s ease;
             mix-blend-mode: overlay;
+        }
+
+        .glass-card:hover .sheen {
+            opacity: 1;
         }
 
         .glass-card h2 {
@@ -344,9 +401,17 @@
         }
 
         .form-group input:focus {
-            border-color: var(--neon-cyan);
-            box-shadow: 0 0 20px rgba(0, 243, 255, 0.15);
+            border-color: var(--theme-color, var(--neon-cyan));
+            box-shadow:
+                0 0 0 3px rgba(0, 243, 255, 0.1),
+                0 0 24px color-mix(in srgb, var(--theme-color, var(--neon-cyan)) 35%, transparent);
             background: rgba(0, 0, 0, 0.35);
+            animation: focusPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes focusPulse {
+            0%, 100% { box-shadow: 0 0 0 3px rgba(0, 243, 255, 0.08), 0 0 20px rgba(0, 243, 255, 0.12); }
+            50% { box-shadow: 0 0 0 3px rgba(0, 243, 255, 0.15), 0 0 32px rgba(0, 243, 255, 0.22); }
         }
 
         .form-group input::placeholder {
@@ -372,6 +437,26 @@
             -webkit-backdrop-filter: blur(12px);
         }
 
+        .login-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.25),
+                transparent
+            );
+            transition: left 0.6s ease;
+        }
+
+        .login-btn:hover:not(:disabled)::before {
+            left: 100%;
+        }
+
         .login-btn:hover:not(:disabled) {
             background: rgba(0, 243, 255, 0.15);
             border-color: var(--neon-cyan);
@@ -382,6 +467,22 @@
         .login-btn:disabled {
             opacity: 0.6;
             cursor: wait;
+        }
+
+        .login-btn .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.35);
+            transform: scale(0);
+            animation: ripple 0.6s linear;
+            pointer-events: none;
+        }
+
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
         }
 
         .guest-link {
@@ -431,6 +532,23 @@
             border-color: rgba(255, 255, 255, 0.35);
         }
 
+        #skip-btn::after {
+            content: '（空格）';
+            display: inline-block;
+            max-width: 0;
+            opacity: 0;
+            margin-left: 0;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        #skip-btn:hover::after {
+            max-width: 80px;
+            opacity: 1;
+            margin-left: 6px;
+        }
+
         /* 加载提示 */
         #loading {
             position: fixed;
@@ -445,7 +563,7 @@
             font-size: 14px;
             letter-spacing: 0.2em;
             transition: opacity 0.8s ease;
-            gap: 16px;
+            gap: 20px;
         }
 
         #loading.hidden {
@@ -453,19 +571,80 @@
             pointer-events: none;
         }
 
-        #loading::after {
-            content: '';
-            width: 4px;
-            height: 4px;
+        .loading-logo {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.8), rgba(0, 243, 255, 0.4) 40%, transparent 70%);
+            box-shadow: 0 0 40px rgba(0, 243, 255, 0.3);
+            animation: logoBreathe 2s ease-in-out infinite;
+        }
+
+        @keyframes logoBreathe {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.08); opacity: 1; }
+        }
+
+        .loading-dots {
+            display: flex;
+            gap: 6px;
+        }
+
+        .loading-dots span {
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
             background: var(--neon-cyan);
-            box-shadow: 8px 0 0 var(--neon-cyan), 16px 0 0 var(--neon-cyan);
             animation: loadingDots 1.4s infinite;
         }
 
+        .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
         @keyframes loadingDots {
-            0%, 80%, 100% { opacity: 0.3; }
-            40% { opacity: 1; }
+            0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+            40% { opacity: 1; transform: scale(1.2); }
+        }
+
+        /* 音频控制 */
+        #audio-toggle {
+            position: fixed;
+            top: 28px;
+            left: 28px;
+            z-index: 100;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            background: rgba(0, 0, 0, 0.25);
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 18px;
+            cursor: pointer;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #audio-toggle.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #audio-toggle:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.35);
+        }
+
+        #audio-toggle[aria-pressed="true"] {
+            color: var(--neon-cyan);
+            border-color: rgba(0, 243, 255, 0.4);
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
         }
 
         /* 响应式 */
@@ -474,6 +653,8 @@
             #title-layer .subtitle { letter-spacing: 0.25em; }
             .glass-card { padding: 36px 28px; }
             .glass-card h2 { font-size: 24px; }
+            #audio-toggle { top: 22px; left: 22px; }
+            #skip-btn { top: 22px; right: 22px; }
         }
 
         /* 减少运动偏好 */
@@ -509,6 +690,7 @@
 
     <div id="login-layer">
         <div class="glass-card" id="loginCard">
+            <div class="light-flow"></div>
             <div class="sheen" id="loginSheen"></div>
             <h2>启程</h2>
             <p class="login-subtitle">开启你的星云之旅</p>
@@ -527,15 +709,24 @@
         </div>
     </div>
 
+    <button id="audio-toggle" title="背景音乐" aria-label="开启背景音乐" aria-pressed="false">♪</button>
     <button id="skip-btn">跳过动画</button>
-    <div id="loading">星云苏醒中</div>
+
+    <div id="loading">
+        <div class="loading-logo"></div>
+        <div>星云苏醒中</div>
+        <div class="loading-dots"><span></span><span></span><span></span></div>
+    </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
     <script>
         // ============================================================
-        // 星云编年史 · 启动页 + 登录页一体化
+        // 星云编年史 · 启动页 + 登录页一体化（v2）
+        // 叙事：星云苏醒 → 玻璃凝聚 → 角色觉醒 → 编年史展开
+        //       → 星图散开成粒子 → 星云漩涡 → 标题水印 + 登录升起
+        //       → 角色在登录周围凝聚成守护星座环
         // ============================================================
 
         const CHARACTERS = [
@@ -555,10 +746,11 @@
             glassForm: 1.5,
             characterAwake: 2.0,
             starChartExpand: 2.5,
-            collapse: 1.5,
-            vortex: 1.5,
-            titleReveal: 2.0,
-            loginRise: 1.5
+            scatter: 1.8,
+            vortex: 2.0,
+            titleReveal: 1.2,
+            loginRise: 1.2,
+            ringForm: 1.5
         };
 
         let scene, camera, renderer;
@@ -567,11 +759,16 @@
         let vortexParticles;
         let centralGlow;
         let magicCircle;
+        let burstParticles;
+        let ringParticles;
         let masterTimeline;
         let isSkipped = false;
         let rafId;
         let reducedMotion = false;
         let webglFailed = false;
+        let audioStarted = false;
+        let audioMuted = true;
+        let audioNodes = null;
 
         // DOM 元素
         const loadingEl = document.getElementById('loading');
@@ -582,6 +779,8 @@
         const loginSheen = document.getElementById('loginSheen');
         const loginForm = document.getElementById('loginForm');
         const guestLink = document.getElementById('guestLink');
+        const audioToggle = document.getElementById('audio-toggle');
+        const rootStyle = document.documentElement.style;
 
         // 共享纹理
         let particleTexture, warmParticleTexture, streakTexture, causticTexture, magicCircleTexture;
@@ -602,6 +801,87 @@
             return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         }
 
+        function hexToCss(hex) {
+            return '#' + hex.toString(16).padStart(6, '0');
+        }
+
+        // ============================================================
+        // 程序化环境音乐（Web Audio API）
+        // ============================================================
+        function initAudio() {
+            if (audioNodes) return;
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+
+            const ctx = new AudioCtx();
+            const master = ctx.createGain();
+            master.gain.value = 0;
+            master.connect(ctx.destination);
+
+            // 三层 drone：低、中、高
+            const drones = [
+                { freq: 55, gain: 0.12, type: 'sine' },      // A1 低频底音
+                { freq: 110, gain: 0.06, type: 'triangle' }, // A2 中频铺垫
+                { freq: 220, gain: 0.03, type: 'sine' }      // A3 高频泛音
+            ];
+
+            const oscillators = [];
+            const gains = [];
+
+            drones.forEach(d => {
+                const osc = ctx.createOscillator();
+                const g = ctx.createGain();
+                osc.type = d.type;
+                osc.frequency.value = d.freq;
+                g.gain.value = d.gain;
+                osc.connect(g);
+                g.connect(master);
+                osc.start();
+                oscillators.push(osc);
+                gains.push(g);
+            });
+
+            // LFO 缓慢调制音量，制造呼吸感
+            const lfo = ctx.createOscillator();
+            lfo.type = 'sine';
+            lfo.frequency.value = 0.08;
+            const lfoGain = ctx.createGain();
+            lfoGain.gain.value = 0.04;
+            lfo.connect(lfoGain);
+            lfoGain.connect(master.gain);
+            lfo.start();
+
+            // 轻微延迟制造空间感
+            const delay = ctx.createDelay();
+            delay.delayTime.value = 0.45;
+            const delayGain = ctx.createGain();
+            delayGain.gain.value = 0.25;
+            master.connect(delay);
+            delay.connect(delayGain);
+            delayGain.connect(ctx.destination);
+
+            audioNodes = { ctx, master, oscillators, gains, lfo, lfoGain, delay, delayGain };
+        }
+
+        function toggleAudio() {
+            if (!audioNodes) initAudio();
+            if (!audioNodes) return;
+
+            audioMuted = !audioMuted;
+            audioToggle.setAttribute('aria-pressed', !audioMuted);
+            audioToggle.textContent = audioMuted ? '♪' : '♫';
+
+            const now = audioNodes.ctx.currentTime;
+            if (!audioMuted) {
+                audioNodes.ctx.resume();
+                audioNodes.master.gain.cancelScheduledValues(now);
+                audioNodes.master.gain.linearRampToValueAtTime(0.35, now + 2.5);
+            } else {
+                audioNodes.master.gain.cancelScheduledValues(now);
+                audioNodes.master.gain.linearRampToValueAtTime(0, now + 0.8);
+            }
+        }
+
         // ============================================================
         // 星点背景
         // ============================================================
@@ -618,16 +898,17 @@
             window.addEventListener('resize', resize, { passive: true });
 
             const stars = [];
-            const count = Math.min(260, Math.floor((canvas.width * canvas.height) / 6500));
+            const count = Math.min(320, Math.floor((canvas.width * canvas.height) / 5500));
 
             for (let i = 0; i < count; i++) {
                 stars.push({
                     x: Math.random() * canvas.width,
                     y: Math.random() * canvas.height,
-                    size: Math.random() * 1.5 + 0.3,
+                    size: Math.random() * 1.6 + 0.3,
                     opacity: Math.random() * 0.6 + 0.2,
                     speed: Math.random() * 0.3 + 0.05,
-                    twinkle: Math.random() * Math.PI * 2
+                    twinkle: Math.random() * Math.PI * 2,
+                    twinkleSpeed: Math.random() * 0.03 + 0.01
                 });
             }
 
@@ -636,11 +917,16 @@
             function draw(now) {
                 starRafId = requestAnimationFrame(draw);
                 if (reducedMotion) return;
-                if (now - lastDraw < 32) return; // 限制约 30fps
+                if (now - lastDraw < 32) return;
                 lastDraw = now;
                 frame++;
 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // 偶尔出现流星
+                if (Math.random() < 0.015) {
+                    createShootingStar(ctx, canvas);
+                }
 
                 stars.forEach(star => {
                     star.y -= star.speed;
@@ -649,13 +935,28 @@
                         star.x = Math.random() * canvas.width;
                     }
 
-                    const twinkle = Math.sin(frame * 0.02 + star.twinkle) * 0.3 + 0.7;
+                    const twinkle = Math.sin(frame * star.twinkleSpeed + star.twinkle) * 0.35 + 0.65;
                     const alpha = star.opacity * twinkle;
 
                     ctx.beginPath();
                     ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
                     ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
                     ctx.fill();
+
+                    // 大星点加十字辉光
+                    if (star.size > 1.2) {
+                        ctx.save();
+                        ctx.globalAlpha = alpha * 0.5;
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                        ctx.lineWidth = 0.5;
+                        ctx.beginPath();
+                        ctx.moveTo(star.x - star.size * 2, star.y);
+                        ctx.lineTo(star.x + star.size * 2, star.y);
+                        ctx.moveTo(star.x, star.y - star.size * 2);
+                        ctx.lineTo(star.x, star.y + star.size * 2);
+                        ctx.stroke();
+                        ctx.restore();
+                    }
                 });
             }
             draw(0);
@@ -667,6 +968,41 @@
                     draw(0);
                 }
             });
+        }
+
+        function createShootingStar(ctx, canvas) {
+            const startX = Math.random() * canvas.width;
+            const startY = Math.random() * canvas.height * 0.4;
+            const length = Math.random() * 60 + 40;
+            const angle = Math.PI / 4;
+            let progress = 0;
+
+            function drawTrail() {
+                progress += 6;
+                if (progress > length + 20) return;
+
+                const x = startX + Math.cos(angle) * progress;
+                const y = startY + Math.sin(angle) * progress;
+                const tailX = x - Math.cos(angle) * length;
+                const tailY = y - Math.sin(angle) * length;
+
+                const gradient = ctx.createLinearGradient(tailX, tailY, x, y);
+                gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+                gradient.addColorStop(1, 'rgba(255, 255, 255, 0.9)');
+
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, 1 - progress / (length + 20));
+                ctx.strokeStyle = gradient;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(tailX, tailY);
+                ctx.lineTo(x, y);
+                ctx.stroke();
+                ctx.restore();
+
+                requestAnimationFrame(drawTrail);
+            }
+            drawTrail();
         }
 
         // ============================================================
@@ -777,10 +1113,8 @@
         function createCard(char, index, texture) {
             const group = new THREE.Group();
 
-            // 卡片尺寸：竖版 2.2 x 3.2
             const geometry = new THREE.PlaneGeometry(2.2, 3.2, 1, 1);
 
-            // 玻璃材质：不使用 transmission（Plane 无厚度），改用 clearcoat + opacity 模拟
             const material = new THREE.MeshPhysicalMaterial({
                 map: texture,
                 color: 0xffffff,
@@ -793,7 +1127,10 @@
                 side: THREE.DoubleSide,
                 emissive: char.color,
                 emissiveIntensity: 0.06,
-                envMapIntensity: 1.0
+                envMapIntensity: 1.0,
+                transmission: 0.55,
+                thickness: 1.2,
+                ior: 1.5
             });
 
             const card = new THREE.Mesh(geometry, material);
@@ -854,7 +1191,7 @@
         }
 
         // ============================================================
-        // 星座连线
+        // 星座连线（能量束版本）
         // ============================================================
         function initConstellationLines() {
             const material = new THREE.LineBasicMaterial({
@@ -901,7 +1238,7 @@
         // 星云漩涡粒子
         // ============================================================
         function initVortex() {
-            const particleCount = 600;
+            const particleCount = 800;
             const geometry = new THREE.BufferGeometry();
             const positions = new Float32Array(particleCount * 3);
             const colors = new Float32Array(particleCount * 3);
@@ -933,7 +1270,7 @@
                 colors[i * 3 + 1] = color.g;
                 colors[i * 3 + 2] = color.b;
 
-                sizes[i] = Math.random() * 0.08 + 0.02;
+                sizes[i] = Math.random() * 0.12 + 0.03;
             }
 
             geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -942,7 +1279,7 @@
             geometry.userData = { basePositions };
 
             const material = new THREE.PointsMaterial({
-                size: 0.12,
+                size: 0.14,
                 map: particleTexture,
                 vertexColors: true,
                 transparent: true,
@@ -982,32 +1319,118 @@
                 const radius = Math.sqrt(x * x + z * z);
                 let angle = Math.atan2(z, x);
 
-                angle += 0.025 * intensity;
-                const shrink = radius > 0.3 ? radius * 0.988 : radius;
+                angle += 0.03 * intensity;
+                const shrink = radius > 0.3 ? radius * (0.992 - 0.004 * intensity) : radius;
 
                 positions[idx] = Math.cos(angle) * shrink;
-                positions[idx + 1] *= 0.99;
+                positions[idx + 1] *= 0.995;
                 positions[idx + 2] = Math.sin(angle) * shrink;
             }
 
             vortexParticles.geometry.attributes.position.needsUpdate = true;
-            vortexParticles.rotation.y = time * 0.2;
+            vortexParticles.rotation.y = time * 0.15;
+        }
+
+        // ============================================================
+        // 登录成功粒子爆发
+        // ============================================================
+        function createLoginBurst() {
+            const count = 120;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(count * 3);
+            const velocities = new Float32Array(count * 3);
+            const colors = new Float32Array(count * 3);
+            const opacities = new Float32Array(count);
+
+            const colorPalette = [
+                new THREE.Color(0x00f3ff),
+                new THREE.Color(0xb892ff),
+                new THREE.Color(0xffffff)
+            ];
+
+            for (let i = 0; i < count; i++) {
+                positions[i * 3] = 0;
+                positions[i * 3 + 1] = 0;
+                positions[i * 3 + 2] = 0;
+
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.random() * Math.PI;
+                const speed = Math.random() * 0.15 + 0.05;
+
+                velocities[i * 3] = Math.sin(phi) * Math.cos(theta) * speed;
+                velocities[i * 3 + 1] = Math.sin(phi) * Math.sin(theta) * speed;
+                velocities[i * 3 + 2] = Math.cos(phi) * speed;
+
+                const color = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+                colors[i * 3] = color.r;
+                colors[i * 3 + 1] = color.g;
+                colors[i * 3 + 2] = color.b;
+
+                opacities[i] = 1;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const material = new THREE.PointsMaterial({
+                size: 0.18,
+                map: particleTexture,
+                vertexColors: true,
+                transparent: true,
+                opacity: 1,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            burstParticles = new THREE.Points(geometry, material);
+            burstParticles.userData = { velocities, opacities, life: 0 };
+            scene.add(burstParticles);
+        }
+
+        function updateBurst() {
+            if (!burstParticles) return;
+
+            const positions = burstParticles.geometry.attributes.position.array;
+            const velocities = burstParticles.userData.velocities;
+            const opacities = burstParticles.userData.opacities;
+            burstParticles.userData.life++;
+
+            let alive = false;
+            for (let i = 0; i < opacities.length; i++) {
+                if (opacities[i] <= 0.01) continue;
+                alive = true;
+
+                positions[i * 3] += velocities[i * 3];
+                positions[i * 3 + 1] += velocities[i * 3 + 1];
+                positions[i * 3 + 2] += velocities[i * 3 + 2];
+
+                opacities[i] *= 0.96;
+            }
+
+            burstParticles.geometry.attributes.position.needsUpdate = true;
+            burstParticles.material.opacity = Math.max(...opacities);
+
+            if (!alive || burstParticles.userData.life > 120) {
+                scene.remove(burstParticles);
+                burstParticles.geometry.dispose();
+                burstParticles.material.dispose();
+                burstParticles = null;
+            }
         }
 
         // ============================================================
         // 动画编排
         // ============================================================
         function getCardOrbitPosition(index, total, radius, yOffset = 0) {
-            // 菱形 + 四角布局
             const positions = [
-                { angle: -Math.PI / 2, r: 1.0, yMul: 0.15 },   // 上
-                { angle: 0, r: 1.0, yMul: 0 },                  // 右
-                { angle: Math.PI / 2, r: 1.0, yMul: -0.15 },    // 下
-                { angle: Math.PI, r: 1.0, yMul: 0 },            // 左
-                { angle: -Math.PI / 4, r: 1.18, yMul: 0.08 },   // 右上
-                { angle: Math.PI / 4, r: 1.18, yMul: -0.08 },   // 右下
-                { angle: 3 * Math.PI / 4, r: 1.18, yMul: -0.08 }, // 左下
-                { angle: -3 * Math.PI / 4, r: 1.18, yMul: 0.08 }  // 左上
+                { angle: -Math.PI / 2, r: 1.0, yMul: 0.15 },
+                { angle: 0, r: 1.0, yMul: 0 },
+                { angle: Math.PI / 2, r: 1.0, yMul: -0.15 },
+                { angle: Math.PI, r: 1.0, yMul: 0 },
+                { angle: -Math.PI / 4, r: 1.18, yMul: 0.08 },
+                { angle: Math.PI / 4, r: 1.18, yMul: -0.08 },
+                { angle: 3 * Math.PI / 4, r: 1.18, yMul: -0.08 },
+                { angle: -3 * Math.PI / 4, r: 1.18, yMul: 0.08 }
             ];
             const p = positions[index % positions.length];
             return {
@@ -1016,6 +1439,17 @@
                 z: Math.sin(p.angle) * radius * p.r,
                 rotY: -p.angle,
                 rotX: 0.08
+            };
+        }
+
+        function getCardRingPosition(index, total, radius) {
+            const angle = (index / total) * Math.PI * 2 - Math.PI / 2;
+            return {
+                x: Math.cos(angle) * radius,
+                y: Math.sin(angle) * radius * 0.55,
+                z: -2.8,
+                rotY: -angle * 0.35 + Math.PI,
+                rotX: 0
             };
         }
 
@@ -1033,7 +1467,7 @@
                 return tl;
             }
 
-            // Phase 1: 星云苏醒 - 中央发光体呼吸
+            // Phase 1: 星云苏醒
             const t0 = 0;
             tl.to(centralGlow.scale, {
                 x: 1.5, y: 1.5, z: 1.5,
@@ -1046,7 +1480,7 @@
                 ease: 'power2.inOut'
             }, t0);
 
-            // Phase 2: 液态玻璃凝聚 - 卡片从中央诞生
+            // Phase 2: 液态玻璃凝聚
             const t2 = t0 + DURATION.nebulaAwake;
             cards.forEach((card, i) => {
                 const stagger = i * 0.08;
@@ -1083,7 +1517,7 @@
                 }, t3);
             });
 
-            // Phase 4: 编年史展开 - 星图扩大，连线显现，魔法阵浮现
+            // Phase 4: 编年史展开
             const t4 = t3 + DURATION.characterAwake;
             tl.to(constellationLines.material, {
                 opacity: 0.6,
@@ -1111,48 +1545,57 @@
                 }, t4);
             });
 
-            // Phase 5: 星图坍缩
+            // Phase 5: 星图散开成星云粒子
             const t5 = t4 + DURATION.starChartExpand;
             tl.to(constellationLines.material, {
                 opacity: 0,
-                duration: DURATION.collapse * 0.5,
+                duration: DURATION.scatter * 0.5,
                 ease: 'power2.in'
             }, t5);
             tl.to(magicCircle.material, {
                 opacity: 0,
-                duration: DURATION.collapse,
+                duration: DURATION.scatter,
                 ease: 'power2.in'
             }, t5);
             cards.forEach((card, i) => {
-                const stagger = i * 0.04;
+                const stagger = i * 0.05;
+                const scatterAngle = (i / cards.length) * Math.PI * 2;
+                const scatterRadius = 9 + Math.random() * 2;
                 tl.to(card.position, {
-                    x: 0, y: 0, z: 0,
-                    duration: DURATION.collapse,
-                    ease: 'power3.in'
+                    x: Math.cos(scatterAngle) * scatterRadius,
+                    y: (Math.random() - 0.5) * 5,
+                    z: Math.sin(scatterAngle) * scatterRadius,
+                    duration: DURATION.scatter,
+                    ease: 'power3.out'
                 }, t5 + stagger);
                 tl.to(card.rotation, {
-                    y: Math.PI * 4,
-                    z: 0.2,
-                    duration: DURATION.collapse,
-                    ease: 'power3.in'
+                    y: Math.PI * 3 + scatterAngle,
+                    z: 0.3,
+                    duration: DURATION.scatter,
+                    ease: 'power3.out'
                 }, t5 + stagger);
                 tl.to(card.scale, {
-                    x: 0.05, y: 0.05, z: 0.05,
-                    duration: DURATION.collapse,
+                    x: 0.1, y: 0.1, z: 0.1,
+                    duration: DURATION.scatter * 0.7,
                     ease: 'power3.in'
-                }, t5 + stagger);
+                }, t5 + stagger * 0.5);
+                tl.to(card.userData.cardMesh.material, {
+                    opacity: 0,
+                    duration: DURATION.scatter * 0.5,
+                    ease: 'power2.in'
+                }, t5 + DURATION.scatter * 0.4 + stagger);
             });
 
-            // Phase 6: 星云漩涡
-            const t6 = t5 + DURATION.collapse + 0.2;
+            // Phase 6: 星云漩涡凝聚
+            const t6 = t5 + DURATION.scatter + 0.2;
             tl.call(() => {
                 resetVortex();
                 vortexParticles.visible = true;
                 centralGlow.material.color.setHex(0xffffff);
             }, null, t6);
             tl.to(vortexParticles.material, {
-                opacity: 0.8,
-                duration: DURATION.vortex * 0.5,
+                opacity: 0.85,
+                duration: DURATION.vortex * 0.4,
                 ease: 'power2.out'
             }, t6);
             tl.to(centralGlow.scale, {
@@ -1161,25 +1604,26 @@
                 ease: 'power2.out'
             }, t6);
             tl.to(centralGlow.material, {
-                opacity: 0.8,
+                opacity: 0.75,
                 duration: DURATION.vortex,
                 ease: 'power2.out'
             }, t6);
             tl.to(vortexParticles.material, {
                 opacity: 0,
-                duration: DURATION.vortex * 0.5,
+                duration: DURATION.vortex * 0.6,
                 ease: 'power2.in'
             }, t6 + DURATION.vortex * 0.5);
             tl.to(centralGlow.scale, {
                 x: 0.1, y: 0.1, z: 0.1,
-                duration: 0.5,
+                duration: 0.8,
                 ease: 'power2.in'
-            }, t6 + DURATION.vortex * 0.8);
+            }, t6 + DURATION.vortex * 0.7);
 
-            // Phase 7: 标题浮现
+            // Phase 7: 标题浮现为水印
             const t7 = t6 + DURATION.vortex + 0.3;
             tl.call(() => {
                 titleLayer.classList.add('visible');
+                setTimeout(() => titleLayer.classList.add('watermark'), 1200);
             }, null, t7);
             tl.to({}, { duration: DURATION.titleReveal }, t7);
 
@@ -1197,15 +1641,18 @@
 
             // 卡片持续漂浮
             cards.forEach((card, i) => {
-                if (card.visible) {
-                    if (loginLayer.classList.contains('visible')) {
-                        // 登录界面升起后两侧角色呼吸浮动
-                        const baseY = card.userData.loginY || card.position.y;
-                        card.position.y = baseY + Math.sin(time * 0.6 + i) * 0.08;
-                    } else {
-                        card.position.y += Math.sin(time * 0.8 + i) * 0.002;
-                        card.rotation.y += 0.002;
-                    }
+                if (!card.visible) return;
+
+                if (loginLayer.classList.contains('visible') && card.userData.isRing) {
+                    const baseY = card.userData.ringY || card.position.y;
+                    const angle = card.userData.ringAngle + time * 0.06;
+                    card.position.x = Math.cos(angle) * card.userData.ringRadius;
+                    card.position.y = baseY + Math.sin(time * 0.5 + i) * 0.06;
+                    card.position.z = -2.8 + Math.sin(angle * 0.5) * 0.25;
+                    card.rotation.y = -angle * 0.35 + Math.PI + Math.sin(time * 0.3 + i) * 0.03;
+                } else {
+                    card.position.y += Math.sin(time * 0.8 + i) * 0.002;
+                    card.rotation.y += 0.002;
                 }
             });
 
@@ -1220,7 +1667,10 @@
             }
 
             // 更新漩涡
-            updateVortex(time);
+            updateVortex(time, 1.5);
+
+            // 更新爆发粒子
+            updateBurst();
 
             renderer.render(scene, camera);
         }
@@ -1229,11 +1679,12 @@
         // 状态切换
         // ============================================================
         function showStaticLogin(message) {
-            // 无 WebGL 或初始化失败时的静态降级：显示标题 + 登录卡片
             loadingEl.classList.add('hidden');
             skipBtn.classList.remove('visible');
             titleLayer.classList.add('visible');
+            titleLayer.classList.add('watermark');
             loginLayer.classList.add('visible');
+            audioToggle.classList.add('visible');
             if (message) {
                 const tagline = titleLayer.querySelector('.tagline');
                 if (tagline) tagline.textContent = message;
@@ -1241,42 +1692,63 @@
         }
 
         function showLogin() {
-            titleLayer.classList.remove('visible');
+            titleLayer.classList.add('watermark');
             loginLayer.classList.add('visible');
             skipBtn.classList.remove('visible');
+            audioToggle.classList.add('visible');
 
-            // 角色退到两侧
+            // 卡片在登录卡片周围凝聚成守护星座环
             cards.forEach((card, i) => {
-                const isLeft = i < 4;
-                const xPos = isLeft ? -7.2 - (i % 4) * 0.35 : 7.2 + (i % 4) * 0.35;
-                const yPos = (i % 4 - 1.5) * 2.6;
-                card.userData.loginY = yPos;
+                card.visible = true;
+                card.userData.isRing = true;
+                const target = getCardRingPosition(i, cards.length, 5.2);
+                card.userData.ringRadius = 5.2;
+                card.userData.ringAngle = (i / cards.length) * Math.PI * 2 - Math.PI / 2;
+                card.userData.ringY = target.y;
 
                 gsap.to(card.position, {
-                    x: xPos,
-                    y: yPos,
-                    z: -2,
-                    duration: 1.2,
+                    x: target.x,
+                    y: target.y,
+                    z: target.z,
+                    duration: DURATION.ringForm,
                     ease: 'power3.out'
                 });
                 gsap.to(card.rotation, {
-                    y: isLeft ? 0.25 : -0.25,
-                    x: 0,
+                    y: target.rotY,
+                    x: target.rotX,
                     z: 0,
-                    duration: 1.2,
+                    duration: DURATION.ringForm,
                     ease: 'power3.out'
                 });
                 gsap.to(card.scale, {
-                    x: 0.6, y: 0.6, z: 0.6,
-                    duration: 1.2,
+                    x: 0.68, y: 0.68, z: 0.68,
+                    duration: DURATION.ringForm,
                     ease: 'power3.out'
+                });
+                gsap.to(card.userData.cardMesh.material, {
+                    opacity: 0.95,
+                    duration: DURATION.ringForm * 0.6,
+                    ease: 'power2.out'
+                });
+                gsap.to(card.userData.borderMesh.material, {
+                    opacity: 0.35,
+                    duration: DURATION.ringForm,
+                    ease: 'power2.out'
+                });
+                gsap.to(card.userData.glowMesh.material, {
+                    opacity: 0.16,
+                    duration: DURATION.ringForm,
+                    ease: 'power2.out'
                 });
             });
 
-            // 隐藏连线和漩涡
+            // 隐藏连线和漩涡，中央光保留微弱
             if (constellationLines) constellationLines.visible = false;
             if (vortexParticles) vortexParticles.visible = false;
-            if (centralGlow) centralGlow.visible = false;
+            if (centralGlow) {
+                gsap.to(centralGlow.scale, { x: 0.3, y: 0.3, z: 0.3, duration: 1.5 });
+                gsap.to(centralGlow.material, { opacity: 0.25, duration: 1.5 });
+            }
         }
 
         function skipAnimation() {
@@ -1292,13 +1764,7 @@
             gsap.killTweensOf(cards);
             gsap.killTweensOf([centralGlow, magicCircle, vortexParticles?.material, constellationLines?.material]);
 
-            cards.forEach(card => { card.visible = false; });
-            if (centralGlow) centralGlow.visible = false;
-            if (magicCircle) magicCircle.visible = false;
-            if (constellationLines) constellationLines.visible = false;
-            if (vortexParticles) vortexParticles.visible = false;
-
-            titleLayer.classList.remove('visible');
+            titleLayer.classList.add('watermark');
             showLogin();
         }
 
@@ -1349,6 +1815,13 @@
                 magicCircle = null;
             }
 
+            if (burstParticles) {
+                burstParticles.geometry.dispose();
+                burstParticles.material.dispose();
+                scene.remove(burstParticles);
+                burstParticles = null;
+            }
+
             [particleTexture, warmParticleTexture, streakTexture, causticTexture, magicCircleTexture].forEach(tex => {
                 if (tex) tex.dispose();
             });
@@ -1390,7 +1863,6 @@
                 }
             });
 
-            // 统一 pointer 事件支持鼠标和触摸
             loginCard.addEventListener('pointermove', (e) => {
                 const rect = loginCard.getBoundingClientRect();
                 targetX = e.clientX - rect.left;
@@ -1403,6 +1875,46 @@
 
             loginCard.addEventListener('pointerleave', () => {
                 loginCard.style.transform = 'rotateY(0deg) rotateX(0deg)';
+            });
+
+            // 输入框聚焦时循环切换主题色
+            const inputs = loginForm.querySelectorAll('input');
+            let themeIndex = 0;
+            let themeInterval = null;
+
+            function cycleThemeColor() {
+                const char = CHARACTERS[themeIndex % CHARACTERS.length];
+                const hex = hexToCss(char.color);
+                rootStyle.setProperty('--theme-color', hex);
+                themeIndex++;
+            }
+
+            inputs.forEach(input => {
+                input.addEventListener('focus', () => {
+                    loginCard.classList.add('glow-cyan');
+                    cycleThemeColor();
+                    if (!themeInterval) themeInterval = setInterval(cycleThemeColor, 1200);
+                });
+                input.addEventListener('blur', () => {
+                    loginCard.classList.remove('glow-cyan');
+                    clearInterval(themeInterval);
+                    themeInterval = null;
+                    rootStyle.setProperty('--theme-color', '#00f3ff');
+                });
+            });
+
+            // 按钮涟漪
+            const btn = loginForm.querySelector('.login-btn');
+            btn.addEventListener('click', (e) => {
+                const rect = btn.getBoundingClientRect();
+                const ripple = document.createElement('span');
+                ripple.className = 'ripple';
+                const size = Math.max(rect.width, rect.height);
+                ripple.style.width = ripple.style.height = size + 'px';
+                ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+                ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+                btn.appendChild(ripple);
+                setTimeout(() => ripple.remove(), 600);
             });
 
             // 表单提交
@@ -1420,21 +1932,25 @@
                     return;
                 }
 
-                const btn = loginForm.querySelector('.login-btn');
                 btn.disabled = true;
-                btn.textContent = '验证中...';
+                const originalText = btn.textContent;
+                btn.textContent = '星门开启中…';
 
-                // 演示用途：延迟跳转
+                createLoginBurst();
+
                 setTimeout(() => {
                     sessionStorage.setItem('nebulaUser', username);
                     window.location.href = 'nebula-chronicle.html';
-                }, 500);
+                }, 900);
             });
 
             guestLink.addEventListener('click', (e) => {
                 e.preventDefault();
-                sessionStorage.setItem('nebulaUser', '游客');
-                window.location.href = 'nebula-chronicle.html';
+                createLoginBurst();
+                setTimeout(() => {
+                    sessionStorage.setItem('nebulaUser', '游客');
+                    window.location.href = 'nebula-chronicle.html';
+                }, 600);
             });
         }
 
@@ -1446,6 +1962,15 @@
             initStarfield();
             initLoginInteraction();
             skipBtn.addEventListener('click', skipAnimation);
+            audioToggle.addEventListener('click', toggleAudio);
+
+            // 空格跳过
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Space' && skipBtn.classList.contains('visible')) {
+                    e.preventDefault();
+                    skipAnimation();
+                }
+            });
 
             if (!isWebGLAvailable()) {
                 webglFailed = true;
@@ -1476,7 +2001,6 @@
             }
         }
 
-        // 页面卸载时清理资源
         window.addEventListener('beforeunload', () => {
             if (!webglFailed && renderer) disposeScene();
         });
