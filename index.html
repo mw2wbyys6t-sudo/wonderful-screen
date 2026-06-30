@@ -832,7 +832,7 @@
         }
 
         // ============================================================
-        // Phase 2: 入口界面（双视频交叉淡入淡出轮播）
+        // Phase 2: 入口界面（双视频预加载 + 无缝交叉淡入淡出轮播）
         // ============================================================
         function setupVideoCarousel() {
             if (!isHttpProtocol()) {
@@ -840,79 +840,103 @@
                 return;
             }
 
+            const CROSSFADE_MS = 1600;
+            const PRELOAD_OFFSET_MS = 3500;
+
             let nextVideo = document.getElementById('bg-video-next');
             let currentIdx = 0;
             let currentVideo = bgVideo;
-            let fallbackTimer = null;
-            let playbackMonitor = null;
+            let timers = [];
             let carouselStarted = false;
 
+            function clearAllTimers() {
+                timers.forEach(t => clearTimeout(t));
+                timers = [];
+            }
+
+            function after(ms, fn) {
+                const t = setTimeout(fn, ms);
+                timers.push(t);
+                return t;
+            }
+
             function hideVideos() {
+                clearAllTimers();
                 document.querySelectorAll('.bg-video-layer').forEach(v => {
+                    v.classList.remove('active');
                     v.style.display = 'none';
                     v.pause();
                 });
-                clearTimeout(fallbackTimer);
-                clearTimeout(playbackMonitor);
             }
 
-            function startPlaybackMonitor(video) {
-                clearTimeout(playbackMonitor);
-                playbackMonitor = setTimeout(() => {
+            function monitorPlayback(video) {
+                after(5000, () => {
                     if (video.readyState < 2) {
                         console.warn('Video playback monitor: video failed to load/decode, hiding carousel');
                         hideVideos();
                     }
-                }, 5000);
+                });
             }
 
-            function loadVideo(video, src) {
+            function prepareVideo(video, src) {
                 video.src = src;
                 video.load();
-                startPlaybackMonitor(video);
+                monitorPlayback(video);
                 return video.play().catch(err => {
                     console.warn('Video autoplay blocked:', err);
                 });
             }
 
-            function switchToNext() {
-                const nextIdx = (currentIdx + 1) % VIDEOS.length;
-                const nextSrc = VIDEOS[nextIdx];
+            function crossfade() {
+                const oldVideo = currentVideo;
+                const newVideo = nextVideo;
 
-                loadVideo(nextVideo, nextSrc).then(() => {
-                    currentVideo.classList.remove('active');
-                    nextVideo.classList.add('active');
+                newVideo.classList.add('active');
+                oldVideo.classList.remove('active');
 
-                    const temp = currentVideo;
-                    currentVideo = nextVideo;
-                    nextVideo = temp;
-                    currentIdx = nextIdx;
+                // 旧视频在淡出完成后暂停，释放资源（使用独立 timer，避免被 scheduleCycle 清掉）
+                setTimeout(() => {
+                    oldVideo.pause();
+                }, CROSSFADE_MS + 200);
 
-                    scheduleSwitch();
-                }).catch(err => {
-                    console.warn('Failed to load next video:', err);
-                    scheduleSwitch();
-                });
+                // 交换角色
+                currentVideo = newVideo;
+                nextVideo = oldVideo;
+                currentIdx = (currentIdx + 1) % VIDEOS.length;
+
+                scheduleCycle();
             }
 
-            function scheduleSwitch() {
-                clearTimeout(fallbackTimer);
-                // 在当前视频接近尾声前 1.2 秒开始切换，交叉淡入淡出覆盖结尾
-                const switchAt = Math.max(200, (currentVideo.duration || 6) * 1000 - 1200);
-                fallbackTimer = setTimeout(switchToNext, switchAt);
+            function scheduleCycle() {
+                clearAllTimers();
+                const durationMs = (currentVideo.duration || 6) * 1000;
+                const preloadAt = Math.max(200, durationMs - PRELOAD_OFFSET_MS);
+                const fadeAt = Math.max(200, durationMs - CROSSFADE_MS);
+
+                // 先预加载下一条视频
+                after(preloadAt, () => {
+                    const nextSrc = VIDEOS[(currentIdx + 1) % VIDEOS.length];
+                    nextVideo.src = nextSrc;
+                    nextVideo.load();
+                    monitorPlayback(nextVideo);
+                    nextVideo.play().catch(() => {});
+                });
+
+                // 再执行交叉淡入淡出
+                after(fadeAt, crossfade);
             }
 
             currentVideo.addEventListener('error', () => {
                 console.warn('Current video error, switching early');
-                switchToNext();
+                crossfade();
             });
 
             // 启动第一条视频
-            loadVideo(currentVideo, VIDEOS[0]).then(() => {
+            prepareVideo(currentVideo, VIDEOS[0]).then(() => {
                 if (carouselStarted) return;
                 carouselStarted = true;
                 currentVideo.classList.add('active');
-                scheduleSwitch();
+                scheduleCycle();
             }).catch(() => {
                 hideVideos();
             });
