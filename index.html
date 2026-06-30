@@ -844,10 +844,32 @@
             let currentIdx = 0;
             let currentVideo = bgVideo;
             let fallbackTimer = null;
+            let playbackMonitor = null;
+            let carouselStarted = false;
+
+            function hideVideos() {
+                document.querySelectorAll('.bg-video-layer').forEach(v => {
+                    v.style.display = 'none';
+                    v.pause();
+                });
+                clearTimeout(fallbackTimer);
+                clearTimeout(playbackMonitor);
+            }
+
+            function startPlaybackMonitor(video) {
+                clearTimeout(playbackMonitor);
+                playbackMonitor = setTimeout(() => {
+                    if (video.readyState < 2) {
+                        console.warn('Video playback monitor: video failed to load/decode, hiding carousel');
+                        hideVideos();
+                    }
+                }, 5000);
+            }
 
             function loadVideo(video, src) {
                 video.src = src;
                 video.load();
+                startPlaybackMonitor(video);
                 return video.play().catch(err => {
                     console.warn('Video autoplay blocked:', err);
                 });
@@ -857,13 +879,10 @@
                 const nextIdx = (currentIdx + 1) % VIDEOS.length;
                 const nextSrc = VIDEOS[nextIdx];
 
-                // 预加载下一条视频
                 loadVideo(nextVideo, nextSrc).then(() => {
-                    // 当前视频开始淡出，下一条同步淡入
                     currentVideo.classList.remove('active');
                     nextVideo.classList.add('active');
 
-                    // 交换角色
                     const temp = currentVideo;
                     currentVideo = nextVideo;
                     nextVideo = temp;
@@ -878,8 +897,8 @@
 
             function scheduleSwitch() {
                 clearTimeout(fallbackTimer);
-                // 在当前视频接近尾声前 1.6 秒开始切换，实现无缝交叉淡入淡出
-                const switchAt = Math.max(100, (currentVideo.duration || 6) * 1000 - 1600);
+                // 在当前视频接近尾声前 1.2 秒开始切换，交叉淡入淡出覆盖结尾
+                const switchAt = Math.max(200, (currentVideo.duration || 6) * 1000 - 1200);
                 fallbackTimer = setTimeout(switchToNext, switchAt);
             }
 
@@ -890,10 +909,12 @@
 
             // 启动第一条视频
             loadVideo(currentVideo, VIDEOS[0]).then(() => {
+                if (carouselStarted) return;
+                carouselStarted = true;
                 currentVideo.classList.add('active');
                 scheduleSwitch();
             }).catch(() => {
-                document.querySelectorAll('.bg-video-layer').forEach(v => v.style.display = 'none');
+                hideVideos();
             });
         }
 
