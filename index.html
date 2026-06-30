@@ -62,7 +62,7 @@
             mix-blend-mode: screen;
         }
 
-        #bg-video {
+        .bg-video-layer {
             position: fixed;
             inset: 0;
             width: 100%;
@@ -70,12 +70,23 @@
             object-fit: cover;
             z-index: 0;
             opacity: 0;
-            transition: opacity 1.2s ease;
+            transition: opacity 1.6s cubic-bezier(0.4, 0, 0.2, 1), transform 0.1s linear;
             pointer-events: none;
+            transform: scale(1.05);
         }
 
-        .phase-entrance #bg-video {
+        .bg-video-layer.active {
             opacity: 1;
+            z-index: 1;
+        }
+
+        .phase-entrance .bg-video-layer {
+            animation: videoBreath 24s ease-in-out infinite;
+        }
+
+        @keyframes videoBreath {
+            0%, 100% { transform: scale(1.05); }
+            50% { transform: scale(1.12); }
         }
 
         /* 动态光斑 */
@@ -535,8 +546,9 @@
     <!-- 星点画布 -->
     <canvas id="starfield"></canvas>
 
-    <!-- 背景视频（入口阶段显示） -->
-    <video id="bg-video" autoplay muted loop playsinline poster="images/generated/nebula-bg.jpg"></video>
+    <!-- 背景视频（入口阶段显示，双图层用于无缝交叉淡入淡出） -->
+    <video id="bg-video" class="bg-video-layer" autoplay muted loop playsinline poster="images/generated/nebula-bg.jpg"></video>
+    <video id="bg-video-next" class="bg-video-layer" autoplay muted loop playsinline poster="images/generated/nebula-bg.jpg"></video>
 
     <!-- Phase 0: 加载画面 -->
     <div id="loading">
@@ -820,46 +832,69 @@
         }
 
         // ============================================================
-        // Phase 2: 入口界面
+        // Phase 2: 入口界面（双视频交叉淡入淡出轮播）
         // ============================================================
         function setupVideoCarousel() {
             if (!isHttpProtocol()) {
-                bgVideo.style.display = 'none';
+                document.querySelectorAll('.bg-video-layer').forEach(v => v.style.display = 'none');
                 return;
             }
 
-            let idx = 0;
-            let hasStarted = false;
+            let nextVideo = document.getElementById('bg-video-next');
+            let currentIdx = 0;
+            let currentVideo = bgVideo;
+            let fallbackTimer = null;
 
-            function playNext() {
-                bgVideo.src = VIDEOS[idx];
-                bgVideo.load();
-                const playPromise = bgVideo.play();
-                if (playPromise) {
-                    playPromise.catch(err => {
-                        console.warn('Video autoplay blocked:', err);
-                        if (!hasStarted) bgVideo.style.display = 'none';
-                    });
-                }
-                hasStarted = true;
+            function loadVideo(video, src) {
+                video.src = src;
+                video.load();
+                return video.play().catch(err => {
+                    console.warn('Video autoplay blocked:', err);
+                });
             }
 
-            function onVideoEnded() {
-                idx = (idx + 1) % VIDEOS.length;
-                bgVideo.style.opacity = '0';
-                setTimeout(() => {
-                    playNext();
-                    bgVideo.style.opacity = '1';
-                }, 800);
+            function switchToNext() {
+                const nextIdx = (currentIdx + 1) % VIDEOS.length;
+                const nextSrc = VIDEOS[nextIdx];
+
+                // 预加载下一条视频
+                loadVideo(nextVideo, nextSrc).then(() => {
+                    // 当前视频开始淡出，下一条同步淡入
+                    currentVideo.classList.remove('active');
+                    nextVideo.classList.add('active');
+
+                    // 交换角色
+                    const temp = currentVideo;
+                    currentVideo = nextVideo;
+                    nextVideo = temp;
+                    currentIdx = nextIdx;
+
+                    scheduleSwitch();
+                }).catch(err => {
+                    console.warn('Failed to load next video:', err);
+                    scheduleSwitch();
+                });
             }
 
-            bgVideo.addEventListener('ended', onVideoEnded);
-            bgVideo.addEventListener('error', () => {
-                console.warn('Video error, hiding background video');
-                bgVideo.style.display = 'none';
+            function scheduleSwitch() {
+                clearTimeout(fallbackTimer);
+                // 在当前视频接近尾声前 1.6 秒开始切换，实现无缝交叉淡入淡出
+                const switchAt = Math.max(100, (currentVideo.duration || 6) * 1000 - 1600);
+                fallbackTimer = setTimeout(switchToNext, switchAt);
+            }
+
+            currentVideo.addEventListener('error', () => {
+                console.warn('Current video error, switching early');
+                switchToNext();
             });
 
-            playNext();
+            // 启动第一条视频
+            loadVideo(currentVideo, VIDEOS[0]).then(() => {
+                currentVideo.classList.add('active');
+                scheduleSwitch();
+            }).catch(() => {
+                document.querySelectorAll('.bg-video-layer').forEach(v => v.style.display = 'none');
+            });
         }
 
         function enterEntrancePhase() {
