@@ -698,16 +698,16 @@
         // ============================================================
         function preloadAssets(onProgress) {
             const assets = CHARACTERS.map(c => IMAGE_BASE + c.file);
-            const video = document.createElement('video');
-            const canPlayMp4 = video.canPlayType('video/mp4') !== '';
-
             let loaded = 0;
-            const total = assets.length + (canPlayMp4 ? 1 : 0);
+            let finished = false;
+            const total = assets.length;
 
             function updateProgress() {
+                if (finished) return;
                 loaded++;
-                onProgress(loaded / total);
+                onProgress(Math.min(loaded / total, 0.99));
                 if (loaded >= total) {
+                    finished = true;
                     setTimeout(() => onProgress(1), 200);
                 }
             }
@@ -719,23 +719,13 @@
                 img.src = src;
             });
 
-            // 预加载第一个视频（可选，HTTP/HTTPS 下）
-            if (canPlayMp4 && isHttpProtocol()) {
-                const v = document.createElement('video');
-                v.preload = 'auto';
-                v.muted = true;
-                v.playsInline = true;
-                v.oncanplaythrough = updateProgress;
-                v.onerror = updateProgress;
-                v.onstalled = () => setTimeout(updateProgress, 3000);
-                v.src = VIDEOS[0];
-                v.load();
-                setTimeout(() => {
-                    if (loaded < total) updateProgress();
-                }, 4000);
-            } else {
-                updateProgress();
-            }
+            // 兜底：无论图片或视频是否加载成功，最长 6 秒后进入下一阶段
+            setTimeout(() => {
+                if (!finished) {
+                    finished = true;
+                    onProgress(1);
+                }
+            }, 6000);
         }
 
         // ============================================================
