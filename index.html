@@ -578,9 +578,10 @@
     <!-- 星点画布 -->
     <canvas id="starfield"></canvas>
 
-    <!-- 背景视频（入口阶段显示，双图层用于无缝交叉淡入淡出） -->
-    <video id="bg-video" class="bg-video-layer" autoplay muted loop playsinline poster="images/generated/nebula-bg.jpg"></video>
-    <video id="bg-video-next" class="bg-video-layer" autoplay muted loop playsinline poster="images/generated/nebula-bg.jpg"></video>
+    <!-- 背景视频（入口阶段显示，三图层用于无缝交叉淡入淡出轮播） -->
+    <video id="bg-video-0" class="bg-video-layer" muted loop playsinline preload="auto" poster="images/generated/nebula-bg.jpg"></video>
+    <video id="bg-video-1" class="bg-video-layer" muted loop playsinline preload="auto" poster="images/generated/nebula-bg.jpg"></video>
+    <video id="bg-video-2" class="bg-video-layer" muted loop playsinline preload="auto" poster="images/generated/nebula-bg.jpg"></video>
 
     <!-- Phase 0: 加载画面 -->
     <div id="loading">
@@ -641,12 +642,9 @@
         const loadingEl = document.getElementById('loading');
         const loadingBar = document.getElementById('loadingBar');
         const cardContainer = document.getElementById('card-container');
-        const bgVideo = document.getElementById('bg-video');
+        const bgVideos = VIDEOS.map((_, i) => document.getElementById('bg-video-' + i));
         const enterBtn = document.getElementById('enter-btn');
         const transitionOverlay = document.getElementById('transition-overlay');
-
-        let currentVideo = 0;
-        let autoPlayTimer = null;
 
         // ============================================================
         // 工具函数
@@ -668,20 +666,29 @@
         // 音效预配置（文件可能不存在，优雅降级）
         // ============================================================
         const audioMap = {};
-        function loadAudio(url) {
-            const audio = new Audio(url);
-            audio.preload = 'auto';
-            audioMap[url] = audio;
+        const audioReady = {};
+        function probeAudio(url) {
+            fetch(url, { method: 'HEAD' })
+                .then(res => {
+                    audioReady[url] = res.ok;
+                    if (res.ok) {
+                        const audio = new Audio(url);
+                        audio.preload = 'auto';
+                        audioMap[url] = audio;
+                    }
+                })
+                .catch(() => { audioReady[url] = false; });
         }
         function playAudio(url, volume = 0.6) {
+            if (!audioReady[url]) return;
             const audio = audioMap[url];
             if (!audio) return;
             audio.currentTime = 0;
             audio.volume = volume;
             audio.play().catch(() => {});
         }
-        loadAudio('audio/button-click.mp3');
-        loadAudio('audio/card-appear.mp3');
+        probeAudio('audio/button-click.mp3');
+        probeAudio('audio/card-appear.mp3');
 
         // ============================================================
         // 星点背景
@@ -864,7 +871,7 @@
         }
 
         // ============================================================
-        // Phase 2: 入口界面（双视频预加载 + 无缝交叉淡入淡出轮播）
+        // Phase 2: 入口界面（三视频固定源 + 无缝交叉淡入淡出轮播）
         // ============================================================
         function setupVideoCarousel() {
             if (!isHttpProtocol()) {
@@ -873,13 +880,18 @@
             }
 
             const CROSSFADE_MS = 1600;
-            const PRELOAD_OFFSET_MS = 3500;
+            const FALLBACK_DISPLAY_MS = 6000;
 
-            let nextVideo = document.getElementById('bg-video-next');
+            const videos = VIDEOS.map((src, i) => {
+                const v = bgVideos[i];
+                v.src = src;
+                return v;
+            });
+
             let currentIdx = 0;
-            let currentVideo = bgVideo;
             let timers = [];
-            let carouselStarted = false;
+            let started = false;
+            let failed = false;
 
             function clearAllTimers() {
                 timers.forEach(t => clearTimeout(t));
@@ -892,85 +904,89 @@
                 return t;
             }
 
+            function getDisplayMs() {
+                const current = videos[currentIdx];
+                const durationMs = (current && current.duration && current.duration > 0)
+                    ? current.duration * 1000
+                    : FALLBACK_DISPLAY_MS;
+                return Math.max(durationMs, CROSSFADE_MS + 1000);
+            }
+
             function hideVideos() {
                 clearAllTimers();
                 document.querySelectorAll('.bg-video-layer').forEach(v => {
                     v.classList.remove('active');
-                    v.style.display = 'none';
                     v.pause();
+                    v.style.display = 'none';
                 });
             }
 
-            function monitorPlayback(video) {
-                after(5000, () => {
-                    if (video.readyState < 2) {
-                        console.warn('Video playback monitor: video failed to load/decode, hiding carousel');
-                        hideVideos();
-                    }
-                });
-            }
+            function crossfadeTo(nextIdx) {
+                const current = videos[currentIdx];
+                const next = videos[nextIdx];
 
-            function prepareVideo(video, src) {
-                video.src = src;
-                video.load();
-                monitorPlayback(video);
-                return video.play().catch(err => {
-                    console.warn('Video autoplay blocked:', err);
-                });
-            }
+                next.classList.add('active');
+                next.play().catch(() => {});
+                current.classList.remove('active');
 
-            function crossfade() {
-                const oldVideo = currentVideo;
-                const newVideo = nextVideo;
-
-                newVideo.classList.add('active');
-                oldVideo.classList.remove('active');
-
-                // 旧视频在淡出完成后暂停，释放资源（使用独立 timer，避免被 scheduleCycle 清掉）
+                // 旧视频在淡出完成后暂停
                 setTimeout(() => {
-                    oldVideo.pause();
+                    current.pause();
                 }, CROSSFADE_MS + 200);
 
-                // 交换角色
-                currentVideo = newVideo;
-                nextVideo = oldVideo;
-                currentIdx = (currentIdx + 1) % VIDEOS.length;
-
-                scheduleCycle();
+                currentIdx = nextIdx;
+                scheduleNext();
             }
 
-            function scheduleCycle() {
+            function scheduleNext() {
                 clearAllTimers();
-                const durationMs = (currentVideo.duration || 6) * 1000;
-                const preloadAt = Math.max(200, durationMs - PRELOAD_OFFSET_MS);
-                const fadeAt = Math.max(200, durationMs - CROSSFADE_MS);
+                const displayMs = getDisplayMs();
+                const nextIdx = (currentIdx + 1) % videos.length;
 
-                // 先预加载下一条视频
-                after(preloadAt, () => {
-                    const nextSrc = VIDEOS[(currentIdx + 1) % VIDEOS.length];
-                    nextVideo.src = nextSrc;
-                    nextVideo.load();
-                    monitorPlayback(nextVideo);
-                    nextVideo.play().catch(() => {});
+                // 提前预启动下一条视频，确保交叉淡入时已有画面
+                after(displayMs - CROSSFADE_MS - 800, () => {
+                    const next = videos[nextIdx];
+                    next.currentTime = 0;
+                    next.play().catch(() => {});
                 });
 
-                // 再执行交叉淡入淡出
-                after(fadeAt, crossfade);
+                after(displayMs - CROSSFADE_MS, () => {
+                    crossfadeTo(nextIdx);
+                });
             }
 
-            currentVideo.addEventListener('error', () => {
-                console.warn('Current video error, switching early');
-                crossfade();
+            function tryStart() {
+                if (started || failed) return;
+                started = true;
+                videos[0].classList.add('active');
+                videos[0].play().catch(err => {
+                    console.warn('Video autoplay blocked:', err);
+                    hideVideos();
+                });
+                scheduleNext();
+            }
+
+            function onError() {
+                if (failed) return;
+                failed = true;
+                console.warn('Video carousel error, hiding video layer');
+                hideVideos();
+            }
+
+            videos.forEach(v => {
+                v.addEventListener('error', onError, { once: true });
             });
 
-            // 启动第一条视频
-            prepareVideo(currentVideo, VIDEOS[0]).then(() => {
-                if (carouselStarted) return;
-                carouselStarted = true;
-                currentVideo.classList.add('active');
-                scheduleCycle();
-            }).catch(() => {
-                hideVideos();
+            // canplay 可能已经触发，优先检查 readyState
+            if (videos[0].readyState >= 3) {
+                tryStart();
+            } else {
+                videos[0].addEventListener('canplay', tryStart, { once: true });
+            }
+
+            // 兜底：若 8 秒内仍未启动，则隐藏视频层
+            after(8000, () => {
+                if (!started) hideVideos();
             });
         }
 

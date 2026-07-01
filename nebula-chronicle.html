@@ -17,7 +17,19 @@
     <!-- 共享数据与工具 -->
     <script src="js/shared-data.js"></script>
     <script src="js/shared-utils.js"></script>
-    <script src="js/llm-config.js"></script>
+    <script>
+        // 兜底：若 llm-config.js 未配置或缺失，使用空 Key 默认配置，避免 404 阻塞页面
+        window.LLM_CONFIG = window.LLM_CONFIG || {
+            provider: 'longcat',
+            baseURL: 'https://api.longcat.chat/openai',
+            apiKey: '',
+            model: 'LongCat-2.0-Preview',
+            temperature: 0.3,
+            maxTokens: 512,
+            tts: { lang: 'zh-CN', rate: 1.0, pitch: 1.0, volume: 1.0 }
+        };
+    </script>
+    <script src="js/llm-config.js" onerror="console.warn('js/llm-config.js 未找到，使用默认空 Key 配置')"></script>
     <script src="js/llm-engine.js"></script>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -952,26 +964,401 @@
             letter-spacing: 1px;
         }
 
-        /* ===== 启动画面 ===== */
+        /* ===== 启动画面（index.html 风格封面） ===== */
         #startup-screen {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: var(--deep-space);
             z-index: 1000;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             transition: opacity 1s ease-out, visibility 1s;
+            overflow: hidden;
+            background: #050714;
         }
 
         #startup-screen.hidden {
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
+        }
+
+        #cover-space-bg {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            background:
+                radial-gradient(ellipse at 50% 45%, rgba(124, 77, 255, 0.18) 0%, transparent 55%),
+                radial-gradient(ellipse at 20% 30%, rgba(77, 166, 255, 0.14) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 70%, rgba(184, 146, 255, 0.12) 0%, transparent 45%),
+                radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.04) 0%, transparent 35%),
+                linear-gradient(180deg, #050714 0%, #03030a 100%);
+        }
+
+        #cover-space-bg::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: url('images/generated/nebula-bg.jpg') center/cover no-repeat;
+            opacity: 0.45;
+            mix-blend-mode: screen;
+        }
+
+        .cover-video-layer {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 0;
+            opacity: 0;
+            transition: opacity 1.6s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+            transform: scale(1.05);
+        }
+
+        .cover-video-layer.active {
+            opacity: 1;
+            z-index: 1;
+            animation: coverVideoBreath 24s ease-in-out infinite;
+        }
+
+        @keyframes coverVideoBreath {
+            0%, 100% { transform: scale(1.05); }
+            50% { transform: scale(1.12); }
+        }
+
+        .cover-ambient-light {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .cover-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.45;
+            animation: coverOrbFloat 16s ease-in-out infinite;
+        }
+
+        .cover-orb-1 {
+            width: 480px;
+            height: 480px;
+            background: radial-gradient(circle, #4da6ff 0%, rgba(45, 90, 245, 0.6) 70%, transparent 100%);
+            top: -100px;
+            left: -100px;
+        }
+
+        .cover-orb-2 {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, #b892ff 0%, rgba(124, 77, 255, 0.5) 70%, transparent 100%);
+            bottom: -80px;
+            right: -80px;
+            animation-delay: -5s;
+        }
+
+        .cover-orb-3 {
+            width: 320px;
+            height: 320px;
+            background: radial-gradient(circle, #52d1c1 0%, rgba(0, 153, 204, 0.5) 70%, transparent 100%);
+            top: 50%;
+            left: 50%;
+            margin-left: -160px;
+            margin-top: -160px;
+            animation-delay: -10s;
+        }
+
+        .cover-orb-4 {
+            width: 1200px;
+            height: 1200px;
+            background: radial-gradient(circle, rgba(124, 77, 255, 0.22) 0%, rgba(45, 90, 245, 0.08) 40%, transparent 70%);
+            top: 50%;
+            left: 50%;
+            margin-left: -600px;
+            margin-top: -600px;
+            opacity: 0.18;
+            animation-delay: -13s;
+            animation-duration: 24s;
+        }
+
+        @keyframes coverOrbFloat {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            25% { transform: translate(40px, -50px) scale(1.08); }
+            50% { transform: translate(-30px, 30px) scale(0.95); }
+            75% { transform: translate(50px, 40px) scale(1.03); }
+        }
+
+        #cover-starfield {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .cover-shooting-stars {
+            position: absolute;
+            inset: 0;
+            z-index: 3;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .shooting-star {
+            position: absolute;
+            width: 100px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent);
+            transform: rotate(-45deg);
+            opacity: 0;
+            animation: shootingStar 2s ease-out forwards;
+            filter: drop-shadow(0 0 6px rgba(0, 243, 255, 0.8));
+        }
+
+        @keyframes shootingStar {
+            0% { opacity: 0; transform: translateX(0) translateY(0) rotate(-45deg); }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { opacity: 0; transform: translateX(-400px) translateY(400px) rotate(-45deg); }
+        }
+
+        .cover-particles {
+            position: absolute;
+            inset: 0;
+            z-index: 3;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .cover-particle {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, transparent 70%);
+            animation: coverParticleFloat linear infinite;
+        }
+
+        @keyframes coverParticleFloat {
+            0% { transform: translateY(110vh) translateX(0) scale(0); opacity: 0; }
+            10% { opacity: 0.8; }
+            90% { opacity: 0.8; }
+            100% { transform: translateY(-10vh) translateX(30px) scale(1); opacity: 0; }
+        }
+
+        .cover-portal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: min(520px, 90vw);
+            height: min(520px, 90vw);
+            transform: translate(-50%, -55%);
+            z-index: 1;
+            pointer-events: none;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0, 243, 255, 0.08) 0%, rgba(124, 77, 255, 0.05) 40%, transparent 70%);
+            box-shadow:
+                0 0 80px rgba(0, 243, 255, 0.12),
+                inset 0 0 60px rgba(124, 77, 255, 0.1);
+            animation: portalPulse 6s ease-in-out infinite;
+        }
+
+        .cover-portal::before,
+        .cover-portal::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            animation: portalRotate 12s linear infinite;
+        }
+
+        .cover-portal::after {
+            inset: 20px;
+            border-color: rgba(0, 243, 255, 0.18);
+            animation-duration: 18s;
+            animation-direction: reverse;
+        }
+
+        @keyframes portalPulse {
+            0%, 100% { transform: translate(-50%, -55%) scale(1); opacity: 0.7; }
+            50% { transform: translate(-50%, -55%) scale(1.06); opacity: 1; }
+        }
+
+        @keyframes portalRotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .cover-title {
+            position: relative;
+            z-index: 20;
+            text-align: center;
+            pointer-events: none;
+            transition: opacity 1s ease, transform 1s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        .cover-title h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(1.6rem, 5vw, 3rem);
+            font-weight: 700;
+            letter-spacing: 0.22em;
+            color: #f5f5f7;
+            text-transform: uppercase;
+            text-shadow: 0 0 40px rgba(0, 243, 255, 0.35), 0 0 80px rgba(124, 77, 255, 0.25);
+            animation: coverTitlePulse 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes coverTitlePulse {
+            0% { filter: brightness(1); }
+            100% { filter: brightness(1.25); }
+        }
+
+        .cover-title p {
+            font-family: 'ZCOOL XiaoWei', serif;
+            font-size: clamp(0.85rem, 2.2vw, 1.2rem);
+            color: rgba(240, 240, 255, 0.72);
+            margin-top: 12px;
+            letter-spacing: 0.3em;
+        }
+
+        #cover-entrance {
+            position: relative;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 48px;
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 1.2s ease, transform 1.2s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        #startup-screen.ready #cover-entrance {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        #startup-screen.starting .cover-title {
+            opacity: 0;
+            transform: translateY(-80px);
+        }
+
+        #startup-screen.starting #cover-entrance {
+            opacity: 0;
+            transform: translateY(40px);
+        }
+
+        .start-btn {
+            pointer-events: auto;
+            padding: 16px 52px;
+            font-family: 'Noto Sans SC', 'PingFang SC', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 0.18em;
+            color: #ffffff;
+            text-shadow: 0 0 12px rgba(255, 255, 255, 0.45), 0 0 24px rgba(0, 243, 255, 0.35);
+            background: linear-gradient(135deg, #5b2d8f 0%, #3d5afe 25%, #00c6ff 50%, #ff5acd 75%, #8e2de2 100%);
+            background-size: 300% 300%;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: 999px;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            cursor: pointer;
+            transition: all 0.35s cubic-bezier(0.23, 1, 0.32, 1);
+            box-shadow:
+                0 4px 24px rgba(0, 0, 0, 0.35),
+                0 0 20px rgba(61, 90, 254, 0.35),
+                0 0 8px rgba(255, 90, 205, 0.25),
+                inset 0 1px 0 rgba(255, 255, 255, 0.25);
+            position: relative;
+            overflow: hidden;
+            animation: btnGradientFlow 5s ease infinite;
+        }
+
+        @keyframes btnGradientFlow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .start-btn:hover {
+            transform: scale(1.06);
+            border-color: rgba(255, 255, 255, 0.6);
+            box-shadow:
+                0 8px 40px rgba(0, 0, 0, 0.4),
+                0 0 32px rgba(0, 198, 255, 0.5),
+                0 0 48px rgba(255, 90, 205, 0.35),
+                inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        }
+
+        .start-btn:active {
+            transform: scale(0.97);
+        }
+
+        .start-btn::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+            transition: left 0.7s ease;
+        }
+
+        .start-btn:hover::after {
+            left: 100%;
+        }
+
+        .entrance-hint {
+            margin-top: 18px;
+            font-size: 12px;
+            letter-spacing: 0.18em;
+            text-align: center;
+            background: linear-gradient(90deg, #a18cd1, #fbc2eb, #8fd3f4, #a18cd1);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
+            animation: hintShimmer 4s linear infinite;
+        }
+
+        @keyframes hintShimmer {
+            0% { background-position: 0% center; }
+            100% { background-position: 200% center; }
+        }
+
+        .loading-text {
+            position: absolute;
+            bottom: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 25;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            color: var(--neon-purple);
+            letter-spacing: 3px;
+            text-align: center;
+        }
+
+        .loading-dots::after {
+            content: '';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0% { content: ''; }
+            25% { content: '.'; }
+            50% { content: '..'; }
+            75% { content: '...'; }
+            100% { content: ''; }
         }
 
         /* ===== 氛围层 ===== */
@@ -996,88 +1383,6 @@
                 rgba(0, 0, 0, 0.1) 4px
             );
             opacity: 0.12;
-        }
-
-        .startup-logo {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 4rem;
-            font-weight: 900;
-            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple), var(--neon-pink));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 20px;
-            animation: logoFloat 3s ease-in-out infinite;
-        }
-
-        @keyframes logoFloat {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-15px); }
-        }
-
-        .startup-subtitle {
-            font-family: 'ZCOOL XiaoWei', serif;
-            font-size: 1.3rem;
-            color: rgba(200, 200, 255, 0.6);
-            letter-spacing: 8px;
-            margin-bottom: 50px;
-        }
-
-        .start-btn {
-            padding: 15px 50px;
-            background: transparent;
-            border: 2px solid var(--neon-cyan);
-            border-radius: 50px;
-            color: var(--neon-cyan);
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1rem;
-            letter-spacing: 4px;
-            cursor: pointer;
-            transition: all 0.4s;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .start-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(0, 243, 255, 0.3), transparent);
-            transition: left 0.5s;
-        }
-
-        .start-btn:hover::before {
-            left: 100%;
-        }
-
-        .start-btn:hover {
-            background: rgba(0, 243, 255, 0.1);
-            box-shadow: 0 0 30px rgba(0, 243, 255, 0.4);
-            transform: scale(1.05);
-        }
-
-        .loading-text {
-            margin-top: 30px;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 0.8rem;
-            color: var(--neon-purple);
-            letter-spacing: 3px;
-        }
-
-        .loading-dots::after {
-            content: '';
-            animation: dots 1.5s steps(4, end) infinite;
-        }
-
-        @keyframes dots {
-            0% { content: ''; }
-            25% { content: '.'; }
-            50% { content: '..'; }
-            75% { content: '...'; }
-            100% { content: ''; }
         }
 
         /* ===== 光标追踪器 ===== */
@@ -1258,9 +1563,30 @@
 
     <!-- 启动画面 -->
     <div id="startup-screen">
-        <div class="startup-logo">NEBULA</div>
-        <div class="startup-subtitle">星云编年史 · 手势次元</div>
-        <button class="start-btn" onclick="startExperience()">进入次元</button>
+        <div id="cover-space-bg"></div>
+        <video id="cover-video" class="cover-video-layer" autoplay muted loop playsinline poster="images/generated/nebula-bg.jpg"></video>
+        <video id="cover-video-next" class="cover-video-layer" autoplay muted loop playsinline poster="images/generated/nebula-bg.jpg"></video>
+        <div class="cover-ambient-light">
+            <div class="cover-orb cover-orb-1"></div>
+            <div class="cover-orb cover-orb-2"></div>
+            <div class="cover-orb cover-orb-3"></div>
+            <div class="cover-orb cover-orb-4"></div>
+        </div>
+        <canvas id="cover-starfield"></canvas>
+        <div class="cover-shooting-stars" id="cover-shooting-stars"></div>
+        <div class="cover-particles" id="cover-particles"></div>
+        <div class="cover-portal"></div>
+
+        <div class="cover-title">
+            <h1>NEBULA CHRONICLE</h1>
+            <p>星云编年史 · 探索二次元的次元之门</p>
+        </div>
+
+        <div id="cover-entrance">
+            <button id="enter-btn" class="start-btn" onclick="startExperience()">开始旅程</button>
+            <p class="entrance-hint">点击开启你的动漫时空之旅</p>
+        </div>
+
         <div class="loading-text" id="loading-text" style="display: none;">
             正在开启次元通道<span class="loading-dots"></span>
         </div>
@@ -1415,6 +1741,275 @@
     <div id="cursor-tracker"></div>
 
     <script>
+
+        // ===== 封面视觉系统（来自 index.html 并增强） =====
+        const COVER_VIDEOS = [
+            'images/generated/nebula-trailer-v3-a.mp4',
+            'images/generated/nebula-trailer-v3-b.mp4',
+            'images/generated/nebula-trailer-v3-c.mp4'
+        ];
+
+        function isHttpProtocol() {
+            return location.protocol === 'http:' || location.protocol === 'https:';
+        }
+
+        // 星点画布
+        function initCoverStarfield() {
+            const canvas = document.getElementById('cover-starfield');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let width, height, stars = [];
+            const STAR_COUNT = 220;
+
+            function resize() {
+                width = window.innerWidth;
+                height = window.innerHeight;
+                canvas.width = width;
+                canvas.height = height;
+            }
+
+            function createStars() {
+                stars = [];
+                for (let i = 0; i < STAR_COUNT; i++) {
+                    stars.push({
+                        x: Math.random() * width,
+                        y: Math.random() * height,
+                        size: Math.random() * 1.6 + 0.3,
+                        speed: Math.random() * 0.4 + 0.05,
+                        opacity: Math.random() * 0.8 + 0.2,
+                        twinkleSpeed: Math.random() * 0.02 + 0.005,
+                        twinklePhase: Math.random() * Math.PI * 2
+                    });
+                }
+            }
+
+            let frame = 0;
+            function animate() {
+                if (!document.getElementById('startup-screen')) return;
+                ctx.clearRect(0, 0, width, height);
+                const time = Date.now() * 0.001;
+
+                stars.forEach(star => {
+                    star.y += star.speed;
+                    if (star.y > height) {
+                        star.y = 0;
+                        star.x = Math.random() * width;
+                    }
+                    star.twinklePhase += star.twinkleSpeed;
+                    const alpha = star.opacity * (0.6 + 0.4 * Math.sin(star.twinklePhase));
+
+                    ctx.beginPath();
+                    ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(224, 240, 255, ${alpha})`;
+                    ctx.fill();
+
+                    // 十字星芒
+                    if (star.size > 1.2) {
+                        ctx.save();
+                        ctx.translate(star.x, star.y);
+                        ctx.rotate(frame * 0.002 + star.twinklePhase);
+                        ctx.strokeStyle = `rgba(200, 230, 255, ${alpha * 0.5})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.beginPath();
+                        ctx.moveTo(-star.size * 3, 0);
+                        ctx.lineTo(star.size * 3, 0);
+                        ctx.moveTo(0, -star.size * 3);
+                        ctx.lineTo(0, star.size * 3);
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                });
+
+                frame++;
+                requestAnimationFrame(animate);
+            }
+
+            resize();
+            createStars();
+            window.addEventListener('resize', () => { resize(); createStars(); });
+            animate();
+        }
+
+        // 流星效果
+        function initCoverShootingStars() {
+            const container = document.getElementById('cover-shooting-stars');
+            if (!container) return;
+
+            function spawn() {
+                if (!document.getElementById('startup-screen')) return;
+                const star = document.createElement('div');
+                star.className = 'shooting-star';
+                star.style.top = `${Math.random() * 60}%`;
+                star.style.left = `${30 + Math.random() * 70}%`;
+                star.style.animationDuration = `${1.2 + Math.random() * 1.2}s`;
+                container.appendChild(star);
+                setTimeout(() => star.remove(), 3000);
+            }
+
+            function loop() {
+                if (!document.getElementById('startup-screen')) return;
+                spawn();
+                setTimeout(loop, 2000 + Math.random() * 3500);
+            }
+
+            setTimeout(loop, 800);
+        }
+
+        // 漂浮粒子
+        function initCoverParticles() {
+            const container = document.getElementById('cover-particles');
+            if (!container) return;
+
+            const colors = ['rgba(0, 243, 255, 0.6)', 'rgba(184, 146, 255, 0.6)', 'rgba(255, 90, 205, 0.5)', 'rgba(255, 255, 255, 0.7)'];
+            const count = 32;
+
+            for (let i = 0; i < count; i++) {
+                const p = document.createElement('div');
+                p.className = 'cover-particle';
+                const size = Math.random() * 4 + 1;
+                p.style.width = `${size}px`;
+                p.style.height = `${size}px`;
+                p.style.left = `${Math.random() * 100}%`;
+                p.style.top = `${Math.random() * 100}%`;
+                p.style.background = colors[Math.floor(Math.random() * colors.length)];
+                p.style.animationDuration = `${12 + Math.random() * 20}s`;
+                p.style.animationDelay = `${Math.random() * -20}s`;
+                p.style.opacity = Math.random() * 0.6 + 0.2;
+                container.appendChild(p);
+            }
+        }
+
+        // 视频轮播
+        function initCoverVideoCarousel() {
+            if (!isHttpProtocol()) {
+                document.querySelectorAll('.cover-video-layer').forEach(v => v.style.display = 'none');
+                return;
+            }
+
+            const videoA = document.getElementById('cover-video');
+            const videoB = document.getElementById('cover-video-next');
+            if (!videoA || !videoB) return;
+
+            const CROSSFADE_MS = 1600;
+            const PRELOAD_OFFSET_MS = 3500;
+            let currentIdx = 0;
+            let timers = [];
+            let carouselStarted = false;
+
+            function clearAllTimers() {
+                timers.forEach(t => clearTimeout(t));
+                timers = [];
+            }
+
+            function after(ms, fn) {
+                const t = setTimeout(fn, ms);
+                timers.push(t);
+                return t;
+            }
+
+            function getActiveVideo() {
+                return videoA.classList.contains('active') ? videoA : videoB;
+            }
+
+            function getInactiveVideo() {
+                return videoA.classList.contains('active') ? videoB : videoA;
+            }
+
+            function hideVideos() {
+                clearAllTimers();
+                document.querySelectorAll('.cover-video-layer').forEach(v => {
+                    v.classList.remove('active');
+                    v.style.display = 'none';
+                    v.pause();
+                });
+            }
+
+            function monitorPlayback(video) {
+                after(5000, () => {
+                    if (video.readyState < 2) {
+                        console.warn('Cover video failed to load/decode, hiding carousel');
+                        hideVideos();
+                    }
+                });
+            }
+
+            function prepareVideo(video, src) {
+                video.src = src;
+                video.load();
+                monitorPlayback(video);
+                return video.play().catch(err => {
+                    console.warn('Cover video autoplay blocked:', err);
+                });
+            }
+
+            function crossfade() {
+                const active = getActiveVideo();
+                const inactive = getInactiveVideo();
+                inactive.classList.add('active');
+                active.classList.remove('active');
+                setTimeout(() => active.pause(), CROSSFADE_MS + 200);
+                currentIdx = (currentIdx + 1) % COVER_VIDEOS.length;
+                scheduleCycle();
+            }
+
+            function scheduleCycle() {
+                clearAllTimers();
+                const active = getActiveVideo();
+                const durationMs = (active.duration || 6) * 1000;
+                const preloadAt = Math.max(200, durationMs - PRELOAD_OFFSET_MS);
+                const fadeAt = Math.max(200, durationMs - CROSSFADE_MS);
+
+                after(preloadAt, () => {
+                    const nextVideo = getInactiveVideo();
+                    const nextSrc = COVER_VIDEOS[(currentIdx + 1) % COVER_VIDEOS.length];
+                    nextVideo.src = nextSrc;
+                    nextVideo.load();
+                    monitorPlayback(nextVideo);
+                    nextVideo.play().catch(() => {});
+                });
+
+                after(fadeAt, crossfade);
+            }
+
+            function onVideoError() {
+                if (!carouselStarted) return;
+                console.warn('Cover video error, switching early');
+                crossfade();
+            }
+
+            videoA.addEventListener('error', onVideoError);
+            videoB.addEventListener('error', onVideoError);
+
+            prepareVideo(videoA, COVER_VIDEOS[0]).then(() => {
+                if (carouselStarted) return;
+                carouselStarted = true;
+                videoA.classList.add('active');
+                scheduleCycle();
+            }).catch(() => {
+                hideVideos();
+            });
+        }
+
+        // 封面入口初始化
+        function initCoverScreen() {
+            initCoverStarfield();
+            initCoverShootingStars();
+            initCoverParticles();
+            initCoverVideoCarousel();
+
+            // 延迟显示按钮，制造仪式感
+            setTimeout(() => {
+                const screen = document.getElementById('startup-screen');
+                if (screen) screen.classList.add('ready');
+            }, 1200);
+        }
+
+        // DOM 加载后启动封面
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initCoverScreen);
+        } else {
+            initCoverScreen();
+        }
 
         // ===== 音乐引擎（Web Audio 生成星云氛围音乐） =====
         const MusicEngine = {
@@ -1783,6 +2378,7 @@
         async function startExperience() {
             dom.startBtn.style.display = 'none';
             dom.loadingText.style.display = 'block';
+            if (dom.startupScreen) dom.startupScreen.classList.add('starting');
 
             // 摄像头在后台初始化，避免阻塞启动流程
             initCamera().catch(error => {
