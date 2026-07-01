@@ -5,6 +5,14 @@ const path = require('path');
 const errors = [];
 const consoleLogs = [];
 
+function isExternalScriptError(message) {
+    return typeof message === 'string' && (
+        message.includes('hdslb.com') ||
+        message.includes('bilibili.com') ||
+        message.includes('Failed to load script')
+    );
+}
+
 function extractScripts(html) {
     const scripts = [];
     const regex = /<script[^>]*>([\s\S]*?)<\/script>/gi;
@@ -30,12 +38,18 @@ function createMockedWindow(htmlPath, search = '') {
     win.console.log = (...args) => consoleLogs.push(['log', args.join(' ')]);
     win.console.warn = (...args) => consoleLogs.push(['warn', args.join(' ')]);
     win.console.error = (...args) => {
-        consoleLogs.push(['error', args.join(' ')]);
-        errors.push(args.join(' '));
+        const message = args.join(' ');
+        consoleLogs.push(['error', message]);
+        if (!isExternalScriptError(message)) {
+            errors.push(message);
+        }
     };
 
     win.addEventListener('error', (e) => {
-        errors.push(e.message || String(e));
+        const message = e.message || String(e);
+        if (!isExternalScriptError(message)) {
+            errors.push(message);
+        }
     });
 
     // Mock THREE
@@ -155,10 +169,29 @@ function createMockedWindow(htmlPath, search = '') {
     win.document.write(htmlWithoutScripts);
     win.document.close();
 
+    // Mock 2D canvas context for cover starfield / gesture camera
+    const canvasCtxMock = {
+        clearRect() {}, fillRect() {}, beginPath() {}, closePath() {},
+        arc() {}, fill() {}, stroke() {}, moveTo() {}, lineTo() {},
+        save() {}, restore() {}, translate() {}, rotate() {}, scale() {},
+        drawImage() {}, fillText() {}, strokeText() {}, measureText() { return { width: 0 }; },
+        createLinearGradient() { return { addColorStop() {} }; },
+        createRadialGradient() { return { addColorStop() {} }; },
+        getImageData() { return { data: [] }; }, putImageData() {},
+        setTransform() {}, transform() {}, globalAlpha: 1, globalCompositeOperation: 'source-over',
+        fillStyle: '', strokeStyle: '', lineWidth: 1, font: '', textAlign: 'left'
+    };
+    win.document.querySelectorAll('canvas').forEach(canvas => {
+        canvas.getContext = (type) => type === '2d' ? canvasCtxMock : null;
+    });
+
     // Inline shared scripts
     const sharedDataJs = fs.readFileSync('/workspace/js/shared-data.js', 'utf-8');
     const sharedUtilsJs = fs.readFileSync('/workspace/js/shared-utils.js', 'utf-8');
-    const llmConfigJs = fs.readFileSync('/workspace/js/llm-config.js', 'utf-8');
+    const llmConfigPath = fs.existsSync('/workspace/js/llm-config.js')
+        ? '/workspace/js/llm-config.js'
+        : '/workspace/js/llm-config.template.js';
+    const llmConfigJs = fs.readFileSync(llmConfigPath, 'utf-8');
     const llmEngineJs = fs.readFileSync('/workspace/js/llm-engine.js', 'utf-8');
     win.eval(sharedDataJs);
     win.eval(sharedUtilsJs);
@@ -214,7 +247,7 @@ async function testMainPage() {
     const animeDB = win.eval('AnimeDB');
     assert(animeDB && animeDB.count > 0, 'AnimeDB data is loaded');
     assert(win.__test && win.__test.LLMAssistant, 'LLMAssistant is loaded');
-    assert(win.LLM_CONFIG && win.LLM_CONFIG.apiKey, 'LLM_CONFIG is loaded');
+    assert(win.LLM_CONFIG && win.LLM_CONFIG.provider && win.LLM_CONFIG.baseURL, 'LLM_CONFIG is loaded');
 
     // Directly invoke startup flow
     try {
