@@ -880,7 +880,7 @@
             }
 
             const CROSSFADE_MS = 1600;
-            const DISPLAY_MS = 6000;
+            const FALLBACK_DISPLAY_MS = 6000;
 
             const videos = VIDEOS.map((src, i) => {
                 const v = bgVideos[i];
@@ -902,6 +902,14 @@
                 const t = setTimeout(fn, ms);
                 timers.push(t);
                 return t;
+            }
+
+            function getDisplayMs() {
+                const current = videos[currentIdx];
+                const durationMs = (current && current.duration && current.duration > 0)
+                    ? current.duration * 1000
+                    : FALLBACK_DISPLAY_MS;
+                return Math.max(durationMs, CROSSFADE_MS + 1000);
             }
 
             function hideVideos() {
@@ -932,16 +940,17 @@
 
             function scheduleNext() {
                 clearAllTimers();
+                const displayMs = getDisplayMs();
                 const nextIdx = (currentIdx + 1) % videos.length;
 
                 // 提前预启动下一条视频，确保交叉淡入时已有画面
-                after(DISPLAY_MS - CROSSFADE_MS - 800, () => {
+                after(displayMs - CROSSFADE_MS - 800, () => {
                     const next = videos[nextIdx];
                     next.currentTime = 0;
                     next.play().catch(() => {});
                 });
 
-                after(DISPLAY_MS - CROSSFADE_MS, () => {
+                after(displayMs - CROSSFADE_MS, () => {
                     crossfadeTo(nextIdx);
                 });
             }
@@ -967,7 +976,13 @@
             videos.forEach(v => {
                 v.addEventListener('error', onError, { once: true });
             });
-            videos[0].addEventListener('canplay', tryStart, { once: true });
+
+            // canplay 可能已经触发，优先检查 readyState
+            if (videos[0].readyState >= 3) {
+                tryStart();
+            } else {
+                videos[0].addEventListener('canplay', tryStart, { once: true });
+            }
 
             // 兜底：若 8 秒内仍未启动，则隐藏视频层
             after(8000, () => {

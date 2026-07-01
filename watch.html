@@ -17,7 +17,19 @@
     <!-- 共享数据与工具 -->
     <script src="js/shared-data.js"></script>
     <script src="js/shared-utils.js"></script>
-    <script src="js/llm-config.js"></script>
+    <script>
+        // 兜底：若 llm-config.js 未配置或缺失，使用空 Key 默认配置，避免 404 阻塞页面
+        window.LLM_CONFIG = window.LLM_CONFIG || {
+            provider: 'longcat',
+            baseURL: 'https://api.longcat.chat/openai',
+            apiKey: '',
+            model: 'LongCat-2.0-Preview',
+            temperature: 0.3,
+            maxTokens: 512,
+            tts: { lang: 'zh-CN', rate: 1.0, pitch: 1.0, volume: 1.0 }
+        };
+    </script>
+    <script src="js/llm-config.js" onerror="console.warn('js/llm-config.js 未找到，使用默认空 Key 配置')"></script>
     <script src="js/llm-engine.js"></script>
 
     <!-- Google Fonts -->

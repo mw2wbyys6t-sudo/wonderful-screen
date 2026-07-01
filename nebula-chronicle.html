@@ -17,7 +17,19 @@
     <!-- 共享数据与工具 -->
     <script src="js/shared-data.js"></script>
     <script src="js/shared-utils.js"></script>
-    <script src="js/llm-config.js"></script>
+    <script>
+        // 兜底：若 llm-config.js 未配置或缺失，使用空 Key 默认配置，避免 404 阻塞页面
+        window.LLM_CONFIG = window.LLM_CONFIG || {
+            provider: 'longcat',
+            baseURL: 'https://api.longcat.chat/openai',
+            apiKey: '',
+            model: 'LongCat-2.0-Preview',
+            temperature: 0.3,
+            maxTokens: 512,
+            tts: { lang: 'zh-CN', rate: 1.0, pitch: 1.0, volume: 1.0 }
+        };
+    </script>
+    <script src="js/llm-config.js" onerror="console.warn('js/llm-config.js 未找到，使用默认空 Key 配置')"></script>
     <script src="js/llm-engine.js"></script>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1874,9 +1886,9 @@
                 return;
             }
 
-            const currentVideo = document.getElementById('cover-video');
-            const nextVideo = document.getElementById('cover-video-next');
-            if (!currentVideo || !nextVideo) return;
+            const videoA = document.getElementById('cover-video');
+            const videoB = document.getElementById('cover-video-next');
+            if (!videoA || !videoB) return;
 
             const CROSSFADE_MS = 1600;
             const PRELOAD_OFFSET_MS = 3500;
@@ -1893,6 +1905,14 @@
                 const t = setTimeout(fn, ms);
                 timers.push(t);
                 return t;
+            }
+
+            function getActiveVideo() {
+                return videoA.classList.contains('active') ? videoA : videoB;
+            }
+
+            function getInactiveVideo() {
+                return videoA.classList.contains('active') ? videoB : videoA;
             }
 
             function hideVideos() {
@@ -1923,22 +1943,24 @@
             }
 
             function crossfade() {
-                const oldVideo = currentVideo;
-                const newVideo = nextVideo;
-                newVideo.classList.add('active');
-                oldVideo.classList.remove('active');
-                setTimeout(() => oldVideo.pause(), CROSSFADE_MS + 200);
+                const active = getActiveVideo();
+                const inactive = getInactiveVideo();
+                inactive.classList.add('active');
+                active.classList.remove('active');
+                setTimeout(() => active.pause(), CROSSFADE_MS + 200);
                 currentIdx = (currentIdx + 1) % COVER_VIDEOS.length;
                 scheduleCycle();
             }
 
             function scheduleCycle() {
                 clearAllTimers();
-                const durationMs = (currentVideo.duration || 6) * 1000;
+                const active = getActiveVideo();
+                const durationMs = (active.duration || 6) * 1000;
                 const preloadAt = Math.max(200, durationMs - PRELOAD_OFFSET_MS);
                 const fadeAt = Math.max(200, durationMs - CROSSFADE_MS);
 
                 after(preloadAt, () => {
+                    const nextVideo = getInactiveVideo();
                     const nextSrc = COVER_VIDEOS[(currentIdx + 1) % COVER_VIDEOS.length];
                     nextVideo.src = nextSrc;
                     nextVideo.load();
@@ -1949,15 +1971,19 @@
                 after(fadeAt, crossfade);
             }
 
-            currentVideo.addEventListener('error', () => {
-                console.warn('Cover current video error, switching early');
+            function onVideoError() {
+                if (!carouselStarted) return;
+                console.warn('Cover video error, switching early');
                 crossfade();
-            });
+            }
 
-            prepareVideo(currentVideo, COVER_VIDEOS[0]).then(() => {
+            videoA.addEventListener('error', onVideoError);
+            videoB.addEventListener('error', onVideoError);
+
+            prepareVideo(videoA, COVER_VIDEOS[0]).then(() => {
                 if (carouselStarted) return;
                 carouselStarted = true;
-                currentVideo.classList.add('active');
+                videoA.classList.add('active');
                 scheduleCycle();
             }).catch(() => {
                 hideVideos();
