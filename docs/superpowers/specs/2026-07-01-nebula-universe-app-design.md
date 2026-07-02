@@ -25,7 +25,7 @@
 
 - **项目背景**：「星云编年史」是一个面向动漫爱好者的沉浸式网页体验项目，以 1963 年《铁臂阿童木》开启的日本动画纪元为宇宙起点，将动画史转化为可探索的虚拟星系。
 - **当前状态**：项目仅有静态前端页面（`index.html`、`nebula-chronicle.html`、`watch.html`），无后端服务。数据通过构建时 Node.js 脚本从 AniList GraphQL API 拉取并生成静态 JSON。
-- **平台假设**：基于 TRAE Work 平台与 Kimi K2.7 Code 模型进行协同开发，利用其 Plan/Spec 白盒机制与多轮 Agentic 能力控制代码质量、降低误改风险。
+- **平台假设**：基于 TRAE Work 平台与 Kimi K2.7 Code 模型进行协同开发，利用其 Plan/Spec 白盒机制与多轮 Agentic 能力控制代码质量、降低误改风险。前端采用 Vue 3 + Vite 构建，兼顾组件化、可维护性与静态部署能力。
 - **产品定位**：短期内作为开放展示/宣传项目，长期可探索与动画制作方合作、周边电商、企业定制等商业化路径。
 
 ### 1.3 目标用户与场景
@@ -68,22 +68,32 @@
 ## 3. 整体架构
 
 ```
-app.html (单文件主站)
-├── 阶段 0：次元启动（游戏化加载）
-├── 阶段 1：全息展示（代表性作品环绕）
-├── 阶段 2：星云入口（封面 + 开始旅程按钮）
-└── 阶段 3：动漫星系（Three.js 3D 主界面）
-    ├── 次元核心（中心旋转天体）
-    ├── 流派星云（AniList 官方流派）
-    ├── 作品恒星（500–1000 颗可交互星点）
-    ├── 星座连线（关系网络）
-    ├── 信息面板（详情 + 看动漫按钮）
-    └── HUD（搜索、流派筛选、音乐、帮助）
-
-数据层（构建时生成）
-├── scripts/fetch-anilist.js  →  调用 AniList GraphQL API
-├── data/anime-corpus.json    →  作品数据集
-└── data/genre-manifest.json  →  流派映射与主题色
+Vue 3 + Vite 项目
+├── src/
+│   ├── main.js                 # 应用入口
+│   ├── App.vue                 # 四阶段状态机 + 全局容器
+│   ├── components/
+│   │   ├── LoadingPhase.vue    # 阶段 0：次元启动
+│   │   ├── ShowcasePhase.vue   # 阶段 1：全息展示
+│   │   ├── EntrancePhase.vue   # 阶段 2：星云入口
+│   │   ├── GalaxyPhase.vue     # 阶段 3：动漫星系（Three.js）
+│   │   ├── ChronicleCore.vue   # 次元核心 3D 对象
+│   │   ├── NebulaCloud.vue     # 流派星云 3D 对象
+│   │   ├── StarField.vue       # 作品恒星 3D 对象
+│   │   ├── HUD.vue             # 搜索、筛选、音乐、帮助
+│   │   └── DetailPanel.vue     # 作品详情 + 看动漫按钮
+│   ├── composables/
+│   │   ├── useAudio.js         # Web Audio 氛围音 + 可视化
+│   │   ├── useGalaxy.js        # Three.js 场景/相机/交互
+│   │   └── useData.js          # 数据加载与状态
+│   └── styles/
+│       └── universe.css        # 全局变量与动画
+├── index.html                  # Vite 入口
+├── vite.config.js              # Vite 配置
+├── package.json                # 依赖与脚本
+├── scripts/fetch-anilist.js    # 构建时数据拉取
+├── data/anime-corpus.json      # 作品数据集（生成）
+└── data/genre-manifest.json    # 流派映射与主题色（生成）
 ```
 
 ---
@@ -249,8 +259,9 @@ app.html (单文件主站)
 
 | 层级 | 技术 |
 |------|------|
-| 页面 | 单文件 `app.html`（HTML + CSS + JS） |
-| 3D 渲染 | Three.js / React Three Fiber（若后续引入构建工具） |
+| 框架 | Vue 3（Composition API）+ Vite |
+| 页面 | `index.html` + `src/App.vue` 及组件化页面 |
+| 3D 渲染 | Three.js（npm 包或 CDN，按 Vite 配置决定） |
 | 数据 | AniList GraphQL + 构建脚本生成 JSON |
 | 字体 | Google Fonts（Orbitron、Noto Sans SC、ZCOOL XiaoWei） |
 | 动画 | CSS Animation、Canvas 2D、WebGL Shader、GSAP（可选） |
@@ -278,20 +289,44 @@ app.html (单文件主站)
 
 ```
 /workspace/
-├── app.html                              # 新增：主站
-├── index.html                            # 保留：原入口页（参考/备用）
+├── index.html                            # 新增：Vite 入口
+├── vite.config.js                        # 新增：Vite 配置
+├── package.json                          # 新增/修改：依赖与脚本
+├── src/
+│   ├── main.js                           # 新增：Vue 应用入口
+│   ├── App.vue                           # 新增：四阶段状态机容器
+│   ├── components/                       # 新增：阶段与 3D 组件
+│   │   ├── LoadingPhase.vue
+│   │   ├── ShowcasePhase.vue
+│   │   ├── EntrancePhase.vue
+│   │   ├── GalaxyPhase.vue
+│   │   ├── ChronicleCore.vue
+│   │   ├── NebulaCloud.vue
+│   │   ├── StarField.vue
+│   │   ├── HUD.vue
+│   │   └── DetailPanel.vue
+│   ├── composables/                      # 新增：可复用逻辑
+│   │   ├── useAudio.js
+│   │   ├── useGalaxy.js
+│   │   └── useData.js
+│   └── styles/
+│       └── universe.css
+├── public/                               # 新增：静态资源
+│   ├── images/
+│   └── videos/
+├── data/                                 # 新增：生成数据
+│   ├── anime-corpus.json
+│   └── genre-manifest.json
+├── scripts/
+│   └── fetch-anilist.js                  # 新增：AniList 数据拉取
+├── js/                                   # 保留：原项目脚本
+│   ├── shared-data.js
+│   ├── shared-utils.js
+│   ├── llm-config.js
+│   └── llm-engine.js
+├── index-legacy.html                     # 保留：原入口页（参考/备用）
 ├── nebula-chronicle.html                 # 保留：原主界面（参考/备用）
 ├── watch.html                            # 保留：观影页
-├── data/
-│   ├── anime-corpus.json                 # 新增：作品数据集
-│   └── genre-manifest.json               # 新增：流派映射
-├── scripts/
-│   └── fetch-anilist.js                  # 新增：AniList 数据拉取脚本
-├── js/
-│   ├── shared-data.js                    # 保留：本地兜底数据
-│   ├── shared-utils.js                   # 保留：通用工具
-│   ├── llm-config.js                     # 保留：LLM 配置
-│   └── llm-engine.js                     # 保留：LLM 引擎
 └── docs/superpowers/specs/               # 本文档
 ```
 
