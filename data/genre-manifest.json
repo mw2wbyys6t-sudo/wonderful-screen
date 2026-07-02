@@ -1,74 +1,82 @@
 {
-  "generatedAt": "2026-07-02T10:14:43.289Z",
-  "count": 50,
+  "generatedAt": "2026-07-02T13:01:30.858Z",
+  "count": 1711,
   "genres": {
     "Adventure": {
-      "count": 12,
+      "count": 427,
       "color": "#ffcc00"
     },
     "Drama": {
-      "count": 40,
+      "count": 734,
       "color": "#b892ff"
     },
     "Fantasy": {
-      "count": 12,
+      "count": 466,
       "color": "#b026ff"
     },
     "Action": {
-      "count": 29,
+      "count": 741,
       "color": "#ff4444"
     },
     "Comedy": {
-      "count": 17,
+      "count": 616,
       "color": "#ffee66"
     },
     "Sci-Fi": {
-      "count": 11,
+      "count": 384,
       "color": "#00f3ff"
     },
     "Horror": {
-      "count": 2,
+      "count": 111,
       "color": "#aa66ff"
     },
     "Romance": {
-      "count": 10,
+      "count": 444,
       "color": "#ff88cc"
     },
     "Supernatural": {
-      "count": 10,
+      "count": 317,
       "color": "#b026ff"
     },
     "Mystery": {
-      "count": 10,
+      "count": 244,
       "color": "#aa66ff"
     },
     "Psychological": {
-      "count": 14,
+      "count": 216,
       "color": "#00f3ff"
     },
     "Thriller": {
-      "count": 4,
+      "count": 114,
       "color": "#aa66ff"
     },
     "Slice of Life": {
-      "count": 13,
+      "count": 334,
       "color": "#66ffaa"
     },
     "Sports": {
-      "count": 4,
+      "count": 145,
       "color": "#ffcc00"
     },
     "Music": {
-      "count": 3,
-      "color": "#00ffaa"
+      "count": 118,
+      "color": "#66ffaa"
     },
     "Ecchi": {
-      "count": 1,
-      "color": "#00f3ff"
+      "count": 152,
+      "color": "#ff99cc"
     },
     "Mecha": {
-      "count": 2,
-      "color": "#4488ff"
+      "count": 165,
+      "color": "#00ccff"
+    },
+    "Mahou Shoujo": {
+      "count": 111,
+      "color": "#ff88cc"
+    },
+    "Hentai": {
+      "count": 100,
+      "color": "#ff69b4"
     }
   }
 }

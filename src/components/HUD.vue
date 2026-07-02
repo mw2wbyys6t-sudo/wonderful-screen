@@ -2,7 +2,13 @@
   <div class="hud">
     <div class="hud-top">
       <div class="hud-logo">星云编年史</div>
-      <input type="text" class="hud-search" placeholder="搜索作品 / 流派…" v-model="searchText">
+      <input
+        type="text"
+        class="hud-search"
+        placeholder="搜索作品 / 流派 / 标签 / 工作室…"
+        v-model="searchText"
+        @keydown.enter="emitSearch"
+      >
       <div class="hud-chips">
         <div
           v-for="(info, genre) in genres"
@@ -17,10 +23,31 @@
       </div>
     </div>
     <div class="hud-actions">
+      <div class="hud-action-group">
+        <button title="重置视角 (R)" @click="emit('reset-camera')">⟲</button>
+        <button title="星云定位" @click="showNebula = !showNebula" :class="{ active: showNebula }">◎</button>
+        <div v-if="showNebula" class="nebula-popover" @click.stop>
+          <div class="nebula-title">定位星云</div>
+          <div class="nebula-chips">
+            <div
+              v-for="(info, genre) in genres"
+              :key="genre"
+              class="nebula-chip"
+              :style="{ borderColor: info.color, color: info.color }"
+              @click="focusNebula(genre)"
+            >
+              {{ genre }}
+            </div>
+          </div>
+        </div>
+      </div>
       <button title="音乐" @click="toggleMusic">♪</button>
       <button title="帮助" @click="showHelp = !showHelp">?</button>
     </div>
     <div class="hud-counter">{{ count }} 颗恒星已点亮</div>
+    <transition name="fade">
+      <div v-if="noResult" class="hud-toast">未找到结果</div>
+    </transition>
     <div v-if="showHelp" class="help-panel" @click="showHelp = false">
       <div class="help-content" @click.stop>
         <h3>操作指南</h3>
@@ -28,6 +55,8 @@
         <p>滚轮：缩放</p>
         <p>点击恒星：查看作品详情</p>
         <p>顶部芯片：按流派筛选</p>
+        <p>搜索框：Enter 或停顿 300ms 自动搜索</p>
+        <p>ESC：关闭详情 · R：重置视角 · F：全屏</p>
         <button @click="showHelp = false">关闭</button>
       </div>
     </div>
@@ -35,12 +64,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useData } from '../composables/useData.js';
 import { useAudio } from '../composables/useAudio.js';
 
 const props = defineProps({ count: { type: Number, default: 0 } });
-const emit = defineEmits(['filter-genre']);
+const emit = defineEmits(['filter-genre', 'search', 'reset-camera', 'focus-nebula', 'toggle-fullscreen']);
 
 const { genres } = useData();
 const { toggle: toggleMusic } = useAudio();
@@ -48,13 +77,18 @@ const { toggle: toggleMusic } = useAudio();
 const searchText = ref('');
 const activeGenre = ref(null);
 const showHelp = ref(false);
+const showNebula = ref(false);
+const noResult = ref(false);
+let noResultTimeout = null;
+let searchDebounce = null;
 
 function chipStyle(genre, color) {
   const isActive = activeGenre.value === genre;
   return {
     borderColor: color,
     background: isActive ? `${color}33` : undefined,
-    color: isActive ? color : undefined
+    color: isActive ? color : undefined,
+    boxShadow: isActive ? `0 0 12px ${color}66, inset 0 0 8px ${color}22` : undefined
   };
 }
 
@@ -62,6 +96,32 @@ function toggleGenre(genre) {
   activeGenre.value = activeGenre.value === genre ? null : genre;
   emit('filter-genre', activeGenre.value);
 }
+
+function emitSearch() {
+  emit('search', searchText.value);
+}
+
+function focusNebula(genre) {
+  showNebula.value = false;
+  emit('focus-nebula', genre);
+}
+
+function showNoResult() {
+  noResult.value = true;
+  if (noResultTimeout) clearTimeout(noResultTimeout);
+  noResultTimeout = setTimeout(() => {
+    noResult.value = false;
+  }, 2000);
+}
+
+watch(searchText, (val) => {
+  if (searchDebounce) clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => {
+    emit('search', val);
+  }, 300);
+});
+
+defineExpose({ showNoResult });
 </script>
 
 <style scoped>
@@ -93,6 +153,7 @@ function toggleGenre(genre) {
   font-size: 18px;
   color: var(--neon-cyan);
   text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+  white-space: nowrap;
 }
 
 .hud-search {
@@ -104,6 +165,11 @@ function toggleGenre(genre) {
   background: var(--glass-bg);
   color: var(--text-primary);
   outline: none;
+}
+
+.hud-search:focus {
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 10px rgba(0, 243, 255, 0.25);
 }
 
 .hud-chips {
@@ -119,12 +185,20 @@ function toggleGenre(genre) {
   background: var(--glass-bg);
   font-size: 12px;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .hud-actions {
   position: absolute;
   top: 20px;
   right: 40px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.hud-action-group {
+  position: relative;
   display: flex;
   gap: 12px;
 }
@@ -138,15 +212,55 @@ function toggleGenre(genre) {
   color: var(--text-primary);
   cursor: pointer;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
 }
 
-.hud-actions button:hover {
+.hud-actions button:hover,
+.hud-actions button.active {
   background: rgba(0, 243, 255, 0.15);
   box-shadow: 0 0 12px rgba(0, 243, 255, 0.25);
 }
 
-.hud-chip.active {
-  box-shadow: 0 0 10px currentColor;
+.nebula-popover {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  width: 180px;
+  background: rgba(5, 7, 20, 0.95);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+}
+
+.nebula-title {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.nebula-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.nebula-chip {
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 1px solid;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nebula-chip:hover {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .hud-counter {
@@ -157,6 +271,32 @@ function toggleGenre(genre) {
   color: var(--text-secondary);
   font-family: 'Orbitron', sans-serif;
   letter-spacing: 1px;
+}
+
+.hud-toast {
+  position: absolute;
+  top: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 18px;
+  border-radius: 20px;
+  background: rgba(5, 7, 20, 0.9);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  font-size: 13px;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-8px);
 }
 
 .help-panel {
@@ -205,14 +345,26 @@ function toggleGenre(genre) {
     flex-direction: column;
     align-items: flex-start;
     padding: 12px;
+    gap: 12px;
   }
   .hud-search {
     max-width: 100%;
     width: 100%;
   }
+  .hud-chips {
+    max-height: 84px;
+    overflow-y: auto;
+  }
+  .hud-actions {
+    top: 12px;
+    right: 12px;
+  }
   .hud-counter {
     left: 12px;
     bottom: 12px;
+  }
+  .hud-toast {
+    top: 150px;
   }
 }
 </style>

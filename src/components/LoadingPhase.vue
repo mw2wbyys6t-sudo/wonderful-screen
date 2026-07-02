@@ -1,7 +1,16 @@
 <template>
   <section class="phase-loading">
     <div class="loading-center">
-      <div class="energy-figure"></div>
+      <div class="character-silhouette">
+        <div class="silhouette-aura"></div>
+        <div class="silhouette-body">
+          <div class="silhouette-head"></div>
+          <div class="silhouette-hair hair-left"></div>
+          <div class="silhouette-hair hair-right"></div>
+          <div class="silhouette-cloak"></div>
+          <div class="silhouette-core"></div>
+        </div>
+      </div>
       <div class="energy-rings">
         <div class="ring"></div>
         <div class="ring"></div>
@@ -70,22 +79,99 @@ onMounted(async () => {
   position: relative;
 }
 
-.energy-figure {
+.character-silhouette {
+  position: relative;
+  width: 120px;
+  height: 170px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.silhouette-aura {
+  position: absolute;
+  inset: -40px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 243, 255, 0.25) 0%, rgba(184, 146, 255, 0.12) 40%, transparent 70%);
+  filter: blur(16px);
+  animation: auraPulse 3.5s ease-in-out infinite;
+}
+
+.silhouette-body {
+  position: relative;
   width: 80px;
-  height: 120px;
-  background: linear-gradient(180deg, rgba(0, 243, 255, 0.6), rgba(184, 146, 255, 0.2));
-  border-radius: 40px 40px 20px 20px;
-  filter: blur(8px);
-  animation: energyPulse 3s ease-in-out infinite;
+  height: 130px;
+  filter: drop-shadow(0 0 18px rgba(0, 243, 255, 0.45));
+  animation: figureFloat 4s ease-in-out infinite;
+}
+
+.silhouette-head {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 34px;
+  height: 38px;
+  background: linear-gradient(180deg, rgba(224, 240, 255, 0.95), rgba(0, 243, 255, 0.75));
+  border-radius: 50% 50% 45% 45%;
+  box-shadow: 0 0 20px rgba(0, 243, 255, 0.4);
+}
+
+.silhouette-hair {
+  position: absolute;
+  top: 2px;
+  width: 28px;
+  height: 56px;
+  background: linear-gradient(180deg, rgba(184, 146, 255, 0.9), rgba(0, 243, 255, 0.5));
+  border-radius: 50% 50% 30% 70%;
+  filter: blur(1px);
+}
+
+.silhouette-hair.hair-left {
+  left: -6px;
+  --base-rot: -12deg;
+  animation: hairSway 3s ease-in-out infinite;
+}
+
+.silhouette-hair.hair-right {
+  right: -6px;
+  --base-rot: 12deg;
+  animation: hairSway 3.5s ease-in-out infinite reverse;
+}
+
+.silhouette-cloak {
+  position: absolute;
+  top: 34px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 64px;
+  height: 96px;
+  background: linear-gradient(180deg, rgba(0, 243, 255, 0.55) 0%, rgba(124, 77, 255, 0.25) 60%, transparent 100%);
+  clip-path: polygon(20% 0%, 80% 0%, 100% 100%, 50% 88%, 0% 100%);
+  border-radius: 30% 30% 10% 10%;
+  box-shadow: inset 0 0 30px rgba(0, 243, 255, 0.2);
+}
+
+.silhouette-core {
+  position: absolute;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95), rgba(0, 243, 255, 0.7));
+  box-shadow: 0 0 24px rgba(0, 243, 255, 0.7), 0 0 48px rgba(184, 146, 255, 0.4);
+  animation: corePulse 2s ease-in-out infinite;
 }
 
 .energy-rings {
   position: absolute;
-  width: 240px;
-  height: 240px;
+  width: 260px;
+  height: 260px;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -60%);
 }
 
 .energy-rings .ring {
@@ -110,7 +196,7 @@ onMounted(async () => {
   position: relative;
   width: 120px;
   height: 120px;
-  margin-top: 40px;
+  margin-top: 24px;
 }
 
 .progress-ring {
@@ -134,6 +220,7 @@ onMounted(async () => {
   stroke-dasharray: 339.292;
   stroke-dashoffset: v-bind(strokeOffset);
   transition: stroke-dashoffset 0.3s ease;
+  filter: drop-shadow(0 0 4px rgba(0, 243, 255, 0.6));
 }
 
 .progress-text {
@@ -154,9 +241,24 @@ onMounted(async () => {
   min-height: 20px;
 }
 
-@keyframes energyPulse {
-  0%, 100% { transform: scale(1); opacity: 0.8; }
-  50% { transform: scale(1.05); opacity: 1; }
+@keyframes auraPulse {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.12); opacity: 1; }
+}
+
+@keyframes figureFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes hairSway {
+  0%, 100% { transform: rotate(var(--base-rot, 0deg)) translateX(0); }
+  50% { transform: rotate(var(--base-rot, 0deg)) translateX(3px); }
+}
+
+@keyframes corePulse {
+  0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.9; }
+  50% { transform: translateX(-50%) scale(1.2); opacity: 1; }
 }
 
 @keyframes ringExpand {

@@ -5,7 +5,10 @@
     <h2>{{ anime?.titleRomaji }}</h2>
     <p class="detail-meta">{{ metaText }}</p>
     <p class="detail-desc">{{ anime?.description }}</p>
-    <a class="watch-btn" :href="watchLink">看动漫</a>
+    <div class="detail-actions">
+      <button class="locate-btn" @click="locate">在星系中定位</button>
+      <a class="watch-btn" :href="watchLink" target="_blank" rel="noopener">看动漫</a>
+    </div>
   </div>
 </template>
 
@@ -17,7 +20,7 @@ const props = defineProps({
   visible: { type: Boolean, default: false }
 });
 
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'locate']);
 
 const metaText = computed(() => {
   if (!props.anime) return '';
@@ -34,6 +37,10 @@ const watchLink = computed(() => {
 
 function close() {
   emit('close');
+}
+
+function locate() {
+  if (props.anime) emit('locate', props.anime);
 }
 </script>
 
@@ -74,14 +81,44 @@ function close() {
   margin-bottom: 12px;
 }
 
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.watch-btn,
+.locate-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  border-radius: 24px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
 .watch-btn {
-  display: inline-block;
-  padding: 12px 32px;
   background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
   color: var(--bg-darker);
-  border-radius: 24px;
   text-decoration: none;
-  font-weight: 700;
+}
+
+.watch-btn:hover {
+  box-shadow: 0 0 16px rgba(0, 243, 255, 0.35);
+}
+
+.locate-btn {
+  background: transparent;
+  border: 1px solid var(--neon-cyan);
+  color: var(--neon-cyan);
+}
+
+.locate-btn:hover {
+  background: rgba(0, 243, 255, 0.12);
+  box-shadow: 0 0 12px rgba(0, 243, 255, 0.25);
 }
 
 .detail-close {

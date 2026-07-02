@@ -6,23 +6,39 @@
       <p>当前环境不支持 WebGL，无法显示 3D 星系。</p>
       <p>请在支持 WebGL 的浏览器（如 Chrome、Edge、Safari）中打开。</p>
     </div>
-    <HUD v-if="hudReady" :count="data.length" @filter-genre="onFilterGenre" />
-    <DetailPanel v-if="hudReady" :anime="selectedAnime" :visible="!!selectedAnime" @close="selectedAnime = null" />
+    <HUD
+      v-if="hudReady"
+      ref="hudRef"
+      :count="data.length"
+      @filter-genre="onFilterGenre"
+      @search="onSearch"
+      @reset-camera="onResetCamera"
+      @focus-nebula="onFocusNebula"
+      @toggle-fullscreen="onToggleFullscreen"
+    />
+    <DetailPanel
+      v-if="hudReady"
+      :anime="selectedAnime"
+      :visible="!!selectedAnime"
+      @close="selectedAnime = null"
+      @locate="onLocateStar"
+    />
     <div v-if="hoveredAnime" class="star-tooltip" :style="tooltipStyle">
       <div class="tooltip-title">{{ hoveredAnime.titleRomaji }}</div>
-      <div class="tooltip-meta">{{ hoveredAnime.year }} · {{ hoveredAnime.genres?.[0] }} · {{ hoveredAnime.averageScore }}</div>
+      <div class="tooltip-meta">{{ hoveredAnime.year }} · {{ hoveredAnime.genres?.[0] }} · Score: {{ hoveredAnime.averageScore }}</div>
     </div>
   </section>
 </template>
 
 <script setup>
-import { ref, onMounted, defineAsyncComponent, computed } from 'vue';
+import { ref, onMounted, onUnmounted, defineAsyncComponent, computed } from 'vue';
 import { useData } from '../composables/useData.js';
 
 const HUD = defineAsyncComponent(() => import('./HUD.vue'));
 const DetailPanel = defineAsyncComponent(() => import('./DetailPanel.vue'));
 
 const galaxyCanvas = ref(null);
+const hudRef = ref(null);
 const hudReady = ref(false);
 const webglError = ref('');
 const selectedAnime = ref(null);
@@ -32,6 +48,9 @@ const activeGenre = ref(null);
 
 const { data, genres } = useData();
 
+let galaxyApi = null;
+let cleanupFns = [];
+
 const tooltipStyle = computed(() => ({
   left: `${tooltipPos.value.x + 16}px`,
   top: `${tooltipPos.value.y + 16}px`
@@ -40,26 +59,81 @@ const tooltipStyle = computed(() => ({
 onMounted(async () => {
   const mod = await import('../composables/useGalaxy.js');
   const { useGalaxy } = mod;
-  const { init, hoveredAnime: galaxyHoveredAnime } = useGalaxy(galaxyCanvas, data, genres, {
+  const api = useGalaxy(galaxyCanvas, data, genres, {
     onSelect: (anime) => {
       selectedAnime.value = anime;
     },
     onError: (msg) => {
       webglError.value = msg;
+    },
+    onSearchResult: (result) => {
+      if (!result.found && hudRef.value) {
+        hudRef.value.showNoResult();
+      }
     }
   });
-  init();
+  api.init();
+  galaxyApi = api;
 
-  window.addEventListener('pointermove', (e) => {
+  const onPointerMove = (e) => {
     tooltipPos.value = { x: e.clientX, y: e.clientY };
-  });
+  };
+  window.addEventListener('pointermove', onPointerMove);
 
-  hoveredAnime.value = galaxyHoveredAnime;
+  const onKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      selectedAnime.value = null;
+      if (hudRef.value) hudRef.value.showHelp = false;
+    } else if (e.key === 'r' || e.key === 'R') {
+      galaxyApi?.resetCamera();
+    } else if (e.key === 'f' || e.key === 'F') {
+      onToggleFullscreen();
+    }
+  };
+  window.addEventListener('keydown', onKeyDown);
+
+  cleanupFns.push(
+    () => window.removeEventListener('pointermove', onPointerMove),
+    () => window.removeEventListener('keydown', onKeyDown)
+  );
+
+  hoveredAnime.value = api.hoveredAnime;
   hudReady.value = true;
 });
 
+onUnmounted(() => {
+  cleanupFns.forEach(fn => fn());
+});
+
 function onFilterGenre(genre) {
-  activeGenre.value = activeGenre.value === genre ? null : genre;
+  activeGenre.value = genre;
+  galaxyApi?.filterByGenre(genre);
+}
+
+function onSearch(query) {
+  galaxyApi?.search(query);
+}
+
+function onResetCamera() {
+  galaxyApi?.resetCamera();
+}
+
+function onFocusNebula(genre) {
+  galaxyApi?.focusOnGenre(genre);
+}
+
+function onToggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen?.().catch(() => {});
+  } else {
+    document.exitFullscreen?.().catch(() => {});
+  }
+}
+
+function onLocateStar(anime) {
+  if (!anime || !galaxyApi) return;
+  selectedAnime.value = null;
+  galaxyApi.highlightStar(anime.id);
 }
 </script>
 

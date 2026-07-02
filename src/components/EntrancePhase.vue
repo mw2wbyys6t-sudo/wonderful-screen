@@ -1,5 +1,5 @@
 <template>
-  <section class="phase-entrance" @mousemove="onMouseMove">
+  <section class="phase-entrance" @mousemove="onMouseMove" :class="{ transitioning: isTransitioning }">
     <!-- AI 生成星云背景兜底 -->
     <div class="bg-image-layer"></div>
 
@@ -7,6 +7,11 @@
     <video class="bg-video-layer" ref="videoA" autoplay muted loop playsinline></video>
     <video class="bg-video-layer" ref="videoB" autoplay muted loop playsinline></video>
     <video class="bg-video-layer" ref="videoC" autoplay muted loop playsinline></video>
+
+    <!-- 旋转魔法阵层 -->
+    <div class="magic-circle-wrap" :style="magicCircleStyle">
+      <div class="magic-circle-layer"></div>
+    </div>
 
     <!-- 手绘感光斑 -->
     <div class="cover-orb cover-orb-1" :style="orbStyle(-1, 0.3)"></div>
@@ -28,9 +33,17 @@
 
     <!-- 内容层 -->
     <div class="entrance-content" :style="contentStyle">
-      <h1 class="entrance-title">星云编年史</h1>
+      <h1 class="entrance-title" data-text="星云编年史">星云编年史</h1>
       <p class="entrance-subtitle">NEBULA CHRONICLE · 穿越次元，探索动画宇宙</p>
-      <button class="journey-btn" @click="onStart">开始旅程</button>
+      <img class="title-ornament" src="/images/effects/title-ornament.png" alt="">
+      <button class="journey-btn" @click="onStart" :disabled="isTransitioning">开始旅程</button>
+    </div>
+
+    <!-- 进入星系转场层 -->
+    <div class="warp-overlay" v-if="isTransitioning">
+      <div class="warp-flash"></div>
+      <div class="warp-starburst"></div>
+      <div class="warp-vignette"></div>
     </div>
   </section>
 </template>
@@ -54,6 +67,7 @@ let shootingTimer = null;
 let resizeHandler = null;
 const parallax = ref({ x: 0, y: 0 });
 const audioPulse = ref(0);
+const isTransitioning = ref(false);
 
 const videos = [
   '/images/generated/nebula-trailer-v3-a.mp4',
@@ -73,8 +87,13 @@ const portalStyle = computed(() => ({
   `
 }));
 
+const magicCircleStyle = computed(() => ({
+  transform: `translate(-50%, -55%) scale(${1 + audioPulse.value * 0.04})`
+}));
+
 const contentStyle = computed(() => ({
-  transform: `translate(${parallax.value.x * 12}px, ${parallax.value.y * 12}px)`
+  transform: `translate(${parallax.value.x * 12}px, ${parallax.value.y * 12}px) scale(${isTransitioning.value ? 1.15 : 1})`,
+  opacity: isTransitioning.value ? 0 : 1
 }));
 
 onMounted(() => {
@@ -92,7 +111,9 @@ onUnmounted(() => {
 });
 
 function onStart() {
-  emit('start');
+  if (isTransitioning.value) return;
+  isTransitioning.value = true;
+  setTimeout(() => emit('start'), 1200);
 }
 
 function initCarousel() {
@@ -159,8 +180,11 @@ function initCanvas() {
       ctx.fillRect(0, 0, width, height);
     }
 
+    // 转场时加速星空下坠，营造跃入感
+    const warpSpeed = isTransitioning.value ? 8 : 1;
+
     stars.forEach(star => {
-      star.y += star.speed;
+      star.y += star.speed * warpSpeed;
       if (star.y > height) {
         star.y = 0;
         star.x = Math.random() * width;
@@ -289,6 +313,32 @@ function onMouseMove(e) {
 
 .bg-video-layer.active {
   opacity: 0.55;
+}
+
+.magic-circle-wrap {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(680px, 110vw);
+  height: min(680px, 110vw);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.magic-circle-layer {
+  position: absolute;
+  inset: 0;
+  background: url('/images/generated/magic-circle.jpg') center center / contain no-repeat;
+  opacity: 0.12;
+  filter: hue-rotate(20deg) saturate(1.4);
+  mix-blend-mode: screen;
+  will-change: transform;
+  animation: magicRotate 60s linear infinite;
+}
+
+@keyframes magicRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .cover-orb {
@@ -429,17 +479,34 @@ function onMouseMove(e) {
   justify-content: center;
   text-align: center;
   pointer-events: none;
-  transition: transform 0.1s ease-out;
+  transition: transform 0.8s ease-out, opacity 0.8s ease-out;
 }
 
 .entrance-title {
   font-family: 'ZCOOL XiaoWei', serif;
   font-size: clamp(48px, 10vw, 120px);
-  background: linear-gradient(180deg, #fff 0%, #b892ff 60%, #00f3ff 100%);
+  background: linear-gradient(180deg, #fff 0%, #b892ff 55%, #00f3ff 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  text-shadow: 0 0 40px rgba(0, 243, 255, 0.3);
+  filter: brightness(1.1) drop-shadow(0 0 30px rgba(0, 243, 255, 0.5)) drop-shadow(0 0 60px rgba(176, 38, 255, 0.35));
   animation: titleGlow 3s ease-in-out infinite alternate;
+  position: relative;
+}
+
+.entrance-title::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(180deg, #fff 0%, #b892ff 55%, #00f3ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  opacity: 0.35;
+  transform: translateY(2px);
+  filter: blur(2px);
+  z-index: -1;
 }
 
 .entrance-subtitle {
@@ -447,6 +514,15 @@ function onMouseMove(e) {
   font-size: clamp(14px, 2vw, 20px);
   color: var(--text-secondary);
   letter-spacing: 4px;
+  text-shadow: 0 0 12px rgba(0, 243, 255, 0.35);
+}
+
+.title-ornament {
+  margin-top: 18px;
+  width: 220px;
+  max-width: 70vw;
+  opacity: 0.85;
+  filter: drop-shadow(0 0 12px rgba(0, 243, 255, 0.4));
 }
 
 .journey-btn {
@@ -469,8 +545,82 @@ function onMouseMove(e) {
   box-shadow: 0 0 50px rgba(0, 243, 255, 0.6);
 }
 
+.journey-btn:disabled {
+  cursor: default;
+}
+
 @keyframes titleGlow {
-  0% { filter: brightness(1) drop-shadow(0 0 10px rgba(0, 243, 255, 0.3)); }
-  100% { filter: brightness(1.3) drop-shadow(0 0 30px rgba(176, 38, 255, 0.6)); }
+  0% { filter: brightness(1.05) drop-shadow(0 0 20px rgba(0, 243, 255, 0.35)) drop-shadow(0 0 40px rgba(176, 38, 255, 0.25)); }
+  100% { filter: brightness(1.35) drop-shadow(0 0 40px rgba(0, 243, 255, 0.55)) drop-shadow(0 0 80px rgba(176, 38, 255, 0.45)); }
+}
+
+/* 转场特效 */
+.warp-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.warp-flash {
+  position: absolute;
+  inset: 0;
+  background: white;
+  opacity: 0;
+  animation: warpFlash 1.2s ease-out forwards;
+}
+
+.warp-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, transparent 30%, rgba(0, 243, 255, 0.25) 70%, rgba(255, 255, 255, 0.9) 100%);
+  opacity: 0;
+  animation: warpVignette 1.2s ease-out forwards;
+}
+
+.warp-starburst {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(0, 243, 255, 0.6) 30%, transparent 70%);
+  opacity: 0;
+  animation: starburst 1.2s ease-out forwards;
+}
+
+@keyframes warpFlash {
+  0% { opacity: 0; }
+  25% { opacity: 0.95; }
+  60% { opacity: 0.3; }
+  100% { opacity: 0; }
+}
+
+@keyframes warpVignette {
+  0% { opacity: 0; transform: scale(0.8); }
+  30% { opacity: 1; }
+  100% { opacity: 1; transform: scale(1.8); }
+}
+
+@keyframes starburst {
+  0% { width: 0; height: 0; opacity: 1; }
+  40% { opacity: 1; }
+  100% { width: 300vmax; height: 300vmax; opacity: 0; }
+}
+
+/* 转场期间整体缩放 */
+.phase-entrance.transitioning .bg-image-layer,
+.phase-entrance.transitioning .bg-video-layer,
+.phase-entrance.transitioning .cover-orb,
+.phase-entrance.transitioning .cover-portal,
+.phase-entrance.transitioning #entrance-canvas {
+  animation: warpZoom 1.2s ease-out forwards;
+}
+
+@keyframes warpZoom {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.25); }
 }
 </style>
