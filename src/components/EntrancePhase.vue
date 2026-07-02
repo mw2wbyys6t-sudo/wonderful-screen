@@ -1,5 +1,8 @@
 <template>
   <section class="phase-entrance" @mousemove="onMouseMove">
+    <!-- AI 生成星云背景兜底 -->
+    <div class="bg-image-layer"></div>
+
     <!-- 视频轮播：三图层固定 src，通过 active 类交叉淡入淡出 -->
     <video class="bg-video-layer" ref="videoA" autoplay muted loop playsinline></video>
     <video class="bg-video-layer" ref="videoB" autoplay muted loop playsinline></video>
@@ -263,6 +266,15 @@ function onMouseMove(e) {
   overflow: hidden;
 }
 
+.bg-image-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: url('/images/generated/minimax-nebula-bg.png') center center / cover no-repeat;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
 .bg-video-layer {
   position: absolute;
   inset: 0;
@@ -272,6 +284,7 @@ function onMouseMove(e) {
   opacity: 0;
   transition: opacity 1.6s ease;
   pointer-events: none;
+  z-index: 1;
 }
 
 .bg-video-layer.active {
