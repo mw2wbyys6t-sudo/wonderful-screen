@@ -597,12 +597,32 @@ git commit -m "feat(app): port entrance canvas effects with audio reactivity"
 
 ---
 
-### Task 8: 实现 Three.js 场景封装 useGalaxy
+### Task 8: 实现 Three.js 场景封装 useGalaxy（含性能基线）
 
 **Files:**
 - Create: `src/composables/useGalaxy.js`
+- Modify: `src/components/GalaxyPhase.vue`
 
-- [ ] **Step 1: 创建 useGalaxy composable**
+- [ ] **Step 0: 在 GalaxyPhase 中按需加载 Three.js**
+
+Modify `src/components/GalaxyPhase.vue` `<script setup>`:
+```javascript
+import { ref, onMounted, defineAsyncComponent } from 'vue';
+import { useData } from '../composables/useData.js';
+const HUD = defineAsyncComponent(() => import('./HUD.vue'));
+const DetailPanel = defineAsyncComponent(() => import('./DetailPanel.vue'));
+
+const galaxyCanvas = ref(null);
+const { data, genres } = useData();
+let useGalaxy;
+
+onMounted(async () => {
+  const mod = await import('../composables/useGalaxy.js');
+  useGalaxy = mod.useGalaxy;
+  const { init } = useGalaxy(galaxyCanvas, data, genres);
+  init();
+});
+```
 
 Create: `src/composables/useGalaxy.js`
 ```javascript
@@ -750,7 +770,39 @@ git commit -m "feat(app): implement HUD, detail panel and camera controls"
 - Modify: `src/composables/useGalaxy.js`
 - Modify: `src/styles/universe.css`
 
-- [ ] **Step 1-4:** 添加性能分级、粒子数量控制、移动端布局降级。与原版计划 Task 15 对应。
+- [ ] **Step 1: 使用 InstancedMesh 批量渲染恒星**
+
+Modify `buildStars` in `src/composables/useGalaxy.js`:
+```javascript
+function buildStars(group, data, genres, budget) {
+  const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const geometry = new THREE.SphereGeometry(1, 8, 8);
+  const mesh = new THREE.InstancedMesh(geometry, material, budget);
+  const dummy = new THREE.Object3D();
+  const color = new THREE.Color();
+
+  data.slice(0, budget).forEach((anime, i) => {
+    const primaryGenre = anime.genres[0] || 'Sci-Fi';
+    const genreNames = Object.keys(genres || {});
+    const genreIndex = Math.max(0, genreNames.indexOf(primaryGenre));
+    const angle = (genreIndex / Math.max(1, genreNames.length)) * Math.PI * 2 + (Math.random() - 0.5);
+    const radius = 60 + (genreIndex % 3) * 25 + (Math.random() - 0.5) * 25;
+    const y = (Math.random() - 0.5) * 30;
+
+    dummy.position.set(radius * Math.cos(angle), y, radius * Math.sin(angle));
+    const s = 0.6 + Math.min(2.5, (anime.averageScore || 50) / 40) * 0.5;
+    dummy.scale.set(s, s, s);
+    dummy.updateMatrix();
+    mesh.setMatrixAt(i, dummy.matrix);
+    mesh.setColorAt(i, color.set(genres[primaryGenre]?.color || '#00f3ff'));
+  });
+
+  group.add(mesh);
+  return mesh;
+}
+```
+
+- [ ] **Step 2-4:** 添加性能分级、粒子数量控制、移动端布局降级。与原版计划 Task 15 对应。
 
 - [ ] **Step 5: Commit**
 
