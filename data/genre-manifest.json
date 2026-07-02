@@ -1,0 +1,74 @@
+{
+  "generatedAt": "2026-07-02T10:14:43.289Z",
+  "count": 50,
+  "genres": {
+    "Adventure": {
+      "count": 12,
+      "color": "#ffcc00"
+    },
+    "Drama": {
+      "count": 40,
+      "color": "#b892ff"
+    },
+    "Fantasy": {
+      "count": 12,
+      "color": "#b026ff"
+    },
+    "Action": {
+      "count": 29,
+      "color": "#ff4444"
+    },
+    "Comedy": {
+      "count": 17,
+      "color": "#ffee66"
+    },
+    "Sci-Fi": {
+      "count": 11,
+      "color": "#00f3ff"
+    },
+    "Horror": {
+      "count": 2,
+      "color": "#aa66ff"
+    },
+    "Romance": {
+      "count": 10,
+      "color": "#ff88cc"
+    },
+    "Supernatural": {
+      "count": 10,
+      "color": "#b026ff"
+    },
+    "Mystery": {
+      "count": 10,
+      "color": "#aa66ff"
+    },
+    "Psychological": {
+      "count": 14,
+      "color": "#00f3ff"
+    },
+    "Thriller": {
+      "count": 4,
+      "color": "#aa66ff"
+    },
+    "Slice of Life": {
+      "count": 13,
+      "color": "#66ffaa"
+    },
+    "Sports": {
+      "count": 4,
+      "color": "#ffcc00"
+    },
+    "Music": {
+      "count": 3,
+      "color": "#00ffaa"
+    },
+    "Ecchi": {
+      "count": 1,
+      "color": "#00f3ff"
+    },
+    "Mecha": {
+      "count": 2,
+      "color": "#4488ff"
+    }
+  }
+}
