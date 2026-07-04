@@ -1,19 +1,25 @@
 import { ref, onUnmounted } from 'vue';
 import * as THREE from 'three';
 
+// 模块级共享状态（buildXxx 函数定义在模块级，需在此声明）
+let renderer, scene, camera, galaxyGroup, starsMesh, nebulaGroup, linesMesh, highlightLinesMesh, searchRingsMesh;
+let raycaster, pointer;
+let starData = [];
+let originalColors = [];
+let originalScales = [];
+let lineConnections = [];
+let glowTexture = null;
+let coreTexture = null;
+let symbolTexture = null;
+let streakTexture = null;
+
 export function useGalaxy(canvasRef, dataRef, genresRef, options = {}) {
   const selectedId = ref(null);
   const hoveredId = ref(null);
   const hoveredAnime = ref(null);
   const cameraInfo = ref({ distance: 180, azimuth: 0, polar: 0.3 });
 
-  let renderer, scene, camera, galaxyGroup, starsMesh, nebulaGroup, linesMesh, highlightLinesMesh, searchRingsMesh;
   let animationId;
-  let raycaster, pointer;
-  let starData = [];
-  let originalColors = [];
-  let originalScales = [];
-  let lineConnections = [];
   let isDragging = false;
   let lastPointer = { x: 0, y: 0 };
   let cameraState = { theta: 0, phi: Math.PI / 3, radius: 180 };
@@ -21,30 +27,27 @@ export function useGalaxy(canvasRef, dataRef, genresRef, options = {}) {
   let cameraAnimation = null;
   let searchTimeout = null;
   let searchMatchedIds = [];
-  let glowTexture = null;
-  let coreTexture = null;
-  let symbolTexture = null;
-  let streakTexture = null;
 
   const init = () => {
     if (!canvasRef.value) return;
 
-    const gl = canvasRef.value.getContext('webgl') || canvasRef.value.getContext('experimental-webgl');
-    if (!gl) {
-      console.warn('WebGL not supported in this environment.');
-      if (options.onError) options.onError('WebGL not supported');
+    // 不要先用 getContext 探测：Three.js 会自己创建 WebGL context，
+    // 提前 getContext 会造成 "Canvas has an existing context of a different type"。
+    try {
+      scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0x03030a, 0.0025);
+
+      camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 3000);
+      updateCameraPosition();
+
+      renderer = new THREE.WebGLRenderer({ canvas: canvasRef.value, antialias: true, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    } catch (err) {
+      console.warn('WebGL 初始化失败:', err);
+      if (options.onError) options.onError('当前环境不支持 WebGL，无法显示 3D 星系');
       return;
     }
-
-    scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x03030a, 0.0025);
-
-    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 3000);
-    updateCameraPosition();
-
-    renderer = new THREE.WebGLRenderer({ canvas: canvasRef.value, antialias: true, alpha: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
     // 预生成纹理
     glowTexture = createGlowTexture(128);
@@ -121,6 +124,8 @@ export function useGalaxy(canvasRef, dataRef, genresRef, options = {}) {
       renderer.render(scene, camera);
     };
     animate();
+
+    if (options.onReady) options.onReady();
 
     onUnmounted(() => {
       cancelAnimationFrame(animationId);

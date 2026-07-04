@@ -1,6 +1,10 @@
 <template>
   <section class="phase-galaxy">
     <canvas ref="galaxyCanvas" id="galaxy-canvas"></canvas>
+    <div v-if="galaxyLoading && !webglError" class="galaxy-loading">
+      <div class="loading-spinner"></div>
+      <p>正在构建星系…</p>
+    </div>
     <div v-if="webglError" class="webgl-fallback">
       <div class="fallback-icon">✦</div>
       <p>当前环境不支持 WebGL，无法显示 3D 星系。</p>
@@ -31,7 +35,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, defineAsyncComponent, computed } from 'vue';
+import { ref, onMounted, onUnmounted, defineAsyncComponent, computed, watch } from 'vue';
 import { useData } from '../composables/useData.js';
 
 const HUD = defineAsyncComponent(() => import('./HUD.vue'));
@@ -41,6 +45,7 @@ const galaxyCanvas = ref(null);
 const hudRef = ref(null);
 const hudReady = ref(false);
 const webglError = ref('');
+const galaxyLoading = ref(true);
 const selectedAnime = ref(null);
 const hoveredAnime = ref(null);
 const tooltipPos = ref({ x: 0, y: 0 });
@@ -57,48 +62,63 @@ const tooltipStyle = computed(() => ({
 }));
 
 onMounted(async () => {
-  const mod = await import('../composables/useGalaxy.js');
-  const { useGalaxy } = mod;
-  const api = useGalaxy(galaxyCanvas, data, genres, {
-    onSelect: (anime) => {
-      selectedAnime.value = anime;
-    },
-    onError: (msg) => {
-      webglError.value = msg;
-    },
-    onSearchResult: (result) => {
-      if (!result.found && hudRef.value) {
-        hudRef.value.showNoResult();
+  try {
+    const mod = await import('../composables/useGalaxy.js');
+    const { useGalaxy } = mod;
+    const api = useGalaxy(galaxyCanvas, data, genres, {
+      onSelect: (anime) => {
+        selectedAnime.value = anime;
+      },
+      onError: (msg) => {
+        webglError.value = msg;
+        galaxyLoading.value = false;
+      },
+      onSearchResult: (result) => {
+        if (!result.found && hudRef.value) {
+          hudRef.value.showNoResult();
+        }
+      },
+      onReady: () => {
+        galaxyLoading.value = false;
       }
+    });
+    api.init();
+    galaxyApi = api;
+
+    if (api.hoveredAnime) {
+      watch(api.hoveredAnime, (val) => {
+        hoveredAnime.value = val;
+      }, { immediate: true });
     }
-  });
-  api.init();
-  galaxyApi = api;
 
-  const onPointerMove = (e) => {
-    tooltipPos.value = { x: e.clientX, y: e.clientY };
-  };
-  window.addEventListener('pointermove', onPointerMove);
+    const onPointerMove = (e) => {
+      tooltipPos.value = { x: e.clientX, y: e.clientY };
+    };
+    window.addEventListener('pointermove', onPointerMove);
 
-  const onKeyDown = (e) => {
-    if (e.key === 'Escape') {
-      selectedAnime.value = null;
-      if (hudRef.value) hudRef.value.showHelp = false;
-    } else if (e.key === 'r' || e.key === 'R') {
-      galaxyApi?.resetCamera();
-    } else if (e.key === 'f' || e.key === 'F') {
-      onToggleFullscreen();
-    }
-  };
-  window.addEventListener('keydown', onKeyDown);
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        selectedAnime.value = null;
+        if (hudRef.value) hudRef.value.showHelp = false;
+      } else if (e.key === 'r' || e.key === 'R') {
+        galaxyApi?.resetCamera();
+      } else if (e.key === 'f' || e.key === 'F') {
+        onToggleFullscreen();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
 
-  cleanupFns.push(
-    () => window.removeEventListener('pointermove', onPointerMove),
-    () => window.removeEventListener('keydown', onKeyDown)
-  );
+    cleanupFns.push(
+      () => window.removeEventListener('pointermove', onPointerMove),
+      () => window.removeEventListener('keydown', onKeyDown)
+    );
 
-  hoveredAnime.value = api.hoveredAnime;
-  hudReady.value = true;
+    hudReady.value = true;
+  } catch (err) {
+    console.error('星系初始化失败:', err);
+    webglError.value = '星系初始化失败，请刷新重试';
+    galaxyLoading.value = false;
+  }
 });
 
 onUnmounted(() => {
@@ -178,6 +198,31 @@ function onLocateStar(anime) {
 .tooltip-meta {
   font-size: 12px;
   color: var(--text-secondary);
+}
+
+.galaxy-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 2px solid rgba(0, 243, 255, 0.2);
+  border-top-color: var(--neon-cyan);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .webgl-fallback {

@@ -64,6 +64,7 @@ const { init: initAudio, getLevel } = useAudio();
 
 let animationId = null;
 let shootingTimer = null;
+let carouselInterval = null;
 let resizeHandler = null;
 const parallax = ref({ x: 0, y: 0 });
 const audioPulse = ref(0);
@@ -107,6 +108,7 @@ onMounted(() => {
 onUnmounted(() => {
   cancelAnimationFrame(animationId);
   clearTimeout(shootingTimer);
+  clearInterval(carouselInterval);
   window.removeEventListener('resize', resizeHandler);
 });
 
@@ -118,20 +120,37 @@ function onStart() {
 
 function initCarousel() {
   if (!videoA.value || !videoB.value || !videoC.value) return;
-  videoA.value.src = videos[0];
-  videoB.value.src = videos[1];
-  videoC.value.src = videos[2];
+  const layers = [videoA.value, videoB.value, videoC.value];
+  const loadOk = [true, true, true];
+
+  layers.forEach((video, i) => {
+    video.src = videos[i];
+    video.addEventListener('error', () => {
+      console.warn(`背景视频加载失败: ${videos[i]}`);
+      loadOk[i] = false;
+      video.classList.remove('active');
+    }, { once: true });
+  });
+
+  // 默认第一张激活；若加载失败，carousel 会跳过它
   videoA.value.classList.add('active');
 
   let idx = 0;
-  const layers = [videoA.value, videoB.value, videoC.value];
+  carouselInterval = setInterval(() => {
+    const current = layers[idx];
+    let nextIdx = idx;
+    let attempts = 0;
+    do {
+      nextIdx = (nextIdx + 1) % layers.length;
+      attempts++;
+    } while (!loadOk[nextIdx] && attempts < layers.length);
 
-  setInterval(() => {
-    const current = layers[idx % layers.length];
-    idx = (idx + 1) % layers.length;
-    const next = layers[idx % layers.length];
-    next.classList.add('active');
+    if (attempts >= layers.length) return; // 全部失败则停止轮播
+
+    const next = layers[nextIdx];
     current.classList.remove('active');
+    next.classList.add('active');
+    idx = nextIdx;
   }, 8000);
 }
 
