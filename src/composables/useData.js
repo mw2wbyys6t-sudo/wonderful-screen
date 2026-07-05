@@ -11,8 +11,8 @@ export function useData() {
     error.value = null;
     try {
       const [corpusRes, manifestRes] = await Promise.all([
-        fetch('/data/anime-corpus.json'),
-        fetch('/data/genre-manifest.json')
+        fetch('./data/anime-corpus.json'),
+        fetch('./data/genre-manifest.json')
       ]);
       if (!corpusRes.ok) throw new Error(`Failed to load anime corpus: ${corpusRes.status}`);
       if (!manifestRes.ok) throw new Error(`Failed to load genre manifest: ${manifestRes.status}`);

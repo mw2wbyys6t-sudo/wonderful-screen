@@ -35,7 +35,7 @@
     <div class="entrance-content" :style="contentStyle">
       <h1 class="entrance-title" data-text="星云编年史">星云编年史</h1>
       <p class="entrance-subtitle">NEBULA CHRONICLE · 穿越次元，探索动画宇宙</p>
-      <img class="title-ornament" src="/images/effects/title-ornament.png" alt="">
+      <img class="title-ornament" src="./images/effects/title-ornament.png" alt="">
       <button class="journey-btn" @click="onStart" :disabled="isTransitioning">开始旅程</button>
     </div>
 
@@ -71,9 +71,9 @@ const audioPulse = ref(0);
 const isTransitioning = ref(false);
 
 const videos = [
-  '/images/generated/nebula-trailer-v3-a.mp4',
-  '/images/generated/nebula-trailer-v3-b.mp4',
-  '/images/generated/nebula-trailer-v3-c.mp4'
+  './images/generated/nebula-trailer-v3-a.mp4',
+  './images/generated/nebula-trailer-v3-b.mp4',
+  './images/generated/nebula-trailer-v3-c.mp4'
 ];
 
 const orbStyle = (dir, strength) => ({

@@ -18,6 +18,7 @@ export function useGalaxy(canvasRef, dataRef, genresRef, options = {}) {
   const hoveredId = ref(null);
   const hoveredAnime = ref(null);
   const cameraInfo = ref({ distance: 180, azimuth: 0, polar: 0.3 });
+  const inputMode = ref('mouse');
 
   let animationId;
   let isDragging = false;
@@ -80,8 +81,10 @@ export function useGalaxy(canvasRef, dataRef, genresRef, options = {}) {
       lastPointer = { x: e.clientX, y: e.clientY };
     };
     const onPointerMove = (e) => {
-      pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
-      pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      if (inputMode.value !== 'hand') {
+        pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+        pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      }
 
       if (isDragging) {
         const dx = e.clientX - lastPointer.x;
@@ -135,11 +138,10 @@ export function useGalaxy(canvasRef, dataRef, genresRef, options = {}) {
       window.removeEventListener('pointerup', onPointerUp);
       canvasRef.value?.removeEventListener('wheel', onWheel);
       canvasRef.value?.removeEventListener('click', onClick);
-      renderer?.dispose();
-      glowTexture?.dispose();
-      coreTexture?.dispose();
-      symbolTexture?.dispose();
-      streakTexture?.dispose();
+      try {
+        document.body.style.cursor = '';
+      } catch (e) {}
+      disposeScene();
     });
   };
 
@@ -443,17 +445,90 @@ export function useGalaxy(canvasRef, dataRef, genresRef, options = {}) {
     linesMesh.material.opacity = 0.25;
   }
 
+  function rotateCameraByVelocity(dx, dy = 0) {
+    cameraState.theta -= dx;
+    cameraState.phi = Math.max(0.1, Math.min(Math.PI - 0.1, cameraState.phi - dy));
+    updateCameraPosition();
+  }
+
+  function setInputMode(mode) {
+    inputMode.value = mode;
+  }
+
+  function setPointerFromScreen(x, y) {
+    if (!pointer) return;
+    pointer.x = (x / window.innerWidth) * 2 - 1;
+    pointer.y = -(y / window.innerHeight) * 2 + 1;
+  }
+
+  function selectHovered() {
+    if (hoveredId.value != null) {
+      selectedId.value = hoveredId.value;
+      if (options.onSelect) options.onSelect(starData[hoveredId.value]?.anime);
+    }
+  }
+
+  function disposeScene() {
+    if (scene) {
+      scene.traverse(obj => {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach(m => {
+              if (m.map) m.map.dispose();
+              m.dispose();
+            });
+          } else {
+            if (obj.material.map) obj.material.map.dispose();
+            obj.material.dispose();
+          }
+        }
+      });
+      scene.clear();
+    }
+    renderer?.dispose();
+    glowTexture?.dispose();
+    coreTexture?.dispose();
+    symbolTexture?.dispose();
+    streakTexture?.dispose();
+
+    renderer = null;
+    scene = null;
+    camera = null;
+    galaxyGroup = null;
+    starsMesh = null;
+    nebulaGroup = null;
+    linesMesh = null;
+    highlightLinesMesh = null;
+    searchRingsMesh = null;
+    raycaster = null;
+    pointer = null;
+    starData = [];
+    originalColors = [];
+    originalScales = [];
+    lineConnections = [];
+    glowTexture = null;
+    coreTexture = null;
+    symbolTexture = null;
+    streakTexture = null;
+  }
+
   return {
     init,
     selectedId,
     hoveredId,
     hoveredAnime,
     cameraInfo,
+    inputMode,
     filterByGenre,
     search,
     resetCamera,
     focusOnGenre,
-    highlightStar
+    highlightStar,
+    setInputMode,
+    setPointerFromScreen,
+    selectHovered,
+    rotateCameraByVelocity
   };
 }
 
@@ -547,7 +622,7 @@ function createSymbolTexture(size = 64) {
 
 function createStreakTexture() {
   const loader = new THREE.TextureLoader();
-  const tex = loader.load('/images/effects/light-streak.png');
+  const tex = loader.load('./images/effects/light-streak.png');
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.ClampToEdgeWrapping;

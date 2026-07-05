@@ -20,7 +20,7 @@
         <div class="card-glitch card-glitch-cyan"></div>
         <div class="card-glitch card-glitch-magenta"></div>
         <div class="card-frame"></div>
-        <img :src="work.coverImage || '/images/generated/nebula-bg.jpg'" :alt="work.titleRomaji">
+        <img :src="work.coverImage || './images/generated/nebula-bg.jpg'" :alt="work.titleRomaji">
         <div class="card-scanlines"></div>
         <div class="card-shimmer"></div>
         <div class="holo-card-title">{{ work.titleRomaji }}</div>

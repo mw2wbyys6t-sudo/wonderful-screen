@@ -1,9 +1,7 @@
 <template>
   <div id="universe">
     <Transition name="phase" mode="out-in" @before-leave="onBeforeLeave" @after-enter="onAfterEnter">
-      <LoadingPhase v-if="phase === 'loading'" @done="goTo('showcase')" />
-      <ShowcasePhase v-else-if="phase === 'showcase'" @skip="goTo('entrance')" />
-      <EntrancePhase v-else-if="phase === 'entrance'" @start="goTo('galaxy')" />
+      <LandingPhase v-if="phase === 'landing'" @start="goTo('galaxy')" />
       <GalaxyPhase v-else-if="phase === 'galaxy'" />
     </Transition>
 
@@ -13,12 +11,10 @@
 
 <script setup>
 import { ref } from 'vue';
-import LoadingPhase from './components/LoadingPhase.vue';
-import ShowcasePhase from './components/ShowcasePhase.vue';
-import EntrancePhase from './components/EntrancePhase.vue';
+import LandingPhase from './components/LandingPhase.vue';
 import GalaxyPhase from './components/GalaxyPhase.vue';
 
-const phase = ref('loading');
+const phase = ref('landing');
 const flashActive = ref(false);
 
 function goTo(next) {

@@ -42,6 +42,19 @@
         </div>
       </div>
       <button title="音乐" @click="toggleMusic">♪</button>
+      <button
+        v-if="voiceSupported"
+        title="语音"
+        class="voice-btn"
+        :class="{ active: voiceActive }"
+        :aria-pressed="voiceActive"
+        @click="emit('toggle-voice')"
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+          <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+        </svg>
+      </button>
       <button title="帮助" @click="showHelp = !showHelp">?</button>
     </div>
     <div class="hud-counter">{{ count }} 颗恒星已点亮</div>
@@ -57,6 +70,8 @@
         <p>顶部芯片：按流派筛选</p>
         <p>搜索框：Enter 或停顿 300ms 自动搜索</p>
         <p>ESC：关闭详情 · R：重置视角 · F：全屏</p>
+        <p>手势：右下角开启摄像头，食指移动光标，捏合/张开选择，双指滑动旋转</p>
+        <p>语音：点击麦克风按钮，说「播放 xxx」「上一部」「下一部」「关闭」</p>
         <button @click="showHelp = false">关闭</button>
       </div>
     </div>
@@ -68,8 +83,12 @@ import { ref, watch } from 'vue';
 import { useData } from '../composables/useData.js';
 import { useAudio } from '../composables/useAudio.js';
 
-const props = defineProps({ count: { type: Number, default: 0 } });
-const emit = defineEmits(['filter-genre', 'search', 'reset-camera', 'focus-nebula', 'toggle-fullscreen']);
+const props = defineProps({
+  count: { type: Number, default: 0 },
+  voiceActive: { type: Boolean, default: false },
+  voiceSupported: { type: Boolean, default: false }
+});
+const emit = defineEmits(['filter-genre', 'search', 'reset-camera', 'focus-nebula', 'toggle-fullscreen', 'toggle-voice']);
 
 const { genres } = useData();
 const { toggle: toggleMusic } = useAudio();
@@ -222,6 +241,19 @@ defineExpose({ showNoResult });
 .hud-actions button.active {
   background: rgba(0, 243, 255, 0.15);
   box-shadow: 0 0 12px rgba(0, 243, 255, 0.25);
+}
+
+.hud-actions .voice-btn.active {
+  background: rgba(255, 42, 109, 0.2);
+  border-color: rgba(255, 42, 109, 0.45);
+  color: #ff7aa3;
+  box-shadow: 0 0 14px rgba(255, 42, 109, 0.35);
+  animation: voicePulse 1.6s ease-in-out infinite;
+}
+
+@keyframes voicePulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(255, 42, 109, 0.2); }
+  50% { box-shadow: 0 0 22px rgba(255, 42, 109, 0.45); }
 }
 
 .nebula-popover {

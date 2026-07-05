@@ -1,7 +1,7 @@
 <template>
   <div class="detail-panel" :class="{ open: visible }">
     <button class="detail-close" @click="close">×</button>
-    <img :src="anime?.coverImage || '/images/generated/nebula-bg.jpg'" :alt="anime?.titleRomaji">
+    <img :src="anime?.coverImage || './images/generated/nebula-bg.jpg'" :alt="anime?.titleRomaji">
     <h2>{{ anime?.titleRomaji }}</h2>
     <p class="detail-meta">{{ metaText }}</p>
     <p class="detail-desc">{{ anime?.description }}</p>

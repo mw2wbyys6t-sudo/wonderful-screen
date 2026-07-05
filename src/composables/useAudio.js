@@ -5,13 +5,14 @@ let analyser = null;
 let dataArray = null;
 let oscillator = null;
 let gainNode = null;
-let isPlaying = ref(false);
+const isPlaying = ref(false);
 
 export function useAudio() {
   const init = () => {
     if (audioCtx) return;
     try {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
       audioCtx = new AudioContext();
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = 64;
@@ -28,7 +29,7 @@ export function useAudio() {
       oscillator.start();
       isPlaying.value = true;
     } catch (e) {
-      console.warn('Audio init failed:', e);
+      // 静默失败，音频为非核心功能
     }
   };
 
@@ -65,5 +66,23 @@ export function useAudio() {
     return { low, mid, high };
   };
 
-  return { init, toggle, getLevel, getFreqBands, isPlaying };
+  const dispose = () => {
+    try {
+      oscillator?.stop?.();
+      oscillator?.disconnect?.();
+      gainNode?.disconnect?.();
+      analyser?.disconnect?.();
+      audioCtx?.close?.();
+    } catch (e) {
+      // ignore
+    }
+    audioCtx = null;
+    analyser = null;
+    dataArray = null;
+    oscillator = null;
+    gainNode = null;
+    isPlaying.value = false;
+  };
+
+  return { init, toggle, getLevel, getFreqBands, isPlaying, dispose };
 }
