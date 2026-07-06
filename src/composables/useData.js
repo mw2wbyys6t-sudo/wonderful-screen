@@ -1,5 +1,4 @@
 import { ref, computed } from 'vue';
-import { DataEngine } from '../engines/data/DataEngine.js';
 
 const data = ref([]);
 const genres = ref({});
@@ -11,9 +10,15 @@ export function useData() {
     loading.value = true;
     error.value = null;
     try {
-      await DataEngine.load();
-      data.value = DataEngine.data.value;
-      genres.value = DataEngine.genres.value.genres || {};
+      const [corpusRes, manifestRes] = await Promise.all([
+        fetch('./data/anime-corpus.json'),
+        fetch('./data/genre-manifest.json')
+      ]);
+      if (!corpusRes.ok) throw new Error(`Failed to load anime corpus: ${corpusRes.status}`);
+      if (!manifestRes.ok) throw new Error(`Failed to load genre manifest: ${manifestRes.status}`);
+      data.value = await corpusRes.json();
+      const manifest = await manifestRes.json();
+      genres.value = manifest.genres || {};
     } catch (err) {
       error.value = err;
       console.error('Failed to load data:', err);
