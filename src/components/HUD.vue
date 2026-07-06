@@ -1,7 +1,7 @@
 <template>
   <div class="hud">
     <div class="hud-top">
-      <div class="hud-logo">星云编年史</div>
+      <div class="hud-logo">AnimeVerse</div>
       <input
         type="text"
         class="hud-search"
@@ -64,14 +64,14 @@
     <div v-if="showHelp" class="help-panel" @click="showHelp = false">
       <div class="help-content" @click.stop>
         <h3>操作指南</h3>
-        <p>拖拽：旋转星系视角</p>
+        <p>拖拽：旋转宇宙视角</p>
         <p>滚轮：缩放</p>
         <p>点击恒星：查看作品详情</p>
         <p>顶部芯片：按流派筛选</p>
         <p>搜索框：Enter 或停顿 300ms 自动搜索</p>
         <p>ESC：关闭详情 · R：重置视角 · F：全屏</p>
-        <p>手势：右下角开启摄像头，食指移动光标，捏合/张开选择，双指滑动旋转</p>
-        <p>语音：点击麦克风按钮，说「播放 xxx」「上一部」「下一部」「关闭」</p>
+        <p>手势：右下角开启摄像头，食指移动光标，捏合选择，握拳返回，挥手切换年份</p>
+        <p>语音：点击麦克风按钮，说「带我去2008年」「推荐治愈番」「看进击的巨人」「返回」</p>
         <button @click="showHelp = false">关闭</button>
       </div>
     </div>
@@ -79,9 +79,11 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { useData } from '../composables/useData.js';
 import { useAudio } from '../composables/useAudio.js';
+import { StateEngine } from '../engines/core/StateEngine.js';
+import { bus } from '../engines/core/EventBus.js';
 
 const props = defineProps({
   count: { type: Number, default: 0 },
@@ -94,12 +96,23 @@ const { genres } = useData();
 const { toggle: toggleMusic } = useAudio();
 
 const searchText = ref('');
-const activeGenre = ref(null);
+const activeGenre = ref(StateEngine.state.activeGenre);
 const showHelp = ref(false);
 const showNebula = ref(false);
 const noResult = ref(false);
 let noResultTimeout = null;
 let searchDebounce = null;
+let unsubscribe = null;
+
+onMounted(() => {
+  unsubscribe = bus.on('state:activeGenre', ({ value }) => {
+    activeGenre.value = value;
+  });
+});
+
+onUnmounted(() => {
+  if (unsubscribe) unsubscribe();
+});
 
 function chipStyle(genre, color) {
   const isActive = activeGenre.value === genre;

@@ -11,10 +11,10 @@
     <div class="cursor-glow" :style="cursorGlowStyle"></div>
 
     <div class="entrance-content">
-      <div class="brand-en">NEBULA CHRONICLE</div>
-      <h1 class="brand-title" data-text="星云编年史">星云编年史</h1>
+      <div class="brand-en">AI INTERACTIVE ANIME UNIVERSE</div>
+      <h1 class="brand-title" data-text="AnimeVerse">AnimeVerse</h1>
       <div class="title-scanline"></div>
-      <p class="brand-sub">穿越六十载动漫星河，唤醒每一次感动</p>
+      <p class="brand-sub">AI 沉浸式动漫宇宙 · 探索动漫历史、文化演变与作品联系</p>
 
       <button class="journey-btn" :disabled="isTransitioning" @click="enter">
         <span class="btn-text">开始旅程</span>
