@@ -5,10 +5,11 @@ import { DataEngine } from './DataEngine.js';
 
 export const KnowledgeEngine = {
   related(id, type = null) {
-    const edges = DataEngine.graph.value.edges.filter(
+    const edges = DataEngine.graph.value?.edges || [];
+    const matched = edges.filter(
       e => String(e.source) === String(id) || String(e.target) === String(id)
     );
-    const filtered = type ? edges.filter(e => e.type === type) : edges;
+    const filtered = type ? matched.filter(e => e.type === type) : matched;
     return filtered.map(e => ({
       ...e,
       neighbor: String(e.source) === String(id) ? e.target : e.source

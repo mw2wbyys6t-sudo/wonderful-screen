@@ -11,6 +11,8 @@ const graph = ref({ nodes: [], edges: [] });
 const loaded = ref(false);
 const loading = ref(false);
 const error = ref(null);
+const graphLoaded = ref(false);
+const graphLoading = ref(false);
 
 const years = computed(() =>
   [...new Set(data.value.map(a => a.year).filter(Boolean))].sort((a, b) => a - b)
@@ -25,6 +27,12 @@ const yearGroups = computed(() => {
   return map;
 });
 
+function fetchWithTimeout(url, ms = 15000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), ms);
+  return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timeout));
+}
+
 export const DataEngine = {
   data,
   genres,
@@ -32,6 +40,8 @@ export const DataEngine = {
   loaded,
   loading,
   error,
+  graphLoaded,
+  graphLoading,
   years,
   yearGroups,
 
@@ -40,19 +50,17 @@ export const DataEngine = {
     loading.value = true;
     error.value = null;
     try {
-      const [corpusRes, genreRes, graphRes] = await Promise.all([
-        fetch(`${base}data/anime-corpus.json`),
-        fetch(`${base}data/genre-manifest.json`),
-        fetch(`${base}data/knowledge-graph.json`)
+      // 1. 先加载核心数据：作品语料 + 流派配置（较小，必须）
+      const [corpusRes, genreRes] = await Promise.all([
+        fetchWithTimeout(`${base}data/anime-corpus.json`, 20000),
+        fetchWithTimeout(`${base}data/genre-manifest.json`, 10000)
       ]);
 
       if (!corpusRes.ok) throw new Error(`corpus: ${corpusRes.status}`);
       if (!genreRes.ok) throw new Error(`genres: ${genreRes.status}`);
-      if (!graphRes.ok) throw new Error(`graph: ${graphRes.status}`);
 
       const rawData = await corpusRes.json();
       genres.value = await genreRes.json();
-      graph.value = await graphRes.json();
 
       // 本地封面兜底：沙箱/无头环境外部 CDN 常被拦截，用本地图库循环兜底
       const localCovers = Array.from({ length: 42 }, (_, i) => `${base}images/${i}.jpg`);
@@ -61,12 +69,33 @@ export const DataEngine = {
         coverImage: anime.coverImage || localCovers[i % localCovers.length],
         coverFallback: localCovers[i % localCovers.length]
       }));
+
       loaded.value = true;
+      loading.value = false;
+
+      // 2. 后台懒加载知识图谱（6MB+），不阻塞 3D 宇宙渲染
+      this.loadGraphInBackground();
     } catch (err) {
       error.value = err.message;
       console.error('[DataEngine] 加载失败:', err);
-    } finally {
       loading.value = false;
+    }
+  },
+
+  async loadGraphInBackground() {
+    if (graphLoaded.value || graphLoading.value) return;
+    graphLoading.value = true;
+    try {
+      const graphRes = await fetchWithTimeout(`${base}data/knowledge-graph.json`, 30000);
+      if (!graphRes.ok) throw new Error(`graph: ${graphRes.status}`);
+      graph.value = await graphRes.json();
+      graphLoaded.value = true;
+      console.log('[DataEngine] 知识图谱加载完成');
+    } catch (err) {
+      console.warn('[DataEngine] 知识图谱加载失败，将使用空图谱继续运行:', err);
+      graph.value = { nodes: [], edges: [] };
+    } finally {
+      graphLoading.value = false;
     }
   },
 

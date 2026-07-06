@@ -235,7 +235,14 @@ onMounted(async () => {
       })
     );
 
-    // 5. 绑定手势
+    // 5. 知识图谱后台加载完成后，若已选中恒星则刷新关系
+    watch(DataEngine.graphLoaded, (ready) => {
+      if (ready && selectedAnime.value) {
+        selectedRelations.value = KnowledgeEngine.neighbors(selectedAnime.value.id, null, 8);
+      }
+    });
+
+    // 6. 绑定手势
     watch([GestureEngine.handX, GestureEngine.handY], ([x, y]) => {
       if (gestureReady.value) {
         galaxyApi.setInputMode?.('hand') || StateEngine.set('inputMode', 'hand');
