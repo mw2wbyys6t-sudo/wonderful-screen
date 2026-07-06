@@ -69,6 +69,14 @@ export function GalaxyEngine(canvasRef, options = {}) {
   function init() {
     if (!canvasRef.value) return false;
 
+    // 严格预检 WebGL：部分浏览器虽能创建 WebGLRenderer，但上下文异常会导致黑屏
+    const testCanvas = document.createElement('canvas');
+    const gl = testCanvas.getContext('webgl2') || testCanvas.getContext('webgl');
+    if (!gl) {
+      if (options.onError) options.onError('当前环境不支持 WebGL');
+      return false;
+    }
+
     try {
       scene = new THREE.Scene();
       scene.fog = new THREE.FogExp2(0x03030a, 0.0018);
@@ -99,6 +107,7 @@ export function GalaxyEngine(canvasRef, options = {}) {
 
       bindEvents();
       animate();
+      if (options.onReady) options.onReady();
       return true;
     } catch (err) {
       console.error('[GalaxyEngine] 初始化失败:', err);

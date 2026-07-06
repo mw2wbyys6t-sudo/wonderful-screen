@@ -449,26 +449,36 @@ function showAiFeedback(text) {
 .webgl-fallback {
   position: absolute;
   inset: 0;
-  z-index: 5;
+  z-index: 20;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  color: var(--text-secondary);
+  color: rgba(240, 240, 255, 0.9);
+  background: rgba(3, 3, 10, 0.92);
+  backdrop-filter: blur(8px);
   pointer-events: none;
 }
 
 .webgl-fallback .fallback-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-  color: var(--neon-cyan);
-  text-shadow: 0 0 20px rgba(0, 243, 255, 0.4);
+  font-size: 56px;
+  margin-bottom: 20px;
+  color: #00f3ff;
+  text-shadow: 0 0 30px rgba(0, 243, 255, 0.6);
 }
 
 .webgl-fallback p {
-  margin-bottom: 8px;
-  max-width: 400px;
+  margin-bottom: 12px;
+  max-width: 460px;
+  font-size: 18px;
+  line-height: 1.6;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+}
+
+.webgl-fallback p:last-child {
+  font-size: 14px;
+  color: rgba(240, 240, 255, 0.6);
 }
 
 /* 手势摄像头 */

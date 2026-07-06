@@ -82,7 +82,8 @@ onMounted(async () => {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse at 50% 50%, rgba(0, 243, 255, 0.08) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 45%, rgba(0, 243, 255, 0.18) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(184, 146, 255, 0.1) 0%, transparent 55%),
     #02040a;
   perspective: 1200px;
   color: #fff;
