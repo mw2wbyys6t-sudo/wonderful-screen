@@ -13,6 +13,7 @@ const loading = ref(false);
 const error = ref(null);
 const graphLoaded = ref(false);
 const graphLoading = ref(false);
+let loadPromise = null;
 
 const years = computed(() =>
   [...new Set(data.value.map(a => a.year).filter(Boolean))].sort((a, b) => a - b)
@@ -45,41 +46,50 @@ export const DataEngine = {
   years,
   yearGroups,
 
-  async load() {
-    if (loaded.value) return;
-    loading.value = true;
-    error.value = null;
-    try {
-      // 1. 先加载核心数据：作品语料 + 流派配置（较小，必须）
-      const [corpusRes, genreRes] = await Promise.all([
-        fetchWithTimeout(`${base}data/anime-corpus.json`, 20000),
-        fetchWithTimeout(`${base}data/genre-manifest.json`, 10000)
-      ]);
+  load() {
+    if (loaded.value) return Promise.resolve();
+    if (loadPromise) return loadPromise;
 
-      if (!corpusRes.ok) throw new Error(`corpus: ${corpusRes.status}`);
-      if (!genreRes.ok) throw new Error(`genres: ${genreRes.status}`);
+    loadPromise = (async () => {
+      loading.value = true;
+      error.value = null;
+      try {
+        // 1. 先加载核心数据：作品语料 + 流派配置（较小，必须）
+        const [corpusRes, genreRes] = await Promise.all([
+          fetchWithTimeout(`${base}data/anime-corpus.json`, 20000),
+          fetchWithTimeout(`${base}data/genre-manifest.json`, 10000)
+        ]);
 
-      const rawData = await corpusRes.json();
-      genres.value = await genreRes.json();
+        if (!corpusRes.ok) throw new Error(`corpus: ${corpusRes.status}`);
+        if (!genreRes.ok) throw new Error(`genres: ${genreRes.status}`);
 
-      // 本地封面兜底：沙箱/无头环境外部 CDN 常被拦截，用本地图库循环兜底
-      const localCovers = Array.from({ length: 42 }, (_, i) => `${base}images/${i}.jpg`);
-      data.value = rawData.map((anime, i) => ({
-        ...anime,
-        coverImage: anime.coverImage || localCovers[i % localCovers.length],
-        coverFallback: localCovers[i % localCovers.length]
-      }));
+        const rawData = await corpusRes.json();
+        genres.value = await genreRes.json();
 
-      loaded.value = true;
-      loading.value = false;
+        // 本地封面兜底：沙箱/无头环境外部 CDN 常被拦截，用本地图库循环兜底
+        const localCovers = Array.from({ length: 42 }, (_, i) => `${base}images/${i}.jpg`);
+        data.value = rawData.map((anime, i) => ({
+          ...anime,
+          coverImage: anime.coverImage || localCovers[i % localCovers.length],
+          coverFallback: localCovers[i % localCovers.length]
+        }));
 
-      // 2. 后台懒加载知识图谱（6MB+），不阻塞 3D 宇宙渲染
-      this.loadGraphInBackground();
-    } catch (err) {
-      error.value = err.message;
-      console.error('[DataEngine] 加载失败:', err);
-      loading.value = false;
-    }
+        loaded.value = true;
+        loading.value = false;
+
+        // 2. 后台懒加载知识图谱（6MB+），不阻塞 3D 宇宙渲染
+        this.loadGraphInBackground();
+      } catch (err) {
+        error.value = err.message;
+        console.error('[DataEngine] 加载失败:', err);
+        loading.value = false;
+        throw err;
+      } finally {
+        loadPromise = null;
+      }
+    })();
+
+    return loadPromise;
   },
 
   async loadGraphInBackground() {
