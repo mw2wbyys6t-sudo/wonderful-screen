@@ -1,5 +1,6 @@
 <template>
   <section class="phase-universe">
+    <div class="universe-bg" :style="{ backgroundImage: `url(${baseUrl}images/generated/nebula-bg.jpg)` }"></div>
     <canvas ref="universeCanvas" id="universe-canvas"></canvas>
 
     <div v-if="loading && !webglError" class="universe-loading">
@@ -94,6 +95,7 @@ import { bus } from '../engines/core/EventBus.js';
 const HUD = defineAsyncComponent(() => import('./HUD.vue'));
 const NodePanel = defineAsyncComponent(() => import('./NodePanel.vue'));
 
+const baseUrl = import.meta.env.BASE_URL;
 const universeCanvas = ref(null);
 const gestureVideo = ref(null);
 const gestureCanvas = ref(null);
@@ -385,6 +387,16 @@ function showAiFeedback(text) {
   background: var(--bg-darker);
 }
 
+.universe-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 #universe-canvas {
   position: absolute;
   inset: 0;
@@ -455,9 +467,9 @@ function showAiFeedback(text) {
   align-items: center;
   justify-content: center;
   text-align: center;
-  color: rgba(240, 240, 255, 0.9);
-  background: rgba(3, 3, 10, 0.92);
-  backdrop-filter: blur(8px);
+  color: rgba(240, 240, 255, 0.95);
+  background: rgba(3, 3, 10, 0.72);
+  backdrop-filter: blur(6px);
   pointer-events: none;
 }
 
