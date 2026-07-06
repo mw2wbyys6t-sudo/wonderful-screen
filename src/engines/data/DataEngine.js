@@ -50,9 +50,17 @@ export const DataEngine = {
       if (!genreRes.ok) throw new Error(`genres: ${genreRes.status}`);
       if (!graphRes.ok) throw new Error(`graph: ${graphRes.status}`);
 
-      data.value = await corpusRes.json();
+      const rawData = await corpusRes.json();
       genres.value = await genreRes.json();
       graph.value = await graphRes.json();
+
+      // 本地封面兜底：沙箱/无头环境外部 CDN 常被拦截，用本地图库循环兜底
+      const localCovers = Array.from({ length: 42 }, (_, i) => `${base}images/${i}.jpg`);
+      data.value = rawData.map((anime, i) => ({
+        ...anime,
+        coverImage: anime.coverImage || localCovers[i % localCovers.length],
+        coverFallback: localCovers[i % localCovers.length]
+      }));
       loaded.value = true;
     } catch (err) {
       error.value = err.message;

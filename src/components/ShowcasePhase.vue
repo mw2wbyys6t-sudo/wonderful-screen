@@ -8,7 +8,13 @@
         <div class="core-ring"></div>
       </div>
     </div>
-    <div class="showcase-orbit">
+
+    <div v-if="!ready" class="showcase-loading">
+      <div class="loading-spinner"></div>
+      <p>正在集结高人气作品…</p>
+    </div>
+
+    <div v-else class="showcase-orbit">
       <div
         v-for="(work, i) in topWorks"
         :key="work.id"
@@ -20,24 +26,30 @@
         <div class="card-glitch card-glitch-cyan"></div>
         <div class="card-glitch card-glitch-magenta"></div>
         <div class="card-frame"></div>
-        <img :src="work.coverImage || './images/generated/nebula-bg.jpg'" :alt="work.titleRomaji">
+        <img :src="work.coverFallback || work.coverImage || (baseUrl + 'images/generated/nebula-bg.jpg')" :alt="work.titleRomaji">
         <div class="card-scanlines"></div>
         <div class="card-shimmer"></div>
         <div class="holo-card-title">{{ work.titleRomaji }}</div>
       </div>
     </div>
-    <button class="skip-btn" @click="$emit('skip')">
+
+    <div class="showcase-hint">旋转展示中 · 点击跳过</div>
+    <button class="skip-btn" @click="emit('skip')">
       <span class="skip-text" data-text="跳过">跳过</span>
     </button>
   </section>
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
-import { useData } from '../composables/useData.js';
+import { ref, onMounted, computed } from 'vue';
+import { DataEngine } from '../engines/data/DataEngine.js';
 
 const emit = defineEmits(['skip']);
-const { topWorks, genres } = useData();
+const baseUrl = import.meta.env.BASE_URL;
+const ready = ref(false);
+
+const topWorks = computed(() => DataEngine.topWorks(8));
+const genres = computed(() => DataEngine.genres.value);
 
 const glowStyle = (work) => {
   const genre = work.genres?.[0] || 'Sci-Fi';
@@ -58,8 +70,10 @@ const cardStyle = (i) => {
   };
 };
 
-onMounted(() => {
-  setTimeout(() => emit('skip'), 7000);
+onMounted(async () => {
+  await DataEngine.load();
+  ready.value = true;
+  setTimeout(() => emit('skip'), 8000);
 });
 </script>
 
@@ -67,8 +81,11 @@ onMounted(() => {
 .phase-showcase {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 50% 50%, rgba(0, 243, 255, 0.08) 0%, transparent 55%), var(--bg-deep);
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(0, 243, 255, 0.08) 0%, transparent 55%),
+    #02040a;
   perspective: 1200px;
+  color: #fff;
 }
 
 .showcase-core {
@@ -123,6 +140,33 @@ onMounted(() => {
   height: 200px;
   border-color: rgba(255, 42, 109, 0.2);
   animation-duration: 16s;
+}
+
+.showcase-loading {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  letter-spacing: 2px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 243, 255, 0.2);
+  border-top-color: #00f3ff;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .showcase-orbit {
@@ -248,8 +292,19 @@ onMounted(() => {
   padding: 10px;
   font-size: 12px;
   text-align: center;
-  color: var(--text-primary);
+  color: #fff;
   text-shadow: 0 0 8px rgba(0, 243, 255, 0.5);
+}
+
+.showcase-hint {
+  position: absolute;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 2px;
+  pointer-events: none;
 }
 
 .skip-btn {
@@ -260,7 +315,7 @@ onMounted(() => {
   padding: 12px 36px;
   background: rgba(5, 10, 28, 0.6);
   border: 1px solid rgba(0, 243, 255, 0.6);
-  color: var(--neon-cyan);
+  color: #00f3ff;
   border-radius: 4px;
   cursor: pointer;
   font-family: 'Orbitron', sans-serif;

@@ -265,13 +265,13 @@ onMounted(async () => {
       })
     );
 
-    // 6. 启动语音与手势
-    VoiceEngine.init();
-    setTimeout(() => {
-      GestureEngine.init().then(() => {
-        GestureEngine.start(gestureVideo.value, gestureCanvas.value);
-      });
-    }, 1200);
+    // 6. 初始化语音与手势能力（不自动请求摄像头/麦克风，等用户点击按钮后再启动）
+    try {
+      VoiceEngine.init();
+      await GestureEngine.init();
+    } catch (e) {
+      console.warn('[UniversePhase] 交互引擎预初始化失败:', e);
+    }
 
     // 7. 鼠标 tooltip 备用
     const onPointerMove = (e) => {

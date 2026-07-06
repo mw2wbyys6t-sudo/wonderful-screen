@@ -1,15 +1,29 @@
 <template>
   <section class="phase-landing" @mousemove="onMouseMove">
+    <!-- 视频轮播背景 -->
+    <div class="video-carousel">
+      <video
+        v-for="(video, i) in bgVideos"
+        :key="video"
+        ref="videoEls"
+        class="bg-video"
+        :class="{ active: activeVideoIndex === i }"
+        autoplay
+        muted
+        loop
+        playsinline
+        :preload="i === 0 ? 'auto' : 'none'"
+        :poster="baseUrl + 'images/generated/nebula-bg.jpg'"
+        :src="i === 0 ? (baseUrl + video) : null"
+        @loadeddata="onVideoLoaded"
+      ></video>
+      <div class="video-vignette"></div>
+    </div>
+
+    <!-- 星空粒子 -->
     <canvas ref="starfield" class="starfield"></canvas>
 
-    <div
-      class="nebula-bg"
-      :style="[nebulaStyle, { backgroundImage: `url(${baseUrl}images/generated/nebula-bg.jpg)` }]"
-    ></div>
-    <div class="vignette"></div>
-
-    <div class="cursor-glow" :style="cursorGlowStyle"></div>
-
+    <!-- 中央内容 -->
     <div class="entrance-content">
       <div class="brand-en">AI INTERACTIVE ANIME UNIVERSE</div>
       <h1 class="brand-title" data-text="AnimeVerse">AnimeVerse</h1>
@@ -25,6 +39,64 @@
       </button>
     </div>
 
+    <!-- 八位女主角轮播 -->
+    <div class="heroines-carousel">
+      <div class="heroines-track" :style="heroinesTrackStyle">
+        <div
+          v-for="(girl, i) in heroines"
+          :key="girl.name"
+          class="heroine-card"
+          :class="{ active: activeHeroineIndex === i }"
+          @mouseenter="activeHeroineIndex = i"
+        >
+          <div class="heroine-glow"></div>
+          <img :src="baseUrl + girl.img" :alt="girl.name" />
+          <div class="heroine-info">
+            <div class="heroine-name">{{ girl.name }}</div>
+            <div class="heroine-work">{{ girl.work }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="heroines-dots">
+        <span
+          v-for="(_, i) in heroines"
+          :key="i"
+          :class="{ active: activeHeroineIndex === i }"
+          @click="activeHeroineIndex = i"
+        ></span>
+      </div>
+    </div>
+
+    <!-- 视频短播入口 -->
+    <div class="short-video-panel" :class="{ expanded: showShortVideos }">
+      <button class="short-video-toggle" @click="showShortVideos = !showShortVideos">
+        <span class="toggle-icon">▶</span>
+        <span class="toggle-text">视频短播</span>
+      </button>
+      <div class="short-video-list">
+        <div
+          v-for="(video, i) in shortVideos"
+          :key="i"
+          class="short-video-item"
+          @click="playVideo(video)"
+        >
+          <img :src="baseUrl + video.thumb" :alt="video.title" />
+          <div class="short-video-play">▶</div>
+          <div class="short-video-title">{{ video.title }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 视频播放器弹窗 -->
+    <div v-if="playingVideo" class="video-modal" @click.self="closeVideo">
+      <div class="video-modal-content">
+        <button class="video-modal-close" @click="closeVideo">×</button>
+        <video :src="baseUrl + playingVideo.src" autoplay controls></video>
+        <div class="video-modal-title">{{ playingVideo.title }}</div>
+      </div>
+    </div>
+
+    <!-- 四角 HUD -->
     <div class="corner-hud top-left">
       <span class="hud-line"></span>
       <span class="hud-text">SYSTEM ONLINE</span>
@@ -45,7 +117,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useAudio } from '../composables/useAudio.js';
 
 const emit = defineEmits(['start']);
 
@@ -57,12 +130,40 @@ const starfield = ref(null);
 let starRafId = null;
 let starResizeHandler = null;
 
-const nebulaStyle = computed(() => ({
-  transform: `translate(${parallax.value.x * -20}px, ${parallax.value.y * -20}px) scale(1.05)`
-}));
+const bgVideos = [
+  'images/generated/nebula-trailer-v3-a.mp4',
+  'images/generated/nebula-trailer-v3-b.mp4',
+  'images/generated/nebula-trailer-v3-c.mp4'
+];
+const activeVideoIndex = ref(0);
+let videoCarouselTimer = null;
+const videoEls = ref([]);
+const loadedVideos = ref(0);
 
-const cursorGlowStyle = computed(() => ({
-  transform: `translate(${parallax.value.x * 50}%, ${parallax.value.y * 50}%)`
+const heroines = [
+  { name: 'Elaina', img: 'images/login/elaina.jpg', work: '魔女之旅' },
+  { name: 'Violet', img: 'images/login/violet-evergarden.png', work: '紫罗兰永恒花园' },
+  { name: 'Kanade', img: 'images/login/tachibana-kanade.jpg', work: 'Angel Beats!' },
+  { name: 'Megumi', img: 'images/login/kato-megumi.jpg', work: '路人女主的养成方法' },
+  { name: 'Mio', img: 'images/login/akiyama-mio.jpg', work: '轻音少女' },
+  { name: 'Mikoto', img: 'images/login/misaka-mikoto.jpg', work: '某科学的超电磁炮' },
+  { name: 'Rem', img: 'images/login/rem.jpg', work: 'Re:从零开始' },
+  { name: 'Shana', img: 'images/login/shana.jpg', work: '灼眼的夏娜' }
+];
+const activeHeroineIndex = ref(0);
+let heroineCarouselTimer = null;
+
+const shortVideos = [
+  { title: '星云预告 A', src: 'images/generated/nebula-trailer-v3-a.mp4', thumb: 'images/generated/nebula-trailer-frame.jpg' },
+  { title: '星云预告 B', src: 'images/generated/nebula-trailer-v3-b.mp4', thumb: 'images/generated/nebula-bg.jpg' },
+  { title: '星云预告 C', src: 'images/generated/nebula-trailer-v3-c.mp4', thumb: 'images/generated/magic-circle.jpg' },
+  { title: '星云预告 V2', src: 'images/generated/nebula-trailer-v2.mp4', thumb: 'images/generated/title-glass-disc.jpg' }
+];
+const showShortVideos = ref(false);
+const playingVideo = ref(null);
+
+const heroinesTrackStyle = computed(() => ({
+  transform: `translateX(calc(50% - ${activeHeroineIndex.value * 120}px - 60px))`
 }));
 
 function onMouseMove(e) {
@@ -72,10 +173,25 @@ function onMouseMove(e) {
   };
 }
 
+function onVideoLoaded() {
+  loadedVideos.value++;
+}
+
+const { init: initAudio } = useAudio();
+
 function enter() {
   if (isTransitioning.value) return;
   isTransitioning.value = true;
+  initAudio().catch(() => {});
   setTimeout(() => emit('start'), 700);
+}
+
+function playVideo(video) {
+  playingVideo.value = video;
+}
+
+function closeVideo() {
+  playingVideo.value = null;
 }
 
 function initStarfield() {
@@ -85,10 +201,10 @@ function initStarfield() {
   let width = canvas.width = window.innerWidth;
   let height = canvas.height = window.innerHeight;
 
-  const stars = Array.from({ length: 200 }, () => ({
+  const stars = Array.from({ length: 180 }, () => ({
     x: Math.random() * width,
     y: Math.random() * height,
-    radius: Math.random() * 1.4 + 0.3,
+    radius: Math.random() * 1.2 + 0.2,
     alpha: Math.random() * Math.PI * 2,
     speed: Math.random() * 0.02 + 0.005,
     depth: Math.random() * 0.6 + 0.4
@@ -105,7 +221,7 @@ function initStarfield() {
     ctx.clearRect(0, 0, width, height);
     for (const star of stars) {
       star.alpha += star.speed;
-      const opacity = (Math.sin(star.alpha) + 1) / 2 * 0.7 + 0.15;
+      const opacity = (Math.sin(star.alpha) + 1) / 2 * 0.6 + 0.1;
       const px = star.x + parallax.value.x * 20 * star.depth;
       const py = star.y + parallax.value.y * 20 * star.depth;
       ctx.beginPath();
@@ -118,13 +234,44 @@ function initStarfield() {
   draw();
 }
 
+function loadBackgroundVideo(index) {
+  const el = videoEls.value?.[index];
+  if (!el || el.dataset.loaded === 'true') return;
+  el.src = baseUrl + bgVideos[index];
+  el.dataset.loaded = 'true';
+}
+
+function scheduleNextPreload() {
+  const next = (activeVideoIndex.value + 1) % bgVideos.length;
+  if (next === 0) return; // 首个视频已加载
+  setTimeout(() => loadBackgroundVideo(next), 6000);
+}
+
+function startCarousels() {
+  // 首屏只加载第一个背景视频，在切换前 2 秒再预加载下一个
+  scheduleNextPreload();
+
+  videoCarouselTimer = setInterval(() => {
+    activeVideoIndex.value = (activeVideoIndex.value + 1) % bgVideos.length;
+    loadBackgroundVideo(activeVideoIndex.value);
+    scheduleNextPreload();
+  }, 8000);
+
+  heroineCarouselTimer = setInterval(() => {
+    activeHeroineIndex.value = (activeHeroineIndex.value + 1) % heroines.length;
+  }, 3500);
+}
+
 onMounted(() => {
   initStarfield();
+  startCarousels();
 });
 
 onUnmounted(() => {
   if (starRafId) cancelAnimationFrame(starRafId);
   if (starResizeHandler) window.removeEventListener('resize', starResizeHandler);
+  clearInterval(videoCarouselTimer);
+  clearInterval(heroineCarouselTimer);
 });
 </script>
 
@@ -141,48 +288,41 @@ onUnmounted(() => {
   cursor: default;
 }
 
-.starfield {
+.video-carousel {
   position: absolute;
   inset: 0;
   z-index: 0;
-  pointer-events: none;
+  background: #000;
 }
 
-.nebula-bg {
-  position: absolute;
-  inset: -5%;
-  z-index: 1;
-  background-position: center center;
-  background-size: cover;
-  background-repeat: no-repeat;
-  opacity: 0.45;
-  transition: transform 0.1s ease-out;
-  filter: saturate(1.2) contrast(1.1);
-}
-
-.vignette {
+.bg-video {
   position: absolute;
   inset: 0;
-  z-index: 2;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse at center, transparent 0%, rgba(2, 4, 10, 0.4) 60%, rgba(2, 4, 10, 0.85) 100%),
-    linear-gradient(180deg, rgba(2, 4, 10, 0.3) 0%, transparent 30%, transparent 70%, rgba(2, 4, 10, 0.5) 100%);
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 1.6s ease-in-out;
 }
 
-.cursor-glow {
+.bg-video.active {
+  opacity: 1;
+}
+
+.video-vignette {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 600px;
-  height: 600px;
-  margin: -300px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(0, 243, 255, 0.12) 0%, rgba(124, 77, 255, 0.06) 40%, transparent 70%);
-  filter: blur(40px);
-  z-index: 3;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at center, transparent 0%, rgba(2, 4, 10, 0.5) 60%, rgba(2, 4, 10, 0.9) 100%),
+    linear-gradient(180deg, rgba(2, 4, 10, 0.4) 0%, transparent 30%, transparent 70%, rgba(2, 4, 10, 0.7) 100%);
   pointer-events: none;
-  transition: transform 0.15s ease-out;
+}
+
+.starfield {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .entrance-content {
@@ -192,7 +332,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 18px;
+  gap: 16px;
   pointer-events: none;
   padding: 0 20px;
 }
@@ -201,7 +341,7 @@ onUnmounted(() => {
   font-family: 'Orbitron', sans-serif;
   font-size: 13px;
   letter-spacing: 8px;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.5);
   text-transform: uppercase;
   animation: fade-in-down 1s ease-out both;
 }
@@ -257,10 +397,11 @@ onUnmounted(() => {
 
 .brand-sub {
   font-size: 16px;
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(255, 255, 255, 0.7);
   letter-spacing: 3px;
   margin: 0;
   animation: fade-in-up 1s ease-out 0.4s both;
+  max-width: 600px;
 }
 
 .journey-btn {
@@ -317,6 +458,299 @@ onUnmounted(() => {
   animation-delay: calc(var(--i) * 0.12s);
 }
 
+/* 八位女主角轮播 */
+.heroines-carousel {
+  position: absolute;
+  bottom: 8%;
+  left: 0;
+  right: 0;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  pointer-events: auto;
+}
+
+.heroines-track {
+  display: flex;
+  gap: 24px;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.heroine-card {
+  position: relative;
+  width: 100px;
+  height: 140px;
+  border-radius: 16px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  transition: all 0.4s ease;
+  cursor: pointer;
+  opacity: 0.55;
+  transform: scale(0.92);
+}
+
+.heroine-card.active {
+  opacity: 1;
+  transform: scale(1.08);
+  border-color: rgba(0, 243, 255, 0.6);
+  box-shadow: 0 0 30px rgba(0, 243, 255, 0.25), 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.heroine-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.heroine-card:hover img {
+  transform: scale(1.1);
+}
+
+.heroine-glow {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(0, 243, 255, 0.15) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 1;
+}
+
+.heroine-card.active .heroine-glow {
+  opacity: 1;
+}
+
+.heroine-info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 10px 8px;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.85));
+  z-index: 2;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+}
+
+.heroine-card:hover .heroine-info,
+.heroine-card.active .heroine-info {
+  transform: translateY(0);
+}
+
+.heroine-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 1px;
+}
+
+.heroine-work {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.65);
+  margin-top: 2px;
+}
+
+.heroines-dots {
+  display: flex;
+  gap: 8px;
+}
+
+.heroines-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.heroines-dots span.active {
+  background: #00f3ff;
+  box-shadow: 0 0 10px rgba(0, 243, 255, 0.6);
+  width: 24px;
+  border-radius: 4px;
+}
+
+/* 视频短播入口 */
+.short-video-panel {
+  position: absolute;
+  top: 8%;
+  right: 4%;
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+  pointer-events: auto;
+}
+
+.short-video-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 243, 255, 0.4);
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.short-video-toggle:hover {
+  background: rgba(0, 243, 255, 0.12);
+  box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+}
+
+.toggle-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0, 243, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+}
+
+.short-video-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
+  transition: all 0.3s ease;
+}
+
+.short-video-panel.expanded .short-video-list {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.short-video-item {
+  position: relative;
+  width: 160px;
+  height: 90px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.short-video-item:hover {
+  transform: translateX(-6px);
+  border-color: rgba(0, 243, 255, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.short-video-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.short-video-play {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(0, 243, 255, 0.85);
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: transform 0.3s ease;
+}
+
+.short-video-item:hover .short-video-play {
+  transform: translate(-50%, -50%) scale(1.15);
+}
+
+.short-video-title {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 6px 10px;
+  font-size: 11px;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.8));
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* 视频弹窗 */
+.video-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fade-in 0.3s ease;
+}
+
+.video-modal-content {
+  position: relative;
+  width: 90%;
+  max-width: 900px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 243, 255, 0.3);
+  box-shadow: 0 0 60px rgba(0, 243, 255, 0.2);
+}
+
+.video-modal-content video {
+  width: 100%;
+  display: block;
+}
+
+.video-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  z-index: 2;
+  transition: background 0.2s ease;
+}
+
+.video-modal-close:hover {
+  background: rgba(255, 50, 100, 0.8);
+}
+
+.video-modal-title {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px 20px;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.9));
+  color: #fff;
+  font-size: 16px;
+  letter-spacing: 2px;
+}
+
+/* 四角 HUD */
 .corner-hud {
   position: absolute;
   z-index: 5;
@@ -329,6 +763,7 @@ onUnmounted(() => {
   color: rgba(0, 243, 255, 0.45);
   text-transform: uppercase;
   opacity: 0.7;
+  pointer-events: none;
 }
 
 .corner-hud.top-left { top: 5%; left: 5%; }
@@ -355,6 +790,11 @@ onUnmounted(() => {
 @keyframes fade-in-down {
   from { opacity: 0; transform: translateY(-20px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes title-scale {
@@ -395,7 +835,7 @@ onUnmounted(() => {
 
 @media (max-width: 768px) {
   .brand-title {
-    font-size: 46px;
+    font-size: 42px;
     letter-spacing: 6px;
   }
 
@@ -408,6 +848,29 @@ onUnmounted(() => {
   .journey-btn {
     padding: 15px 48px;
     font-size: 16px;
+  }
+
+  .heroine-card {
+    width: 70px;
+    height: 100px;
+  }
+
+  .heroines-track {
+    gap: 14px;
+  }
+
+  .heroines-carousel {
+    bottom: 6%;
+  }
+
+  .short-video-panel {
+    top: 6%;
+    right: 3%;
+  }
+
+  .short-video-item {
+    width: 130px;
+    height: 74px;
   }
 
   .corner-hud {

@@ -2,7 +2,8 @@
   <div id="universe">
     <Transition name="phase" mode="out-in" @before-leave="onBeforeLeave" @after-enter="onAfterEnter">
       <LoadingPhase v-if="phase === 'loading'" @done="goTo('landing')" />
-      <LandingPhase v-else-if="phase === 'landing'" @start="goTo('universe')" />
+      <LandingPhase v-else-if="phase === 'landing'" @start="goTo('showcase')" />
+      <ShowcasePhase v-else-if="phase === 'showcase'" @skip="goTo('universe')" @done="goTo('universe')" />
       <UniversePhase v-else-if="phase === 'universe'" />
     </Transition>
 
@@ -14,6 +15,7 @@
 import { ref } from 'vue';
 import LoadingPhase from './components/LoadingPhase.vue';
 import LandingPhase from './components/LandingPhase.vue';
+import ShowcasePhase from './components/ShowcasePhase.vue';
 import UniversePhase from './components/UniversePhase.vue';
 
 const phase = ref('loading');
@@ -21,9 +23,10 @@ const flashActive = ref(false);
 
 function goTo(next) {
   flashActive.value = true;
+  const delay = next === 'universe' ? 180 : 320;
   setTimeout(() => {
     phase.value = next;
-  }, next === 'universe' ? 180 : 320);
+  }, delay);
   setTimeout(() => {
     flashActive.value = false;
   }, next === 'universe' ? 900 : 700);
