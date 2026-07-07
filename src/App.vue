@@ -62,19 +62,19 @@ function onAfterEnter() {
   inset: 0;
   z-index: 100;
   pointer-events: none;
-  background: white;
+  background: radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 105, 180, 0.6) 25%, rgba(176, 38, 255, 0.3) 55%, transparent 80%);
   opacity: 0;
   transition: opacity 0.2s ease-out;
 }
 
 .phase-flash.active {
   opacity: 0.85;
-  animation: flashFade 0.7s ease-out forwards;
+  animation: flashFade 0.9s ease-out forwards;
 }
 
 @keyframes flashFade {
-  0% { opacity: 0; }
-  30% { opacity: 0.85; }
-  100% { opacity: 0; }
+  0% { opacity: 0; transform: scale(0.8); }
+  30% { opacity: 0.85; transform: scale(1.1); }
+  100% { opacity: 0; transform: scale(1.3); }
 }
 </style>
