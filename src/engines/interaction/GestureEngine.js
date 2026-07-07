@@ -90,6 +90,13 @@ export const GestureEngine = {
     if (!this.isReady.value) await this.init();
     if (!this.isReady.value || !window.Hands || !window.Camera) return false;
 
+    if (!videoRef || !canvasRef) {
+      this.error.value = '手势渲染元素未准备好，请稍后重试';
+      this.isRunning.value = false;
+      console.warn('[GestureEngine] start 缺少 videoRef 或 canvasRef');
+      return false;
+    }
+
     this.videoRef = videoRef;
     this.canvasRef = canvasRef;
     this.isRunning.value = true;

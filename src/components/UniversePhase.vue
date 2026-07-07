@@ -157,7 +157,7 @@ onMounted(async () => {
     if (!ok) {
       webglError.value = 'WebGL 初始化失败';
       loading.value = false;
-      return;
+      // 即使 3D 失败，也显示 HUD 让用户能搜索/查看帮助
     }
 
     // 3. 绑定交互引擎
