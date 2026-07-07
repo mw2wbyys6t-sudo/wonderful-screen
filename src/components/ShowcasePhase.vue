@@ -53,7 +53,7 @@ const genres = computed(() => DataEngine.genres.value);
 
 const glowStyle = (work) => {
   const genre = work.genres?.[0] || 'Sci-Fi';
-  const color = genres.value[genre]?.color || '#00f3ff';
+  const color = genres.value.genres?.[genre]?.color || genres.value[genre]?.color || '#00f3ff';
   return {
     boxShadow: `0 0 28px ${color}66, 0 0 60px ${color}33, inset 0 0 24px ${color}22`
   };

@@ -48,10 +48,9 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useData } from '../composables/useData.js';
+import { DataEngine } from '../engines/data/DataEngine.js';
 
 const emit = defineEmits(['done']);
-const { load } = useData();
 const baseUrl = import.meta.env.BASE_URL;
 
 const characters = [
@@ -131,7 +130,7 @@ onMounted(async () => {
     tip.value = tips[Math.floor(Math.random() * tips.length)];
   }, 1500);
 
-  await load();
+  await DataEngine.load();
   progress.value = 50;
   await new Promise(r => setTimeout(r, 800));
   progress.value = 100;
