@@ -70,6 +70,10 @@ export const GestureEngine = {
   fistStartTime: 0,
   lastHandX: 0,
   swipeHistory: [],
+  pinchState: false,
+  pinchStartTime: 0,
+  currentState: '',
+  currentDirection: '',
 
   async init() {
     if (this.hands) return;
@@ -176,6 +180,11 @@ export const GestureEngine = {
     this.handX.value = 0.5;
     this.handY.value = 0.5;
     this.gestureText.value = '';
+    this.pinchState = false;
+    this.pinchStartTime = 0;
+    this.currentState = '';
+    this.currentDirection = '';
+    bus.emit('gesture:state', { state: '' });
   },
 
   onResults(results) {
@@ -242,39 +251,9 @@ export const GestureEngine = {
     // 张开手掌
     const isOpen = isIndexExtended && isMiddleExtended && isRingExtended && isPinkyExtended;
 
-    // 捏合选择
-    if (pinchDist < CONFIG.PINCH_THRESHOLD && now - this.lastPinchTime > CONFIG.PINCH_COOLDOWN_MS) {
-      this.lastPinchTime = now;
-      this.gestureText.value = '捏合 · 选择';
-      bus.emit('gesture:select');
-      return;
-    }
-
-    // 握拳持续触发返回
-    if (isFist) {
-      if (!this.fistStartTime) this.fistStartTime = now;
-      if (now - this.fistStartTime > CONFIG.FIST_HOLD_MS) {
-        this.gestureText.value = '握拳 · 返回';
-        bus.emit('gesture:back');
-        this.fistStartTime = now + 1000; // 冷却
-      }
-    } else {
-      this.fistStartTime = 0;
-    }
-
-    // 张开手掌持续触发返回/打开
-    if (isOpen) {
-      if (!this.openStartTime) this.openStartTime = now;
-      if (now - this.openStartTime > CONFIG.OPEN_HOLD_MS) {
-        this.gestureText.value = '张开 · 返回';
-        bus.emit('gesture:back');
-        this.openStartTime = now + 1000;
-      }
-    } else {
-      this.openStartTime = 0;
-    }
-
-    // 挥手切换年份
+    // ---- 挥手切换年份（最高优先级状态） ----
+    let detectedState = '';
+    let detectedDirection = '';
     this.swipeHistory.push({ x: wrist.x, t: now });
     this.swipeHistory = this.swipeHistory.filter(p => now - p.t < 400);
     if (this.swipeHistory.length >= 2 && now - this.lastSwipeTime > CONFIG.SWIPE_COOLDOWN_MS) {
@@ -284,11 +263,84 @@ export const GestureEngine = {
       if (Math.abs(delta) > CONFIG.SWIPE_THRESHOLD) {
         this.lastSwipeTime = now;
         const dir = delta > 0 ? -1 : 1; // 左挥手 = 上一年，右挥手 = 下一年
+        const direction = dir > 0 ? 'right' : 'left';
         this.gestureText.value = dir > 0 ? '右挥 · 下一年' : '左挥 · 上一年';
         bus.emit('gesture:swipe', dir);
+        bus.emit('gesture:swipe:direction', direction);
+        detectedState = 'swiping';
+        detectedDirection = direction;
       }
     }
 
+    // ---- 捏合选择（带 start / complete 阶段） ----
+    if (pinchDist < CONFIG.PINCH_THRESHOLD) {
+      if (!this.pinchState) {
+        this.pinchState = true;
+        this.pinchStartTime = now;
+        bus.emit('gesture:pinch:start');
+      }
+      // 持续捏合约 120ms 视为完成一次选择，避免抖动误触
+      if (now - this.pinchStartTime > 120 && now - this.lastPinchTime > CONFIG.PINCH_COOLDOWN_MS) {
+        this.lastPinchTime = now;
+        this.pinchState = false;
+        this.gestureText.value = '捏合 · 选择';
+        bus.emit('gesture:pinch:complete');
+        bus.emit('gesture:select');
+      }
+      if (!detectedState) detectedState = 'pinching';
+    } else {
+      if (this.pinchState) {
+        this.pinchState = false;
+      }
+    }
+
+    // ---- 握拳持续触发返回（带进度反馈） ----
+    let fistProgress = 0;
+    if (isFist) {
+      if (!this.fistStartTime) this.fistStartTime = now;
+      fistProgress = Math.min(1, (now - this.fistStartTime) / CONFIG.FIST_HOLD_MS);
+      bus.emit('gesture:fist:progress', fistProgress);
+      if (fistProgress >= 1 && now - this.lastPinchTime > CONFIG.PINCH_COOLDOWN_MS) {
+        this.gestureText.value = '握拳 · 返回';
+        bus.emit('gesture:back');
+        this.fistStartTime = now + 1000; // 冷却
+      }
+      if (!detectedState) detectedState = 'fist';
+    } else {
+      this.fistStartTime = 0;
+      bus.emit('gesture:fist:progress', 0);
+    }
+
+    // ---- 张开手掌持续触发返回/打开（带进度反馈） ----
+    let openProgress = 0;
+    if (isOpen) {
+      if (!this.openStartTime) this.openStartTime = now;
+      openProgress = Math.min(1, (now - this.openStartTime) / CONFIG.OPEN_HOLD_MS);
+      bus.emit('gesture:open:progress', openProgress);
+      if (openProgress >= 1 && now - this.lastPinchTime > CONFIG.PINCH_COOLDOWN_MS) {
+        this.gestureText.value = '张开 · 返回';
+        bus.emit('gesture:back');
+        this.openStartTime = now + 1000;
+      }
+      if (!detectedState) detectedState = 'open';
+    } else {
+      this.openStartTime = 0;
+      bus.emit('gesture:open:progress', 0);
+    }
+
+    // ---- 默认状态：指向 ----
+    if (!detectedState) {
+      detectedState = 'pointing';
+    }
+
+    // ---- 统一手势状态事件（仅在变化时触发） ----
+    if (this.currentState !== detectedState || this.currentDirection !== detectedDirection) {
+      this.currentState = detectedState;
+      this.currentDirection = detectedDirection;
+      bus.emit('gesture:state', { state: detectedState, direction: detectedDirection });
+    }
+
+    // ---- 兜底文案 ----
     if (!this.gestureText.value) {
       this.gestureText.value = isOpen ? '张开手掌' : (isFist ? '握拳' : '指向');
     }

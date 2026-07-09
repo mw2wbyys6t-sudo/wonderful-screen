@@ -58,6 +58,19 @@
       <button title="帮助" @click="showHelp = !showHelp">?</button>
     </div>
     <div class="hud-counter">{{ count }} 颗恒星已点亮</div>
+    <div v-if="gestureState" class="gesture-status">
+      <div class="gesture-status-title">🖐 手势控制中</div>
+      <div
+        v-for="item in gestureItems"
+        :key="item.state"
+        class="gesture-status-item"
+        :class="{ active: gestureState === item.state }"
+        :style="gestureState === item.state ? { color: item.color, borderColor: item.color } : {}"
+      >
+        <span class="gesture-dot" :style="{ background: item.color }"></span>
+        {{ item.label }}
+      </div>
+    </div>
     <transition name="fade">
       <div v-if="noResult" class="hud-toast">未找到结果</div>
     </transition>
@@ -100,18 +113,33 @@ const activeGenre = ref(StateEngine.state.activeGenre);
 const showHelp = ref(false);
 const showNebula = ref(false);
 const noResult = ref(false);
+const gestureState = ref('');
+
+const gestureItems = [
+  { state: 'pointing', label: '指向', color: '#00f3ff' },
+  { state: 'pinching', label: '捏合 · 选择', color: '#fffd75' },
+  { state: 'fist', label: '握拳 · 返回', color: '#ff2a6d' },
+  { state: 'open', label: '张开 · 返回', color: '#b892ff' },
+  { state: 'swiping', label: '挥手 · 切年份', color: '#00f3ff' }
+];
+
 let noResultTimeout = null;
 let searchDebounce = null;
 let unsubscribe = null;
+let gestureUnsubscribe = null;
 
 onMounted(() => {
   unsubscribe = bus.on('state:activeGenre', ({ value }) => {
     activeGenre.value = value;
   });
+  gestureUnsubscribe = bus.on('gesture:state', ({ state }) => {
+    gestureState.value = state || '';
+  });
 });
 
 onUnmounted(() => {
   if (unsubscribe) unsubscribe();
+  if (gestureUnsubscribe) gestureUnsubscribe();
 });
 
 function chipStyle(genre, color) {
@@ -316,6 +344,60 @@ defineExpose({ showNoResult });
   color: var(--text-secondary);
   font-family: 'Orbitron', sans-serif;
   letter-spacing: 1px;
+}
+
+.gesture-status {
+  position: absolute;
+  bottom: 48px;
+  left: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(5, 7, 20, 0.72);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(8px);
+  font-size: 11px;
+  color: var(--text-secondary);
+  min-width: 120px;
+  pointer-events: none;
+  animation: gestureStatusIn 0.3s ease;
+}
+
+@keyframes gestureStatusIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.gesture-status-title {
+  margin-bottom: 4px;
+  color: var(--neon-cyan);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.gesture-status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  opacity: 0.55;
+}
+
+.gesture-status-item.active {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.gesture-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .hud-toast {

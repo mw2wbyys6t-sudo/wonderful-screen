@@ -71,8 +71,8 @@
       </template>
     </div>
 
-    <!-- 手势光标 -->
-    <div v-if="gestureReady" class="hand-cursor" :class="{ active: gestureText.includes('选择') }" :style="cursorStyle"></div>
+    <!-- 手势光标层 -->
+    <canvas v-show="gestureReady" ref="cursorCanvas" class="cursor-layer"></canvas>
 
     <!-- AI / 语音反馈 -->
     <div v-if="aiFeedback" class="ai-feedback">{{ aiFeedback }}</div>
@@ -91,6 +91,7 @@ import { VoiceEngine } from '../engines/interaction/VoiceEngine.js';
 import { AIEngine } from '../engines/ai/AIEngine.js';
 import { StateEngine } from '../engines/core/StateEngine.js';
 import { bus } from '../engines/core/EventBus.js';
+import { FeedbackEngine } from '../engines/feedback/FeedbackEngine.js';
 
 const HUD = defineAsyncComponent(() => import('./HUD.vue'));
 const NodePanel = defineAsyncComponent(() => import('./NodePanel.vue'));
@@ -99,6 +100,7 @@ const baseUrl = import.meta.env.BASE_URL;
 const universeCanvas = ref(null);
 const gestureVideo = ref(null);
 const gestureCanvas = ref(null);
+const cursorCanvas = ref(null);
 const hudRef = ref(null);
 
 const hudReady = ref(false);
@@ -125,10 +127,6 @@ let aiFeedbackTimer = null;
 const tooltipStyle = computed(() => ({
   left: `${tooltipPos.value.x + 16}px`,
   top: `${tooltipPos.value.y + 16}px`
-}));
-
-const cursorStyle = computed(() => ({
-  transform: `translate(${GestureEngine.handX.value * window.innerWidth - 20}px, ${GestureEngine.handY.value * window.innerHeight - 20}px)`
 }));
 
 let galaxyApi = null;
@@ -278,6 +276,9 @@ onMounted(async () => {
     try {
       VoiceEngine.init();
       await GestureEngine.init();
+      if (cursorCanvas.value) {
+        FeedbackEngine.init(cursorCanvas.value);
+      }
     } catch (e) {
       console.warn('[UniversePhase] 交互引擎预初始化失败:', e);
     }
@@ -303,6 +304,7 @@ onUnmounted(() => {
   cleanupFns.forEach(fn => typeof fn === 'function' && fn());
   VoiceEngine.stop();
   GestureEngine.stop();
+  FeedbackEngine.dispose();
   galaxyApi?.dispose();
 });
 
@@ -631,24 +633,13 @@ function showAiFeedback(text) {
   font-size: 11px;
 }
 
-.hand-cursor {
+.cursor-layer {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 2px solid rgba(0, 243, 255, 0.8);
-  background: radial-gradient(circle, rgba(0, 243, 255, 0.25), transparent 70%);
+  inset: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
   z-index: 40;
-  opacity: 0.85;
-  transition: transform 0.05s linear, border-color 0.2s ease, background 0.2s ease;
-}
-
-.hand-cursor.active {
-  border-color: rgba(255, 42, 109, 0.9);
-  background: radial-gradient(circle, rgba(255, 42, 109, 0.3), transparent 70%);
 }
 
 .ai-feedback {
