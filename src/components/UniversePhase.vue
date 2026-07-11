@@ -241,10 +241,17 @@ onMounted(async () => {
     });
 
     // 6. 绑定手势
+    watch(gestureReady, (ready) => {
+      galaxyApi?.setHandControl?.(ready);
+    });
+
     watch([GestureEngine.handX, GestureEngine.handY], ([x, y]) => {
       if (gestureReady.value) {
         galaxyApi.setInputMode?.('hand') || StateEngine.set('inputMode', 'hand');
-        galaxyApi.setPointerFromScreen(x * window.innerWidth, y * window.innerHeight);
+        const sx = x * window.innerWidth;
+        const sy = y * window.innerHeight;
+        tooltipPos.value = { x: sx, y: sy };
+        galaxyApi.setPointerFromScreen(sx, sy);
         const id = galaxyApi.raycast();
         updateHover(id);
       }

@@ -54,6 +54,21 @@ export function GalaxyEngine(canvasRef, options = {}) {
     animating: false
   };
 
+  // 手势控制状态
+  const handControl = {
+    enabled: false,
+    pos: { x: 0.5, y: 0.5 },
+    lastPos: { x: 0.5, y: 0.5 },
+    velocity: { x: 0, y: 0 },
+    lastMoveTime: 0,
+    zoomVelocity: 0,
+    firstMove: true,
+    sensitivity: 2.4,      // 手势移动转相机旋转的灵敏度
+    edgeSensitivity: 0.35, // 边缘持续旋转强度
+    deadZone: 0.08,        // 中心死区（避免手轻微抖动引起旋转）
+    smooth: 0.18           // 速度平滑系数
+  };
+
   const hoveredId = { value: null };
   const selectedId = { value: null };
   const idToIndex = new Map();
@@ -496,14 +511,107 @@ export function GalaxyEngine(canvasRef, options = {}) {
       highlightHovered(hoveredId.value);
       focusOnAnime(id);
     });
+
+    // ---- 手势控制 3D 相机 ----
+    bus.on('gesture:move', ({ x, y }) => {
+      if (!handControl.enabled) return;
+      handControl.pos = { x, y };
+      handControl.lastMoveTime = performance.now();
+      // 首次移动只记录位置，避免从 (0.5,0.5) 跳变导致相机猛转
+      if (handControl.firstMove) {
+        handControl.lastPos = { x, y };
+        handControl.firstMove = false;
+      }
+    });
+
+    bus.on('gesture:pinch:start', () => {
+      if (!handControl.enabled) return;
+      // 捏合 = 放大聚焦
+      handControl.zoomVelocity -= 2.2;
+    });
+
+    bus.on('gesture:open:progress', (progress) => {
+      if (!handControl.enabled) return;
+      // 张开手掌持续 = 缩小拉远
+      if (progress > 0.85) {
+        handControl.zoomVelocity += 0.08;
+      }
+    });
+
+    bus.on('gesture:fist:progress', (progress) => {
+      if (!handControl.enabled) return;
+      // 握拳持续 = 进一步放大
+      if (progress > 0.85) {
+        handControl.zoomVelocity -= 0.08;
+      }
+    });
+  }
+
+  function updateHandControl(dt) {
+    if (!handControl.enabled || cameraState.animating) return;
+
+    const now = performance.now();
+    const inactive = now - handControl.lastMoveTime > 250;
+
+    // 计算手势移动 delta
+    const dx = handControl.pos.x - handControl.lastPos.x;
+    const dy = handControl.pos.y - handControl.lastPos.y;
+    handControl.lastPos = { ...handControl.pos };
+
+    // 平滑速度
+    const targetVx = inactive ? 0 : dx;
+    const targetVy = inactive ? 0 : dy;
+    handControl.velocity.x += (targetVx - handControl.velocity.x) * handControl.smooth;
+    handControl.velocity.y += (targetVy - handControl.velocity.y) * handControl.smooth;
+
+    // 基于移动速度旋转相机
+    if (!inactive) {
+      cameraState.theta -= handControl.velocity.x * handControl.sensitivity;
+      cameraState.phi = Math.max(0.15, Math.min(Math.PI - 0.15,
+        cameraState.phi - handControl.velocity.y * handControl.sensitivity));
+    }
+
+    // 边缘持续旋转（手停在边缘时缓慢环顾）
+    const cx = handControl.pos.x - 0.5;
+    const cy = handControl.pos.y - 0.5;
+    const edgeX = Math.max(0, Math.abs(cx) - 0.35) * Math.sign(cx);
+    const edgeY = Math.max(0, Math.abs(cy) - 0.35) * Math.sign(cy);
+    if (!inactive && (Math.abs(edgeX) > 0.001 || Math.abs(edgeY) > 0.001)) {
+      cameraState.theta -= edgeX * handControl.edgeSensitivity * dt * 0.001;
+      cameraState.phi = Math.max(0.15, Math.min(Math.PI - 0.15,
+        cameraState.phi - edgeY * handControl.edgeSensitivity * dt * 0.001));
+    }
+
+    // 缩放速度应用与衰减
+    if (Math.abs(handControl.zoomVelocity) > 0.001) {
+      cameraState.radius = Math.max(40, Math.min(900,
+        cameraState.radius + handControl.zoomVelocity));
+      handControl.zoomVelocity *= 0.88;
+    }
+
+    updateCamera();
+  }
+
+  function setHandControl(enabled) {
+    handControl.enabled = enabled;
+    if (enabled) {
+      handControl.pos = { x: 0.5, y: 0.5 };
+      handControl.lastPos = { x: 0.5, y: 0.5 };
+      handControl.velocity = { x: 0, y: 0 };
+      handControl.zoomVelocity = 0;
+      handControl.lastMoveTime = performance.now();
+      handControl.firstMove = true;
+    }
   }
 
   function animate() {
     animationId = requestAnimationFrame(animate);
     if (coreMesh) coreMesh.rotation.y += 0.002;
-    if (galaxyGroup && !cameraState.animating) {
+    // 手势控制时暂停自动旋转，避免与手控冲突
+    if (galaxyGroup && !cameraState.animating && !handControl.enabled) {
       galaxyGroup.rotation.y += 0.0003;
     }
+    updateHandControl(16.67);
     renderer.render(scene, camera);
   }
 
@@ -531,6 +639,7 @@ export function GalaxyEngine(canvasRef, options = {}) {
     focusOnAnime,
     rotateCameraByVelocity,
     zoom,
+    setHandControl,
     get hoveredId() { return hoveredId.value; },
     get selectedId() { return selectedId.value; }
   };
