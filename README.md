@@ -84,7 +84,7 @@ python3 -m http.server 8080
 - 首页：http://localhost:8080/
 - 主应用：http://localhost:8080/nebula-chronicle.html
 - 播放页：http://localhost:8080/watch.html?index=14
-
+静态网页体验链接： https://mw2wbyys6t-sudo.github.io/wonderful-screen/
 ### 配置 LLM API Key
 
 1. 复制配置模板：
