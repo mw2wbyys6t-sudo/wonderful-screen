@@ -1,0 +1,887 @@
+// src/engines/universe/SpiralUniverse.js
+// 2D 螺旋宇宙降级方案：当 WebGL 不可用时，提供同样震撼的 Canvas 2D 视觉体验
+// 核心隐喻：恒星=作品，星云=流派，宇宙=所有作品。浏览=探索。
+
+import { DataEngine } from '../data/DataEngine.js';
+
+const COLORS = {
+  cyan: '#00f3ff',
+  purple: '#b892ff',
+  pink: '#ff2a6d',
+  white: '#ffffff'
+};
+
+// 动画缓动
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
+
+function dist(x1, y1, x2, y2) {
+  const dx = x1 - x2;
+  const dy = y1 - y2;
+  return Math.hypot(dx, dy);
+}
+
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : { r: 0, g: 243, b: 255 };
+}
+
+function colorWithAlpha(hex, alpha) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+export class SpiralUniverse {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d', { alpha: false });
+    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.width = 0;
+    this.height = 0;
+
+    // 相机状态
+    this.scale = 0.35;
+    this.targetScale = 0.35;
+    this.offsetX = 0;
+    this.targetOffsetX = 0;
+    this.offsetY = 0;
+    this.targetOffsetY = 0;
+    this.rotation = 0;
+    this.targetRotation = 0;
+    this.autoRotate = true;
+
+    this.MIN_SCALE = 0.06;
+    this.MAX_SCALE = 3.0;
+
+    // 交互状态
+    this.isDragging = false;
+    this.lastMouse = { x: 0, y: 0 };
+    this.velocity = { x: 0, y: 0 };
+    this.hoveredNode = null;
+    this.selectedNode = null;
+    this.searchHighlight = null;
+
+    // 动画状态
+    this.time = 0;
+    this.birthProgress = 0; // 0→1 宇宙诞生动画
+    this.nodes = [];
+    this.genreClouds = [];
+    this.starDust = [];
+    this.connections = [];
+    this.ripples = [];
+
+    // 回调（预留纯手势模式接口）
+    this.onNodeHover = null;
+    this.onNodeClick = null;
+    this.onCameraChange = null;
+
+    this.running = false;
+    this.rafId = null;
+
+    this.resize = this.resize.bind(this);
+    this.handleMouseDown = this.handleMouseDown.bind(this);
+    this.handleMouseMove = this.handleMouseMove.bind(this);
+    this.handleMouseUp = this.handleMouseUp.bind(this);
+    this.handleWheel = this.handleWheel.bind(this);
+    this.handleTouchStart = this.handleTouchStart.bind(this);
+    this.handleTouchMove = this.handleTouchMove.bind(this);
+    this.handleTouchEnd = this.handleTouchEnd.bind(this);
+
+    this._bindEvents();
+  }
+
+  // 初始化并生成宇宙数据
+  async init() {
+    await DataEngine.load();
+    this._buildGalaxy();
+    this._buildStarDust();
+    this._buildGenreClouds();
+    this._buildConnections();
+    this.resize();
+    this.birthProgress = 0;
+    return this;
+  }
+
+  _buildGalaxy() {
+    const works = DataEngine.data.value;
+    const genres = DataEngine.genres.value;
+
+    if (!works || works.length === 0) return;
+
+    // 按年份螺旋排列
+    const minYear = Math.min(...works.map(w => w.year || 1980));
+    const maxYear = Math.max(...works.map(w => w.year || 2024));
+    const yearRange = Math.max(1, maxYear - minYear);
+
+    this.nodes = works.map((work, i) => {
+      const year = work.year || (minYear + (i % yearRange));
+      const yearT = (year - minYear) / yearRange;
+
+      // 螺旋参数：年份越新越靠外
+      const spiralAngle = yearT * Math.PI * 6 + (i * 0.37);
+      const spiralRadius = 120 + yearT * 1800 + (Math.random() - 0.5) * 200;
+
+      // 在螺旋臂附近加入随机散射，形成星云团
+      const armOffset = (Math.random() - 0.5) * 260 * (0.3 + yearT * 0.7);
+      const x = Math.cos(spiralAngle) * spiralRadius + Math.cos(spiralAngle + Math.PI / 2) * armOffset;
+      const y = Math.sin(spiralAngle) * spiralRadius + Math.sin(spiralAngle + Math.PI / 2) * armOffset;
+
+      // 评分决定大小
+      const score = work.score || work.popularity || 50;
+      const baseSize = 2.5 + (score / 100) * 7;
+
+      // 流派决定颜色
+      const genre = work.genres?.[0] || 'Sci-Fi';
+      const genreData = genres?.genres?.[genre] || genres?.[genre] || {};
+      const color = genreData.color || COLORS.cyan;
+
+      return {
+        id: work.id,
+        work,
+        x,
+        y,
+        originalX: x,
+        originalY: y,
+        size: baseSize,
+        color,
+        genre,
+        year,
+        score,
+        pulsePhase: Math.random() * Math.PI * 2,
+        birthDelay: Math.random() * 0.8,
+        alpha: 0.6 + (score / 100) * 0.4
+      };
+    });
+
+    // 初始相机指向宇宙中心
+    this.targetOffsetX = 0;
+    this.targetOffsetY = 0;
+    this.offsetX = 0;
+    this.offsetY = 0;
+  }
+
+  _buildStarDust() {
+    // 5000颗背景星尘，营造深空感
+    const count = 5000;
+    this.starDust = Array.from({ length: count }, () => ({
+      x: (Math.random() - 0.5) * 6000,
+      y: (Math.random() - 0.5) * 6000,
+      z: Math.random() * 2 + 0.2, // 远近层级
+      size: Math.random() * 1.2 + 0.2,
+      alpha: Math.random() * 0.6 + 0.1,
+      twinkleSpeed: Math.random() * 0.03 + 0.005,
+      twinklePhase: Math.random() * Math.PI * 2
+    }));
+  }
+
+  _buildGenreClouds() {
+    const genres = DataEngine.genres.value;
+    const genreMap = genres?.genres || genres || {};
+
+    this.genreClouds = Object.entries(genreMap).map(([name, info], i) => {
+      const works = DataEngine.byGenre(name);
+      if (!works || works.length === 0) return null;
+
+      // 星云中心取该流派作品的平均位置
+      const cx = works.reduce((s, w) => s + (this.nodes.find(n => n.id === w.id)?.x || 0), 0) / works.length;
+      const cy = works.reduce((s, w) => s + (this.nodes.find(n => n.id === w.id)?.y || 0), 0) / works.length;
+
+      const color = info.color || COLORS.cyan;
+      const count = Math.min(120, Math.max(30, Math.floor(works.length / 5)));
+
+      return {
+        name,
+        color,
+        x: cx || (Math.random() - 0.5) * 1000,
+        y: cy || (Math.random() - 0.5) * 1000,
+        particles: Array.from({ length: count }, () => ({
+          ox: (Math.random() - 0.5) * 380,
+          oy: (Math.random() - 0.5) * 380,
+          angle: Math.random() * Math.PI * 2,
+          speed: Math.random() * 0.0005 + 0.0001,
+          radius: Math.random() * 180 + 40,
+          size: Math.random() * 2.5 + 0.8,
+          alpha: Math.random() * 0.25 + 0.08
+        }))
+      };
+    }).filter(Boolean);
+  }
+
+  _buildConnections() {
+    // 同流派/同年份/同工作室的作品之间建立弱连接
+    const maxConnections = 1200;
+    const connections = [];
+    const nodes = this.nodes;
+
+    // 按流派连接
+    const genreGroups = {};
+    nodes.forEach(n => {
+      if (!genreGroups[n.genre]) genreGroups[n.genre] = [];
+      genreGroups[n.genre].push(n);
+    });
+
+    Object.values(genreGroups).forEach(group => {
+      group.sort((a, b) => (a.year || 0) - (b.year || 0));
+      for (let i = 0; i < group.length - 1 && connections.length < maxConnections; i++) {
+        const a = group[i];
+        const b = group[i + 1];
+        const d = dist(a.x, a.y, b.x, b.y);
+        if (d < 500) {
+          connections.push({ a, b, color: a.color, alpha: 0.12, type: 'genre' });
+        }
+      }
+    });
+
+    this.connections = connections;
+  }
+
+  _bindEvents() {
+    window.addEventListener('resize', this.resize);
+    this.canvas.addEventListener('mousedown', this.handleMouseDown);
+    window.addEventListener('mousemove', this.handleMouseMove);
+    window.addEventListener('mouseup', this.handleMouseUp);
+    this.canvas.addEventListener('wheel', this.handleWheel, { passive: false });
+    this.canvas.addEventListener('touchstart', this.handleTouchStart, { passive: false });
+    this.canvas.addEventListener('touchmove', this.handleTouchMove, { passive: false });
+    this.canvas.addEventListener('touchend', this.handleTouchEnd);
+  }
+
+  _unbindEvents() {
+    window.removeEventListener('resize', this.resize);
+    this.canvas.removeEventListener('mousedown', this.handleMouseDown);
+    window.removeEventListener('mousemove', this.handleMouseMove);
+    window.removeEventListener('mouseup', this.handleMouseUp);
+    this.canvas.removeEventListener('wheel', this.handleWheel);
+    this.canvas.removeEventListener('touchstart', this.handleTouchStart);
+    this.canvas.removeEventListener('touchmove', this.handleTouchMove);
+    this.canvas.removeEventListener('touchend', this.handleTouchEnd);
+  }
+
+  resize() {
+    const rect = this.canvas.parentElement?.getBoundingClientRect();
+    if (!rect) return;
+
+    const w = Math.floor(rect.width);
+    const h = Math.floor(rect.height);
+    if (w === this.width && h === this.height) return;
+
+    this.width = w;
+    this.height = h;
+    this.canvas.width = w * this.dpr;
+    this.canvas.height = h * this.dpr;
+    this.canvas.style.width = `${w}px`;
+    this.canvas.style.height = `${h}px`;
+    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+  }
+
+  // 世界坐标 → 屏幕坐标
+  worldToScreen(wx, wy) {
+    const cx = this.width / 2;
+    const cy = this.height / 2;
+    const cos = Math.cos(this.rotation);
+    const sin = Math.sin(this.rotation);
+    const rx = wx * cos - wy * sin;
+    const ry = wx * sin + wy * cos;
+    return {
+      x: cx + (rx + this.offsetX) * this.scale,
+      y: cy + (ry + this.offsetY) * this.scale
+    };
+  }
+
+  // 屏幕坐标 → 世界坐标
+  screenToWorld(sx, sy) {
+    const cx = this.width / 2;
+    const cy = this.height / 2;
+    const rx = (sx - cx) / this.scale - this.offsetX;
+    const ry = (sy - cy) / this.scale - this.offsetY;
+    const cos = Math.cos(-this.rotation);
+    const sin = Math.sin(-this.rotation);
+    return {
+      x: rx * cos - ry * sin,
+      y: rx * sin + ry * cos
+    };
+  }
+
+  handleMouseDown(e) {
+    this.isDragging = true;
+    this.autoRotate = false;
+    this.lastMouse = { x: e.clientX, y: e.clientY };
+    this.velocity = { x: 0, y: 0 };
+  }
+
+  handleMouseMove(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    if (this.isDragging) {
+      const dx = e.clientX - this.lastMouse.x;
+      const dy = e.clientY - this.lastMouse.y;
+      this.targetOffsetX += dx / this.scale;
+      this.targetOffsetY += dy / this.scale;
+      this.velocity = { x: dx, y: dy };
+      this.lastMouse = { x: e.clientX, y: e.clientY };
+    }
+
+    this._updateHover(mx, my);
+  }
+
+  handleMouseUp(e) {
+    if (!this.isDragging) return;
+    this.isDragging = false;
+
+    // 惯性：快速甩动时继续滑行
+    const speed = Math.hypot(this.velocity.x, this.velocity.y);
+    if (speed > 3) {
+      this.velocity.x *= 12;
+      this.velocity.y *= 12;
+    } else {
+      this.velocity = { x: 0, y: 0 };
+    }
+
+    // 如果是点击（移动很小），触发选中
+    const rect = this.canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    if (speed < 5 && this.hoveredNode) {
+      this.selectNode(this.hoveredNode);
+    }
+  }
+
+  handleWheel(e) {
+    e.preventDefault();
+    const rect = this.canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const worldBefore = this.screenToWorld(mx, my);
+    const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+    this.targetScale = clamp(this.targetScale * zoomFactor, this.MIN_SCALE, this.MAX_SCALE);
+
+    // 以鼠标位置为锚点缩放
+    requestAnimationFrame(() => {
+      const worldAfter = this.screenToWorld(mx, my);
+      this.targetOffsetX += worldAfter.x - worldBefore.x;
+      this.targetOffsetY += worldAfter.y - worldBefore.y;
+    });
+
+    this.autoRotate = false;
+  }
+
+  handleTouchStart(e) {
+    if (e.touches.length === 1) {
+      this.isDragging = true;
+      this.autoRotate = false;
+      this.lastMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else if (e.touches.length === 2) {
+      this.isDragging = false;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      this.lastPinchDist = Math.hypot(dx, dy);
+    }
+  }
+
+  handleTouchMove(e) {
+    e.preventDefault();
+    if (e.touches.length === 1 && this.isDragging) {
+      const dx = e.touches[0].clientX - this.lastMouse.x;
+      const dy = e.touches[0].clientY - this.lastMouse.y;
+      this.targetOffsetX += dx / this.scale;
+      this.targetOffsetY += dy / this.scale;
+      this.lastMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      if (this.lastPinchDist > 0) {
+        const factor = dist / this.lastPinchDist;
+        this.targetScale = clamp(this.targetScale * factor, this.MIN_SCALE, this.MAX_SCALE);
+      }
+      this.lastPinchDist = dist;
+    }
+  }
+
+  handleTouchEnd(e) {
+    this.isDragging = false;
+    this.lastPinchDist = 0;
+  }
+
+  _updateHover(mx, my) {
+    const world = this.screenToWorld(mx, my);
+    let closest = null;
+    let closestDist = Infinity;
+    const threshold = 22 / this.scale;
+
+    for (const node of this.nodes) {
+      const d = dist(world.x, world.y, node.x, node.y);
+      if (d < threshold && d < closestDist) {
+        closestDist = d;
+        closest = node;
+      }
+    }
+
+    if (closest !== this.hoveredNode) {
+      this.hoveredNode = closest;
+      if (this.onNodeHover) this.onNodeHover(closest);
+    }
+  }
+
+  selectNode(node) {
+    this.selectedNode = node;
+    this.ripples.push({ x: node.x, y: node.y, r: 0, alpha: 1, color: node.color });
+    if (this.onNodeClick) this.onNodeClick(node);
+  }
+
+  // 搜索命中后的聚焦动画（预留纯手势语音搜索接口）
+  focusOnNode(nodeOrId) {
+    const node = typeof nodeOrId === 'object' ? nodeOrId : this.nodes.find(n => String(n.id) === String(nodeOrId));
+    if (!node) return;
+
+    this.searchHighlight = node;
+    this.selectedNode = node;
+    this.autoRotate = false;
+
+    // 目标：让该节点位于屏幕中央，并放大到合适尺寸
+    this.targetScale = 0.9;
+    this.targetOffsetX = -node.x;
+    this.targetOffsetY = -node.y;
+
+    // 高亮闪烁
+    let flashes = 0;
+    const flash = () => {
+      if (flashes >= 6) {
+        this.searchHighlight = null;
+        return;
+      }
+      this.searchHighlight = flashes % 2 === 0 ? node : null;
+      flashes++;
+      setTimeout(flash, 250);
+    };
+    flash();
+
+    // 选中波纹
+    this.ripples.push({ x: node.x, y: node.y, r: 0, alpha: 1, color: node.color });
+
+    if (this.onNodeClick) this.onNodeClick(node);
+  }
+
+  focusOnGenre(genre) {
+    const works = DataEngine.byGenre(genre);
+    if (!works || works.length === 0) return;
+
+    const matchedNodes = works.map(w => this.nodes.find(n => n.id === w.id)).filter(Boolean);
+    if (matchedNodes.length === 0) return;
+
+    this.autoRotate = false;
+    // 计算该流派节点的外接中心
+    const cx = matchedNodes.reduce((s, n) => s + n.x, 0) / matchedNodes.length;
+    const cy = matchedNodes.reduce((s, n) => s + n.y, 0) / matchedNodes.length;
+
+    this.targetOffsetX = -cx;
+    this.targetOffsetY = -cy;
+
+    // 根据节点分布自动调整缩放
+    const maxDist = Math.max(...matchedNodes.map(n => dist(n.x, n.y, cx, cy)));
+    this.targetScale = clamp(400 / (maxDist + 100), 0.2, 1.2);
+
+    // 流派高亮闪烁
+    let flashes = 0;
+    const flash = () => {
+      matchedNodes.forEach(n => { n.highlightUntil = flashes % 2 === 0 ? Date.now() + 300 : Date.now(); });
+      flashes++;
+      if (flashes < 6) setTimeout(flash, 250);
+    };
+    flash();
+  }
+
+  // 预留纯手势接口：外部手势引擎调用
+  gestureMove(dx, dy) {
+    this.autoRotate = false;
+    this.targetOffsetX += dx / this.scale;
+    this.targetOffsetY += dy / this.scale;
+  }
+
+  gestureZoom(factor, anchorX, anchorY) {
+    this.autoRotate = false;
+    const worldBefore = this.screenToWorld(anchorX, anchorY);
+    this.targetScale = clamp(this.targetScale * factor, this.MIN_SCALE, this.MAX_SCALE);
+    requestAnimationFrame(() => {
+      const worldAfter = this.screenToWorld(anchorX, anchorY);
+      this.targetOffsetX += worldAfter.x - worldBefore.x;
+      this.targetOffsetY += worldAfter.y - worldBefore.y;
+    });
+  }
+
+  gestureSelectAt(screenX, screenY) {
+    this._updateHover(screenX, screenY);
+    if (this.hoveredNode) {
+      this.selectNode(this.hoveredNode);
+      return this.hoveredNode;
+    }
+    return null;
+  }
+
+  resetView() {
+    this.autoRotate = true;
+    this.targetScale = 0.35;
+    this.targetOffsetX = 0;
+    this.targetOffsetY = 0;
+    this.targetRotation = 0;
+  }
+
+  start() {
+    if (this.running) return;
+    this.running = true;
+    this.lastTime = performance.now();
+    this._loop();
+  }
+
+  stop() {
+    this.running = false;
+    if (this.rafId) cancelAnimationFrame(this.rafId);
+  }
+
+  destroy() {
+    this.stop();
+    this._unbindEvents();
+  }
+
+  _loop() {
+    if (!this.running) return;
+    const now = performance.now();
+    const dt = Math.min((now - this.lastTime) / 1000, 0.05);
+    this.lastTime = now;
+
+    this.time += dt;
+    this._update(dt);
+    this._render();
+
+    this.rafId = requestAnimationFrame(() => this._loop());
+  }
+
+  _update(dt) {
+    // 宇宙诞生动画
+    if (this.birthProgress < 1) {
+      this.birthProgress = Math.min(1, this.birthProgress + dt * 0.4);
+    }
+
+    // 平滑插值相机
+    const smooth = 1 - Math.pow(0.001, dt);
+    this.scale = lerp(this.scale, this.targetScale, smooth);
+    this.offsetX = lerp(this.offsetX, this.targetOffsetX, smooth);
+    this.offsetY = lerp(this.offsetY, this.targetOffsetY, smooth);
+    this.rotation = lerp(this.rotation, this.targetRotation, smooth);
+
+    // 惯性滑行
+    if (!this.isDragging && (this.velocity.x !== 0 || this.velocity.y !== 0)) {
+      this.targetOffsetX += this.velocity.x / this.scale * dt;
+      this.targetOffsetY += this.velocity.y / this.scale * dt;
+      this.velocity.x *= Math.pow(0.95, dt * 60);
+      this.velocity.y *= Math.pow(0.95, dt * 60);
+      if (Math.abs(this.velocity.x) < 0.1) this.velocity.x = 0;
+      if (Math.abs(this.velocity.y) < 0.1) this.velocity.y = 0;
+    }
+
+    // 自动旋转
+    if (this.autoRotate && !this.isDragging) {
+      this.targetRotation += dt * 0.03;
+    }
+
+    // 波纹扩散
+    this.ripples.forEach(r => {
+      r.r += dt * 120;
+      r.alpha -= dt * 0.8;
+    });
+    this.ripples = this.ripples.filter(r => r.alpha > 0);
+  }
+
+  _render() {
+    const ctx = this.ctx;
+    const w = this.width;
+    const h = this.height;
+
+    // 深空背景
+    ctx.fillStyle = '#03030a';
+    ctx.fillRect(0, 0, w, h);
+
+    // 中心辐射雾
+    const cx = w / 2;
+    const cy = h / 2;
+    const fog = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.7);
+    fog.addColorStop(0, 'rgba(0, 80, 120, 0.15)');
+    fog.addColorStop(0.4, 'rgba(40, 0, 80, 0.08)');
+    fog.addColorStop(1, 'transparent');
+    ctx.fillStyle = fog;
+    ctx.fillRect(0, 0, w, h);
+
+    // 绘制背景星尘
+    this._renderStarDust(ctx);
+
+    // 绘制流派星云
+    this._renderGenreClouds(ctx);
+
+    // 绘制星座连线
+    this._renderConnections(ctx);
+
+    // 绘制波纹
+    this._renderRipples(ctx);
+
+    // 绘制恒星
+    this._renderNodes(ctx);
+
+    // 绘制搜索高亮提示圈
+    if (this.searchHighlight) {
+      this._renderSearchHighlight(ctx);
+    }
+  }
+
+  _renderStarDust(ctx) {
+    const t = this.time;
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+
+    for (const star of this.starDust) {
+      const pos = this.worldToScreen(star.x, star.y);
+
+      // 视差：远星移动慢，近星移动快
+      const parallaxX = (this.offsetX * 0.02 * star.z);
+      const parallaxY = (this.offsetY * 0.02 * star.z);
+      const x = pos.x + parallaxX;
+      const y = pos.y + parallaxY;
+
+      //  born-in effect
+      const born = this.birthProgress > star.z * 0.3 ? 1 : this.birthProgress / (star.z * 0.3 + 0.01);
+      if (born <= 0) continue;
+
+      const twinkle = 0.7 + 0.3 * Math.sin(t * star.twinkleSpeed * 60 + star.twinklePhase);
+      const size = star.size * born * (0.5 + 0.5 * star.z);
+      const alpha = star.alpha * twinkle * born;
+
+      ctx.beginPath();
+      ctx.arc(x, y, Math.max(0.3, size * this.scale * 0.5), 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  _renderGenreClouds(ctx) {
+    const t = this.time;
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+
+    for (const cloud of this.genreClouds) {
+      const pos = this.worldToScreen(cloud.x, cloud.y);
+
+      for (const p of cloud.particles) {
+        const angle = p.angle + t * p.speed * 60;
+        const rx = p.radius * Math.cos(angle);
+        const ry = p.radius * Math.sin(angle) * 0.6;
+        const x = pos.x + (rx + p.ox) * this.scale;
+        const y = pos.y + (ry + p.oy) * this.scale;
+
+        const born = this.birthProgress;
+        if (born <= 0.1) continue;
+
+        const size = p.size * born * this.scale;
+        const alpha = p.alpha * born * (0.7 + 0.3 * Math.sin(t * 2 + angle));
+
+        if (size < 0.3) continue;
+
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fillStyle = colorWithAlpha(cloud.color, alpha);
+        ctx.fill();
+      }
+
+      // 星云名标签（只在合适缩放时显示）
+      if (this.scale > 0.25 && this.scale < 1.5) {
+        ctx.font = `12px Orbitron, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillStyle = colorWithAlpha(cloud.color, 0.5 * this.birthProgress);
+        ctx.fillText(cloud.name, pos.x, pos.y);
+      }
+    }
+
+    ctx.restore();
+  }
+
+  _renderConnections(ctx) {
+    if (this.scale < 0.15) return; // 太远不画线，避免杂乱
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+
+    for (const c of this.connections) {
+      const a = this.worldToScreen(c.a.x, c.a.y);
+      const b = this.worldToScreen(c.b.x, c.b.y);
+
+      // 连线透明度随距离衰减
+      const screenDist = dist(a.x, a.y, b.x, b.y);
+      if (screenDist > 250) continue;
+
+      const alpha = c.alpha * (1 - screenDist / 250) * this.birthProgress;
+      if (alpha < 0.02) continue;
+
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.strokeStyle = colorWithAlpha(c.color, alpha);
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  _renderRipples(ctx) {
+    if (this.ripples.length === 0) return;
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+
+    for (const r of this.ripples) {
+      const pos = this.worldToScreen(r.x, r.y);
+      const radius = r.r * this.scale;
+      if (radius < 1) continue;
+
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = colorWithAlpha(r.color, r.alpha * 0.8);
+      ctx.lineWidth = 2 * this.scale;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, radius * 0.6, 0, Math.PI * 2);
+      ctx.strokeStyle = colorWithAlpha(r.color, r.alpha * 0.4);
+      ctx.lineWidth = 1 * this.scale;
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  _renderNodes(ctx) {
+    const t = this.time;
+    const hovered = this.hoveredNode;
+    const selected = this.selectedNode;
+    const now = Date.now();
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+
+    // 按大小排序，大星后画，小星先画
+    const sorted = [...this.nodes].sort((a, b) => b.size - a.size);
+
+    for (const node of sorted) {
+      const pos = this.worldToScreen(node.x, node.y);
+      const birth = this.birthProgress > node.birthDelay ?
+        Math.min(1, (this.birthProgress - node.birthDelay) / (1 - node.birthDelay)) : 0;
+      if (birth <= 0) continue;
+
+      const isHovered = hovered === node;
+      const isSelected = selected === node;
+      const isSearchHighlight = this.searchHighlight === node;
+      const isGenreHighlight = node.highlightUntil && node.highlightUntil > now;
+
+      // 基础脉冲
+      const pulse = 1 + 0.12 * Math.sin(t * 2 + node.pulsePhase);
+      const baseSize = node.size * birth * pulse;
+
+      // hover/selected放大
+      const hoverScale = isHovered ? 1.5 : (isSelected ? 1.3 : 1);
+      const size = baseSize * this.scale * hoverScale;
+      if (size < 0.5) continue;
+
+      // 亮度
+      const baseAlpha = node.alpha * birth;
+      const alpha = isHovered || isSelected || isSearchHighlight || isGenreHighlight ?
+        Math.min(1, baseAlpha * 1.5) : baseAlpha;
+
+      // 光晕
+      const glowSize = size * (isHovered ? 5 : (isSelected ? 4 : 2.5));
+      if (glowSize > 1) {
+        const glow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, glowSize);
+        glow.addColorStop(0, colorWithAlpha(node.color, alpha * 0.6));
+        glow.addColorStop(0.5, colorWithAlpha(node.color, alpha * 0.2));
+        glow.addColorStop(1, 'transparent');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, glowSize, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 核心星点
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, Math.max(0.5, size), 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      ctx.fill();
+
+      // 颜色内核
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, Math.max(0.3, size * 0.6), 0, Math.PI * 2);
+      ctx.fillStyle = colorWithAlpha(node.color, alpha);
+      ctx.fill();
+
+      // 选中/高亮外环
+      if (isSelected || isSearchHighlight || isGenreHighlight) {
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, size * 2.5, 0, Math.PI * 2);
+        ctx.strokeStyle = colorWithAlpha(node.color, 0.6);
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      // 高分作品十字光芒
+      if (node.score > 85 && size > 2) {
+        const rayLen = size * 4;
+        ctx.strokeStyle = colorWithAlpha(node.color, alpha * 0.4);
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(pos.x - rayLen, pos.y);
+        ctx.lineTo(pos.x + rayLen, pos.y);
+        ctx.moveTo(pos.x, pos.y - rayLen);
+        ctx.lineTo(pos.x, pos.y + rayLen);
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
+  }
+
+  _renderSearchHighlight(ctx) {
+    const node = this.searchHighlight;
+    const pos = this.worldToScreen(node.x, node.y);
+    const t = this.time;
+    const radius = (30 + 10 * Math.sin(t * 8)) * this.scale;
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = colorWithAlpha(COLORS.pink, 0.8);
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 6]);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, radius * 1.4, 0, Math.PI * 2);
+    ctx.strokeStyle = colorWithAlpha(COLORS.pink, 0.3);
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 8]);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+}

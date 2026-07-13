@@ -3,15 +3,9 @@
     <div class="universe-bg" :style="{ backgroundImage: `url(${baseUrl}images/generated/nebula-bg.jpg)` }"></div>
     <canvas ref="universeCanvas" id="universe-canvas"></canvas>
 
-    <div v-if="loading && !webglError" class="universe-loading">
+    <div v-if="loading" class="universe-loading">
       <div class="loading-spinner"></div>
       <p>{{ dataLoading ? '正在加载星云数据库…' : '正在构建动漫宇宙…' }}</p>
-    </div>
-
-    <div v-if="webglError" class="webgl-fallback">
-      <div class="fallback-icon">✦</div>
-      <p>当前环境不支持 WebGL，无法显示 3D 宇宙。</p>
-      <p>请在支持 WebGL 的浏览器（如 Chrome、Edge、Safari）中打开。</p>
     </div>
 
     <HUD
@@ -84,6 +78,7 @@ import { ref, onMounted, onUnmounted, computed, watch, defineAsyncComponent } fr
 import { DataEngine } from '../engines/data/DataEngine.js';
 import { KnowledgeEngine } from '../engines/data/KnowledgeEngine.js';
 import { GalaxyEngine } from '../engines/universe/GalaxyEngine.js';
+import { SpiralUniverse } from '../engines/universe/SpiralUniverse.js';
 import { TimelineEngine } from '../engines/universe/TimelineEngine.js';
 import { InteractionEngine } from '../engines/interaction/InteractionEngine.js';
 import { GestureEngine } from '../engines/interaction/GestureEngine.js';
@@ -92,6 +87,8 @@ import { AIEngine } from '../engines/ai/AIEngine.js';
 import { StateEngine } from '../engines/core/StateEngine.js';
 import { bus } from '../engines/core/EventBus.js';
 import { FeedbackEngine } from '../engines/feedback/FeedbackEngine.js';
+import { gestureNavigation } from '../engines/interaction/GestureNavigationEngine.js';
+import { VoicePlayer } from '../composables/useVoice.js';
 
 const HUD = defineAsyncComponent(() => import('./HUD.vue'));
 const NodePanel = defineAsyncComponent(() => import('./NodePanel.vue'));
@@ -104,7 +101,6 @@ const cursorCanvas = ref(null);
 const hudRef = ref(null);
 
 const hudReady = ref(false);
-const webglError = ref('');
 const loading = ref(true);
 const dataLoading = ref(true);
 const dataCount = ref(0);
@@ -130,8 +126,10 @@ const tooltipStyle = computed(() => ({
 }));
 
 let galaxyApi = null;
+let spiralApi = null;
 let cleanupFns = [];
 let hoveredId = null;
+const isFallback2D = ref(false);
 
 onMounted(async () => {
   try {
@@ -141,39 +139,52 @@ onMounted(async () => {
     dataLoading.value = false;
     dataCount.value = DataEngine.data.value.length;
 
-    // 2. 初始化 3D 宇宙
-    galaxyApi = GalaxyEngine(universeCanvas, {
-      onError: (msg) => {
-        webglError.value = msg;
-        loading.value = false;
-      },
-      onReady: () => {
-        loading.value = false;
-      }
-    });
-    const ok = galaxyApi.init();
-    if (!ok) {
-      webglError.value = 'WebGL 初始化失败';
+    // 2. 初始化 3D 宇宙；若失败则自动降级到 2D 螺旋宇宙
+    let webglOk = false;
+    try {
+      galaxyApi = GalaxyEngine(universeCanvas, {
+        onError: (msg) => {
+          console.warn('[UniversePhase] WebGL 错误:', msg);
+        },
+        onReady: () => {
+          loading.value = false;
+        }
+      });
+      webglOk = galaxyApi.init();
+      if (!webglOk) throw new Error('WebGL init returned false');
+    } catch (err) {
+      console.warn('[UniversePhase] WebGL 不可用，自动降级到 2D 螺旋宇宙:', err);
+      webglOk = false;
+    }
+
+    if (!webglOk) {
+      isFallback2D.value = true;
+      spiralApi = new SpiralUniverse(universeCanvas.value);
+      await spiralApi.init();
+      spiralApi.start();
+      spiralApi.onNodeHover = (node) => {
+        updateHover(node ? node.id : null);
+      };
+      spiralApi.onNodeClick = (node) => {
+        if (node) StateEngine.select(node.id);
+      };
       loading.value = false;
-      // 即使 3D 失败，也显示 HUD 让用户能搜索/查看帮助
     }
 
     // 3. 绑定交互引擎
     InteractionEngine.init({
       canvas: universeCanvas.value,
       onPointerMove: (payload) => {
-        galaxyApi.setPointerFromScreen(payload.x, payload.y);
-        const id = galaxyApi.raycast();
+        apiSetPointer(payload.x, payload.y);
+        const id = apiRaycast();
         updateHover(id);
       },
       onSelect: () => {
-        const id = galaxyApi.raycast();
-        if (id) {
-          galaxyApi.select(id);
-        }
+        const id = apiRaycast();
+        if (id) apiSelect(id);
       },
       onZoom: (delta) => {
-        galaxyApi.zoom(delta * 0.25);
+        apiZoom(delta);
       },
       onBack: () => {
         if (selectedAnime.value) {
@@ -187,25 +198,25 @@ onMounted(async () => {
     // 4. 全局事件监听
     cleanupFns.push(
       bus.on('input:rotate', ({ dx, dy }) => {
-        galaxyApi.rotateCameraByVelocity(dx, dy);
+        apiRotate(dx, dy);
       }),
       bus.on('input:zoom', (delta) => {
-        galaxyApi.zoom(delta * 0.25);
+        apiZoom(delta);
       }),
       bus.on('input:fullscreen', () => {
         onToggleFullscreen();
       }),
       bus.on('input:select', () => {
-        const id = galaxyApi.raycast();
-        if (id) galaxyApi.select(id);
+        const id = apiRaycast();
+        if (id) apiSelect(id);
       }),
       bus.on('input:back', () => {
         if (selectedAnime.value) StateEngine.select(null);
         else if (StateEngine.state.activeGenre) StateEngine.clearFilter();
       }),
       bus.on('input:pointer', (payload) => {
-        galaxyApi.setPointerFromScreen(payload.x, payload.y);
-        const id = galaxyApi.raycast();
+        apiSetPointer(payload.x, payload.y);
+        const id = apiRaycast();
         updateHover(id);
       }),
       bus.on('anime:selected', (id) => {
@@ -220,10 +231,10 @@ onMounted(async () => {
         hoveredAnime.value = value ? DataEngine.byId(value) : null;
       }),
       bus.on('state:year', ({ value }) => {
-        if (value) galaxyApi.focusOnYear(value);
+        if (value) apiFocusYear(value);
       }),
       bus.on('state:activeGenre', ({ value }) => {
-        galaxyApi.highlightGenre(value);
+        apiHighlightGenre(value);
       }),
       bus.on('ai:narrate', (text) => {
         showAiFeedback(text);
@@ -242,25 +253,25 @@ onMounted(async () => {
 
     // 6. 绑定手势
     watch(gestureReady, (ready) => {
-      galaxyApi?.setHandControl?.(ready);
+      apiSetHandControl(ready);
     });
 
     watch([GestureEngine.handX, GestureEngine.handY], ([x, y]) => {
       if (gestureReady.value) {
-        galaxyApi.setInputMode?.('hand') || StateEngine.set('inputMode', 'hand');
+        apiSetInputMode('hand');
         const sx = x * window.innerWidth;
         const sy = y * window.innerHeight;
         tooltipPos.value = { x: sx, y: sy };
-        galaxyApi.setPointerFromScreen(sx, sy);
-        const id = galaxyApi.raycast();
+        apiSetPointer(sx, sy);
+        const id = apiRaycast();
         updateHover(id);
       }
     });
 
     cleanupFns.push(
       bus.on('gesture:select', () => {
-        const id = galaxyApi.raycast();
-        if (id) galaxyApi.select(id);
+        const id = apiRaycast();
+        if (id) apiSelect(id);
       }),
       bus.on('gesture:back', () => {
         if (selectedAnime.value) StateEngine.select(null);
@@ -302,24 +313,107 @@ onMounted(async () => {
     hudReady.value = true;
   } catch (err) {
     console.error('[UniversePhase] 初始化失败:', err);
-    webglError.value = '宇宙初始化失败，请刷新重试';
+    // 即使整体初始化失败，也尝试降级到 2D 宇宙
+    try {
+      isFallback2D.value = true;
+      spiralApi = new SpiralUniverse(universeCanvas.value);
+      await spiralApi.init();
+      spiralApi.start();
+      spiralApi.onNodeHover = (node) => updateHover(node ? node.id : null);
+      spiralApi.onNodeClick = (node) => { if (node) StateEngine.select(node.id); };
+    } catch (e2) {
+      console.error('[UniversePhase] 2D 降级也失败了:', e2);
+    }
     loading.value = false;
   }
 });
+
+// ===== 统一操作接口（兼容3D和2D降级模式） =====
+function apiAvailable() {
+  return galaxyApi || spiralApi;
+}
+
+function apiSetPointer(x, y) {
+  if (galaxyApi) galaxyApi.setPointerFromScreen?.(x, y);
+  // 2D模式下自有事件处理，无需手动设置
+}
+
+function apiRaycast() {
+  if (galaxyApi) return galaxyApi.raycast?.();
+  return spiralApi?.hoveredNode?.id || null;
+}
+
+function apiSelect(id) {
+  if (galaxyApi) galaxyApi.select?.(id);
+  else if (spiralApi && id) spiralApi.focusOnNode(id);
+}
+
+function apiZoom(delta) {
+  if (galaxyApi) galaxyApi.zoom?.(delta * 0.25);
+  else if (spiralApi) {
+    const factor = delta > 0 ? 0.9 : 1.1;
+    spiralApi.gestureZoom(factor, window.innerWidth / 2, window.innerHeight / 2);
+  }
+}
+
+function apiRotate(dx, dy) {
+  if (galaxyApi) galaxyApi.rotateCameraByVelocity?.(dx, dy);
+  else if (spiralApi) spiralApi.gestureMove(dx, dy);
+}
+
+function apiHighlightHovered(id) {
+  if (galaxyApi) galaxyApi.highlightHovered?.(id);
+  // 2D模式下hover由内部事件驱动
+}
+
+function apiFocusAnime(id) {
+  if (galaxyApi) galaxyApi.focusOnAnime?.(id);
+  else if (spiralApi) spiralApi.focusOnNode(id);
+}
+
+function apiHighlightGenre(genre) {
+  if (galaxyApi) galaxyApi.highlightGenre?.(genre);
+  else if (spiralApi) spiralApi.focusOnGenre(genre);
+}
+
+function apiFocusYear(year) {
+  if (galaxyApi) galaxyApi.focusOnYear?.(year);
+  // 2D模式下暂时不支持按年份聚焦
+}
+
+function apiSetHandControl(ready) {
+  if (galaxyApi) galaxyApi.setHandControl?.(ready);
+  // 2D模式下手势控制由gestureMove/gestureZoom处理
+}
+
+function apiSetInputMode(mode) {
+  if (galaxyApi) galaxyApi.setInputMode?.(mode);
+  StateEngine.set('inputMode', mode);
+}
+
+function apiAnimateCamera(config) {
+  if (galaxyApi) galaxyApi.animateCamera?.(config);
+  else if (spiralApi) spiralApi.resetView();
+}
+
+function apiDispose() {
+  if (galaxyApi) galaxyApi.dispose?.();
+  if (spiralApi) spiralApi.destroy?.();
+}
 
 onUnmounted(() => {
   cleanupFns.forEach(fn => typeof fn === 'function' && fn());
   VoiceEngine.stop();
   GestureEngine.stop();
   FeedbackEngine.dispose();
-  galaxyApi?.dispose();
+  apiDispose();
 });
 
 function updateHover(id) {
   if (hoveredId === id) return;
   hoveredId = id;
   StateEngine.hover(id);
-  galaxyApi.highlightHovered(id);
+  apiHighlightHovered(id);
 }
 
 function startGesture() {
@@ -341,9 +435,9 @@ function onClosePanel() {
 }
 
 function onLocateStar(anime) {
-  if (!anime || !galaxyApi) return;
+  if (!anime || !apiAvailable()) return;
   StateEngine.select(null);
-  galaxyApi.focusOnAnime(anime.id);
+  apiFocusAnime(anime.id);
 }
 
 function onFocusRelated(anime) {
@@ -360,14 +454,14 @@ function onSearch(query) {
   if (results.length) {
     const first = results[0];
     StateEngine.select(first.id);
-    galaxyApi.focusOnAnime(first.id);
+    apiFocusAnime(first.id);
   } else if (hudRef.value) {
     hudRef.value.showNoResult();
   }
 }
 
 function onResetCamera() {
-  galaxyApi?.animateCamera?.({
+  apiAnimateCamera({
     target: { x: 0, y: 0, z: 0 },
     radius: 260,
     theta: 0,
@@ -472,41 +566,6 @@ function showAiFeedback(text) {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
-}
-
-.webgl-fallback {
-  position: absolute;
-  inset: 0;
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  color: rgba(240, 240, 255, 0.95);
-  background: rgba(3, 3, 10, 0.72);
-  backdrop-filter: blur(6px);
-  pointer-events: none;
-}
-
-.webgl-fallback .fallback-icon {
-  font-size: 56px;
-  margin-bottom: 20px;
-  color: #00f3ff;
-  text-shadow: 0 0 30px rgba(0, 243, 255, 0.6);
-}
-
-.webgl-fallback p {
-  margin-bottom: 12px;
-  max-width: 460px;
-  font-size: 18px;
-  line-height: 1.6;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
-}
-
-.webgl-fallback p:last-child {
-  font-size: 14px;
-  color: rgba(240, 240, 255, 0.6);
 }
 
 /* 手势摄像头 */

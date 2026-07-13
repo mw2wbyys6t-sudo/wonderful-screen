@@ -18,18 +18,20 @@
       <div
         v-for="(work, i) in topWorks"
         :key="work.id"
-        class="holo-card"
+        class="holo-card-wrapper"
         :class="`genre-${(work.genres?.[0] || 'Sci-Fi').replace(/\s+/g, '-')}`"
-        :style="cardStyle(i)"
+        :style="wrapperStyle(i)"
       >
-        <div class="card-glow" :style="glowStyle(work)"></div>
-        <div class="card-glitch card-glitch-cyan"></div>
-        <div class="card-glitch card-glitch-magenta"></div>
-        <div class="card-frame"></div>
-        <img :src="work.coverFallback || work.coverImage || (baseUrl + 'images/generated/nebula-bg.jpg')" :alt="work.titleRomaji">
-        <div class="card-scanlines"></div>
-        <div class="card-shimmer"></div>
-        <div class="holo-card-title">{{ work.titleRomaji }}</div>
+        <div class="holo-card" :style="cardFloatStyle(i)">
+          <div class="card-glow" :style="glowStyle(work)"></div>
+          <div class="card-glitch card-glitch-cyan"></div>
+          <div class="card-glitch card-glitch-magenta"></div>
+          <div class="card-frame"></div>
+          <img :src="work.coverFallback || work.coverImage || (baseUrl + 'images/generated/nebula-bg.jpg')" :alt="work.titleRomaji">
+          <div class="card-scanlines"></div>
+          <div class="card-shimmer"></div>
+          <div class="holo-card-title">{{ work.titleRomaji }}</div>
+        </div>
       </div>
     </div>
 
@@ -59,13 +61,18 @@ const glowStyle = (work) => {
   };
 };
 
-const cardStyle = (i) => {
+const wrapperStyle = (i) => {
   const count = topWorks.value.length || 1;
   const angle = (i / count) * Math.PI * 2;
-  const radius = 260;
+  const radius = 280;
+  return {
+    transform: `rotateY(${angle * 180 / Math.PI}deg) translateZ(${radius}px)`,
+  };
+};
+
+const cardFloatStyle = (i) => {
   const floatDelay = i * 0.4;
   return {
-    transform: `rotateY(${angle * 180 / Math.PI}deg) translateZ(${radius}px) translateY(0)`,
     animationDelay: `${floatDelay}s`
   };
 };
@@ -73,7 +80,7 @@ const cardStyle = (i) => {
 onMounted(async () => {
   await DataEngine.load();
   ready.value = true;
-  setTimeout(() => emit('skip'), 8000);
+  setTimeout(() => emit('skip'), 15000);
 });
 </script>
 
@@ -180,12 +187,18 @@ onMounted(async () => {
   animation: orbitRotate 24s linear infinite;
 }
 
-.holo-card {
+.holo-card-wrapper {
   position: absolute;
   width: 150px;
   height: 215px;
   left: -75px;
   top: -107px;
+  transform-style: preserve-3d;
+}
+
+.holo-card {
+  width: 100%;
+  height: 100%;
   border-radius: 14px;
   background: rgba(5, 10, 28, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -193,7 +206,13 @@ onMounted(async () => {
   transform-style: preserve-3d;
   overflow: hidden;
   animation: cardFloat 4s ease-in-out infinite;
-  transition: filter 0.2s ease;
+  transition: filter 0.2s ease, transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.holo-card:hover {
+  filter: brightness(1.2);
+  transform: scale(1.08) translateZ(20px);
+  box-shadow: 0 0 30px rgba(0, 243, 255, 0.35);
 }
 
 .holo-card::before {
