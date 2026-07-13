@@ -1,9 +1,9 @@
 <template>
   <div id="universe">
     <Transition name="phase" mode="out-in" @before-leave="onBeforeLeave" @after-enter="onAfterEnter">
-      <LoadingPhase v-if="phase === 'loading'" @done="goTo('landing')" />
-      <LandingPhase v-else-if="phase === 'landing'" @start="goTo('showcase')" />
-      <ShowcasePhase v-else-if="phase === 'showcase'" @skip="goTo('universe')" @done="goTo('universe')" />
+      <LoadingPhase v-if="phase === 'loading'" @done="goTo('showcase')" />
+      <ShowcasePhase v-else-if="phase === 'showcase'" @skip="goTo('landing')" @done="goTo('landing')" />
+      <LandingPhase v-else-if="phase === 'landing'" @start="goTo('universe')" />
       <UniversePhase v-else-if="phase === 'universe'" />
     </Transition>
 
