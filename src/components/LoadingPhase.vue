@@ -2,6 +2,24 @@
   <section class="phase-loading" :class="{ 'is-complete': isComplete }">
     <canvas ref="starfield" class="starfield"></canvas>
 
+    <!-- 星云过渡视频背景（带兼容降级） -->
+    <div v-if="shouldUseVideo && videoLoaded !== false" class="loading-video-bg">
+      <video
+        ref="loadingVideo"
+        class="loading-video"
+        :class="{ 'is-loaded': videoLoaded === true }"
+        autoplay
+        muted
+        loop
+        playsinline
+        :poster="baseUrl + 'images/generated/nebula-trailer-frame.jpg'"
+        :src="baseUrl + 'images/generated/nebula-trailer-v3-b.mp4'"
+        @error="onVideoError"
+        @loadeddata="onVideoLoaded"
+      ></video>
+      <div class="loading-video-overlay"></div>
+    </div>
+
     <!-- 魔法阵背景 -->
     <div class="magic-circle-bg">
       <div
@@ -90,6 +108,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { DataEngine } from '../engines/data/DataEngine.js';
+import { useVideoBackground } from '../composables/useVideoBackground.js';
 
 const emit = defineEmits(['done']);
 const baseUrl = import.meta.env.BASE_URL;
@@ -108,6 +127,19 @@ const characters = [
 const progress = ref(0);
 const tip = ref('正在召唤守护星座…');
 const isComplete = ref(false);
+const videoLoaded = ref(null);
+const loadingVideo = ref(null);
+
+const { shouldUseVideo } = useVideoBackground();
+
+function onVideoLoaded() {
+  videoLoaded.value = true;
+}
+
+function onVideoError(e) {
+  console.warn('[LoadingPhase] 过渡视频加载失败，降级到静态背景:', e);
+  videoLoaded.value = false;
+}
 
 const tips = [
   '正在召唤守护星座…',
@@ -203,6 +235,10 @@ onMounted(async () => {
 onUnmounted(() => {
   if (starRafId) cancelAnimationFrame(starRafId);
   if (starResizeHandler) window.removeEventListener('resize', starResizeHandler);
+  if (loadingVideo.value) {
+    loadingVideo.value.pause?.();
+    loadingVideo.value.src = '';
+  }
 });
 </script>
 
@@ -223,6 +259,43 @@ onUnmounted(() => {
   inset: 0;
   z-index: 0;
   pointer-events: none;
+}
+
+/* 星云过渡视频背景 */
+.loading-video-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  transition: opacity 0.9s ease;
+}
+
+.loading-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+  filter: hue-rotate(280deg) saturate(1.6) brightness(0.85);
+}
+
+.loading-video.is-loaded {
+  opacity: 0.6;
+}
+
+.loading-video-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at center, transparent 0%, rgba(13, 6, 24, 0.55) 55%, rgba(13, 6, 24, 0.95) 100%),
+    linear-gradient(180deg, rgba(26, 11, 46, 0.5) 0%, transparent 40%, transparent 60%, rgba(13, 6, 24, 0.75) 100%);
+  mix-blend-mode: multiply;
+}
+
+.phase-loading.is-complete .loading-video-bg {
+  opacity: 0;
 }
 
 /* 魔法阵背景 */
