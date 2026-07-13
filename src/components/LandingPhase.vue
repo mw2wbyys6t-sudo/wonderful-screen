@@ -9,16 +9,20 @@
       <div class="nebula-overlay"></div>
     </div>
 
-    <!-- 可选视频背景 -->
-    <div v-if="useVideoBg" class="video-bg">
+    <!-- 可选视频背景（带兼容性降级） -->
+    <div v-if="shouldUseVideo && videoLoaded !== false" class="video-bg">
       <video
         ref="bgVideo"
         class="bg-video"
+        :class="{ 'is-loaded': videoLoaded === true }"
         autoplay
         muted
         loop
         playsinline
-        :src="baseUrl + bgVideos[activeVideoIndex]"
+        :poster="baseUrl + 'images/generated/nebula-trailer-frame.jpg'"
+        :src="baseUrl + 'images/generated/nebula-trailer-v3-b.mp4'"
+        @error="onVideoError"
+        @loadeddata="onVideoLoaded"
       ></video>
       <div class="video-overlay"></div>
     </div>
@@ -118,6 +122,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useAudio } from '../composables/useAudio.js';
+import { useVideoBackground } from '../composables/useVideoBackground.js';
 
 const emit = defineEmits(['start']);
 const baseUrl = import.meta.env.BASE_URL;
@@ -125,17 +130,13 @@ const baseUrl = import.meta.env.BASE_URL;
 const isTransitioning = ref(false);
 const hoveredNode = ref(null);
 const parallax = ref({ x: 0, y: 0 });
-const useVideoBg = ref(false);
+const videoLoaded = ref(null); // null=加载中, true=成功, false=失败
+const bgVideo = ref(null);
 
 const { init: initAudio } = useAudio();
+const { shouldUseVideo } = useVideoBackground();
 
-const bgVideos = [
-  'images/generated/nebula-trailer-v3-a.mp4',
-  'images/generated/nebula-trailer-v3-b.mp4',
-  'images/generated/nebula-trailer-v3-c.mp4'
-];
-const activeVideoIndex = ref(0);
-let videoTimer = null;
+let videoObserver = null;
 
 const characters = [
   { name: '御坂美琴', file: 'misaka-mikoto.jpg' },
@@ -239,20 +240,40 @@ function initParticles() {
   draw();
 }
 
+function onVideoLoaded() {
+  videoLoaded.value = true;
+}
+
+function onVideoError(e) {
+  console.warn('[LandingPhase] 背景视频加载失败，降级到静态星云:', e);
+  videoLoaded.value = false;
+}
+
+function setupVideoObserver() {
+  if (!bgVideo.value || !('IntersectionObserver' in window)) return;
+  videoObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const video = bgVideo.value;
+      if (!video) return;
+      if (entry.isIntersecting) {
+        video.play?.().catch(() => {});
+      } else {
+        video.pause?.();
+      }
+    });
+  }, { threshold: 0.05 });
+  videoObserver.observe(bgVideo.value);
+}
+
 onMounted(() => {
   initParticles();
-
-  if (useVideoBg.value) {
-    videoTimer = setInterval(() => {
-      activeVideoIndex.value = (activeVideoIndex.value + 1) % bgVideos.length;
-    }, 8000);
-  }
+  setupVideoObserver();
 });
 
 onUnmounted(() => {
   if (particleRaf) cancelAnimationFrame(particleRaf);
   if (resizeHandler) window.removeEventListener('resize', resizeHandler);
-  if (videoTimer) clearInterval(videoTimer);
+  if (videoObserver) videoObserver.disconnect();
 });
 </script>
 
@@ -308,14 +329,21 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0.5;
+  opacity: 0;
+  transition: opacity 1.2s ease;
   filter: hue-rotate(280deg) saturate(1.5);
+}
+
+.bg-video.is-loaded {
+  opacity: 0.55;
 }
 
 .video-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(13, 6, 24, 0.55);
+  background:
+    radial-gradient(ellipse at center, transparent 0%, rgba(13, 6, 24, 0.5) 55%, rgba(13, 6, 24, 0.92) 100%),
+    linear-gradient(180deg, rgba(26, 11, 46, 0.4) 0%, transparent 40%, transparent 60%, rgba(13, 6, 24, 0.7) 100%);
   mix-blend-mode: multiply;
 }
 
