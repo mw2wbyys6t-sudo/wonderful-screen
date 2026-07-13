@@ -1,17 +1,20 @@
 // src/engines/interaction/InteractionEngine.js
-// 统一输入路由引擎：鼠标 / 键盘 / 手势 / 语音 → 事件总线
+// 统一输入路由引擎：鼠标 / 键盘 / 手势 / 语音 → GestureActionEngine → 业务逻辑
 
 import { bus } from '../core/EventBus.js';
 import { StateEngine } from '../core/StateEngine.js';
+import { GestureActionEngine } from './GestureActionEngine.js';
 
 export const InteractionEngine = {
   isDragging: false,
   lastPointer: { x: 0, y: 0 },
   keyboardEnabled: true,
   mouseEnabled: true,
+  gestureAction: null,
 
   init({ canvas, onPointerMove, onSelect, onZoom, onBack }) {
     this.canvas = canvas;
+    this.gestureAction = GestureActionEngine.init();
     this.bindMouse(canvas, onPointerMove, onSelect, onZoom);
     this.bindKeyboard(canvas, onBack);
     this.bindGlobal();
@@ -86,43 +89,57 @@ export const InteractionEngine = {
   },
 
   bindGlobal() {
-    // 手势/语音事件二次分发到语义事件
+    // 手势/语音事件二次分发到语义动作
     bus.on('gesture:move', (pos) => {
       StateEngine.set('inputMode', 'hand');
-      bus.emit('input:pointer', { x: pos.x * window.innerWidth, y: pos.y * window.innerHeight, normalized: pos });
+      this.gestureAction.move(pos.x, pos.y);
     });
 
-    bus.on('gesture:select', () => bus.emit('input:select'));
-    bus.on('gesture:back', () => bus.emit('input:back'));
-    bus.on('gesture:swipe', (dir) => bus.emit('input:swipe', dir));
-    bus.on('gesture:zoom', (delta) => bus.emit('input:zoom', delta));
+    bus.on('gesture:select', () => this.gestureAction.select());
+    bus.on('gesture:back', () => this.gestureAction.back());
+    bus.on('gesture:swipe', (dir) => {
+      if (dir > 0) this.gestureAction.nextYear();
+      else this.gestureAction.prevYear();
+    });
+    bus.on('gesture:zoom', (delta) => this.gestureAction.zoom(delta));
 
     bus.on('voice:intent', (intent) => {
       StateEngine.set('inputMode', 'voice');
       StateEngine.set('voiceIntent', intent);
       this.dispatchVoiceIntent(intent);
     });
+
+    // 新的语义动作事件统一处理
+    bus.on('input:search', (query) => {
+      bus.emit('action:search', query);
+    });
+    bus.on('input:reset-camera', () => {
+      bus.emit('action:reset-camera');
+    });
   },
 
   dispatchVoiceIntent(intent) {
     switch (intent.action) {
       case 'focus-year':
-        StateEngine.focusYear(intent.year);
+        this.gestureAction.focusYear(intent.year);
         break;
       case 'focus-anime':
-        StateEngine.select(intent.id);
+        this.gestureAction.focusAnime(intent.id);
         break;
       case 'recommend':
-        StateEngine.filterGenre(intent.genre);
+        this.gestureAction.focusGenre(intent.genre);
         break;
       case 'back':
-        bus.emit('input:back');
+        this.gestureAction.back();
         break;
       case 'home':
         StateEngine.navigate('landing');
         break;
       case 'clear':
         StateEngine.clearFilter();
+        break;
+      case 'search':
+        this.gestureAction.search(intent.query);
         break;
     }
   }

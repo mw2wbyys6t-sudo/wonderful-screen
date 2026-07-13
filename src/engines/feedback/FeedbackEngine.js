@@ -50,6 +50,15 @@ export const FeedbackEngine = {
       }),
       bus.on('gesture:swipe:direction', (direction) => {
         this.cursorRenderer.onSwipe(direction);
+      }),
+      bus.on('gesture:dwell-progress', (progress) => {
+        this.cursorRenderer.onDwellProgress(progress);
+      }),
+      bus.on('gesture:dwell-complete', () => {
+        this.cursorRenderer.onPinchComplete();
+      }),
+      bus.on('anime:hovered', (id) => {
+        this.cursorRenderer.onHoverAnime(id);
       })
     ];
 

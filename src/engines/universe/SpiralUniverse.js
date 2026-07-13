@@ -600,6 +600,15 @@ export class SpiralUniverse {
     return null;
   }
 
+  // 外部输入（手势/语音/键盘）设置光标位置，用于更新 hover 状态
+  setPointerFromScreen(x, y) {
+    if (this.isDragging) return;
+    const rect = this.canvas.getBoundingClientRect();
+    const mx = x - rect.left;
+    const my = y - rect.top;
+    this._updateHover(mx, my);
+  }
+
   resetView() {
     this.autoRotate = true;
     this.targetScale = 0.35;
@@ -977,6 +986,20 @@ export class SpiralUniverse {
       ctx.arc(pos.x, pos.y, Math.max(0.3, size * 0.6), 0, Math.PI * 2);
       ctx.fillStyle = colorWithAlpha(node.color, alpha);
       ctx.fill();
+
+      // 悬停时额外目标环，增强手势/鼠标交互反馈
+      if (isHovered) {
+        ctx.save();
+        ctx.translate(pos.x, pos.y);
+        ctx.rotate(this.time * 1.5);
+        ctx.beginPath();
+        ctx.arc(0, 0, size * 3.2, 0, Math.PI * 2);
+        ctx.strokeStyle = colorWithAlpha('#ffffff', 0.45 + 0.25 * Math.sin(this.time * 4));
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([8, 5]);
+        ctx.stroke();
+        ctx.restore();
+      }
 
       // 选中/高亮/搜索结果外环
       if (isSelected || isSearchHighlight || isGenreHighlight || isSearchResult) {

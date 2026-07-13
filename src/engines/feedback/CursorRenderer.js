@@ -71,6 +71,10 @@ export class CursorRenderer {
     this.charge = { fist: 0, open: 0 }; // 蓄力进度
     this.fistTriggered = false;
 
+    this.dwellProgress = 0; // 悬停停留选择进度
+    this.hoverId = null; // 当前悬停的作品 id
+    this.hoverPulse = 0; // 悬停脉冲动画相位
+
     this.lastTrailTime = 0;
     this.isActive = false;
   }
@@ -157,6 +161,14 @@ export class CursorRenderer {
     this.spawnScreenFlash(STATE_COLORS.open);
   }
 
+  onDwellProgress(progress) {
+    this.dwellProgress = progress;
+  }
+
+  onHoverAnime(id) {
+    this.hoverId = id;
+  }
+
   onSwipe(direction) {
     const color = direction === 'right' ? '#00f3ff' : '#b892ff';
     this.arrows.push({
@@ -221,6 +233,13 @@ export class CursorRenderer {
     this.rafId = requestAnimationFrame((t) => this.render(t));
 
     const dt = 16.67;
+
+    // 悬停恒星时脉冲相位推进
+    if (this.hoverId) {
+      this.hoverPulse += dt * 0.004;
+    } else {
+      this.hoverPulse = 0;
+    }
 
     // 生成拖尾
     if (now - this.lastTrailTime > 12) {
@@ -402,6 +421,32 @@ export class CursorRenderer {
       this.ctx.lineWidth = 4;
       this.ctx.lineCap = 'round';
       this.ctx.stroke();
+    }
+
+    // 悬停恒星吸附环
+    if (this.hoverId) {
+      const pulse = 0.7 + Math.sin(this.hoverPulse * Math.PI * 2) * 0.3;
+      this.ctx.beginPath();
+      this.ctx.arc(cursorPos.x, cursorPos.y, 34 + pulse * 6, 0, Math.PI * 2);
+      this.ctx.strokeStyle = `rgba(0, 243, 255, ${0.35 + pulse * 0.25})`;
+      this.ctx.lineWidth = 2;
+      this.ctx.setLineDash([6, 6]);
+      this.ctx.stroke();
+      this.ctx.setLineDash([]);
+    }
+
+    // 悬停停留选择进度环
+    if (this.dwellProgress > 0.01) {
+      const dwellRgb = hexToRgb(STATE_COLORS.pinching);
+      this.ctx.beginPath();
+      this.ctx.arc(cursorPos.x, cursorPos.y, 42, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * this.dwellProgress);
+      this.ctx.strokeStyle = `rgba(${dwellRgb.r},${dwellRgb.g},${dwellRgb.b},${0.6 + this.dwellProgress * 0.4})`;
+      this.ctx.lineWidth = 5;
+      this.ctx.lineCap = 'round';
+      this.ctx.shadowColor = STATE_COLORS.pinching;
+      this.ctx.shadowBlur = 14;
+      this.ctx.stroke();
+      this.ctx.shadowBlur = 0;
     }
 
     // 状态形状

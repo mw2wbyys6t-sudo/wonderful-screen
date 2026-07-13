@@ -7,14 +7,14 @@ import { bus } from '../core/EventBus.js';
 const CONFIG = {
   CAMERA_WIDTH: 320,
   CAMERA_HEIGHT: 240,
-  PINCH_THRESHOLD: 0.06,
-  PINCH_COOLDOWN_MS: 700,
-  OPEN_HOLD_MS: 600,
-  FIST_HOLD_MS: 500,
-  SWIPE_THRESHOLD: 0.18,
+  PINCH_THRESHOLD: 0.055,
+  PINCH_COOLDOWN_MS: 650,
+  OPEN_HOLD_MS: 650,
+  FIST_HOLD_MS: 550,
+  SWIPE_THRESHOLD: 0.16,
   SWIPE_COOLDOWN_MS: 800,
-  CURSOR_LERP: 0.22,
-  HAND_DEAD_ZONE_PX: 5,
+  CURSOR_LERP: 0.42,
+  HAND_DEAD_ZONE_PX: 2.5,
   ZOOM_THRESHOLD: 0.12,
   CAMERA_TIMEOUT_MS: 10000
 };
@@ -55,6 +55,7 @@ export const GestureEngine = {
   gestureText: ref(''),
   handX: ref(0.5),
   handY: ref(0.5),
+  handDetected: ref(false),
 
   hands: null,
   camera: null,
@@ -64,6 +65,7 @@ export const GestureEngine = {
 
   cursor: { x: 0.5, y: 0.5 },
   lastCursor: { x: 0.5, y: 0.5 },
+  lastMoveEmitted: false,
   lastPinchTime: 0,
   lastSwipeTime: 0,
   openStartTime: 0,
@@ -200,9 +202,11 @@ export const GestureEngine = {
 
     if (!results.multiHandLandmarks || !results.multiHandLandmarks.length) {
       this.gestureText.value = '';
+      this.handDetected.value = false;
       return;
     }
 
+    this.handDetected.value = true;
     const landmarks = results.multiHandLandmarks[0];
     this.detectGesture(landmarks);
 
@@ -220,19 +224,25 @@ export const GestureEngine = {
     const pinkyTip = landmarks[20];
     const middleMCP = landmarks[9];
 
-    // 食指光标位置（镜像）
+    // 食指光标位置（镜像），使用预测性平滑减少抖动
     const rawX = 1 - indexTip.x;
     const rawY = indexTip.y;
+
+    // 对 raw 输入做低通平滑
     this.cursor.x += (rawX - this.cursor.x) * CONFIG.CURSOR_LERP;
     this.cursor.y += (rawY - this.cursor.y) * CONFIG.CURSOR_LERP;
 
+    // 死区内降低 emit 频率但不完全停止，保持手感跟手
     const dx = Math.abs(this.cursor.x - this.lastCursor.x) * window.innerWidth;
     const dy = Math.abs(this.cursor.y - this.lastCursor.y) * window.innerHeight;
-    if (dx > CONFIG.HAND_DEAD_ZONE_PX || dy > CONFIG.HAND_DEAD_ZONE_PX) {
+    const moved = dx > CONFIG.HAND_DEAD_ZONE_PX || dy > CONFIG.HAND_DEAD_ZONE_PX;
+
+    if (moved || !this.lastMoveEmitted) {
       this.handX.value = this.cursor.x;
       this.handY.value = this.cursor.y;
-      bus.emit('gesture:move', { x: this.cursor.x, y: this.cursor.y });
+      bus.emit('gesture:move', { x: this.cursor.x, y: this.cursor.y, velocity: { x: dx, y: dy } });
       this.lastCursor = { x: this.cursor.x, y: this.cursor.y };
+      this.lastMoveEmitted = true;
     }
 
     // 捏合：食指拇指距离
