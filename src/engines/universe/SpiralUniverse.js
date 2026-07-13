@@ -69,6 +69,9 @@ export class SpiralUniverse {
     this.hoveredNode = null;
     this.selectedNode = null;
     this.searchHighlight = null;
+    this.searchResults = new Set(); // 搜索命中集合
+    this.searchMode = false;        // 是否处于搜索聚焦模式
+    this.searchPulseTime = 0;       // 搜索脉冲相位
 
     // 动画状态
     this.time = 0;
@@ -78,11 +81,13 @@ export class SpiralUniverse {
     this.starDust = [];
     this.connections = [];
     this.ripples = [];
+    this.spiralArms = []; // 旋臂光带路径
 
     // 回调（预留纯手势模式接口）
     this.onNodeHover = null;
     this.onNodeClick = null;
     this.onCameraChange = null;
+    this.onSearchComplete = null;
 
     this.running = false;
     this.rafId = null;
@@ -103,6 +108,7 @@ export class SpiralUniverse {
   async init() {
     await DataEngine.load();
     this._buildGalaxy();
+    this._buildSpiralArms();
     this._buildStarDust();
     this._buildGenreClouds();
     this._buildConnections();
@@ -214,6 +220,31 @@ export class SpiralUniverse {
         }))
       };
     }).filter(Boolean);
+  }
+
+  _buildSpiralArms() {
+    // 生成4条主要旋臂光带路径
+    const arms = 4;
+    const pointsPerArm = 120;
+    const maxRadius = 2000;
+    const armWidth = 90;
+
+    this.spiralArms = Array.from({ length: arms }, (_, armIndex) => {
+      const armOffset = (armIndex / arms) * Math.PI * 2;
+      const points = [];
+      for (let i = 0; i <= pointsPerArm; i++) {
+        const t = i / pointsPerArm;
+        const angle = armOffset + t * Math.PI * 5;
+        const radius = 100 + t * maxRadius;
+        points.push({
+          x: Math.cos(angle) * radius,
+          y: Math.sin(angle) * radius,
+          width: armWidth * (0.6 + 0.4 * (1 - t)),
+          alpha: 0.06 * (1 - t * 0.6)
+        });
+      }
+      return { points, color: armIndex % 2 === 0 ? COLORS.cyan : COLORS.purple };
+    });
   }
 
   _buildConnections() {
@@ -348,12 +379,16 @@ export class SpiralUniverse {
       this.velocity = { x: 0, y: 0 };
     }
 
-    // 如果是点击（移动很小），触发选中
+    // 如果是点击（移动很小），触发选中或退出搜索模式
     const rect = this.canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
-    if (speed < 5 && this.hoveredNode) {
-      this.selectNode(this.hoveredNode);
+    if (speed < 5) {
+      if (this.hoveredNode) {
+        this.selectNode(this.hoveredNode);
+      } else if (this.searchMode) {
+        this.clearSearchMode();
+      }
     }
   }
 
@@ -446,8 +481,12 @@ export class SpiralUniverse {
     const node = typeof nodeOrId === 'object' ? nodeOrId : this.nodes.find(n => String(n.id) === String(nodeOrId));
     if (!node) return;
 
+    this.searchMode = true;
+    this.searchResults.clear();
+    this.searchResults.add(node.id);
     this.searchHighlight = node;
     this.selectedNode = node;
+    this.searchPulseTime = 0;
     this.autoRotate = false;
 
     // 目标：让该节点位于屏幕中央，并放大到合适尺寸
@@ -455,23 +494,53 @@ export class SpiralUniverse {
     this.targetOffsetX = -node.x;
     this.targetOffsetY = -node.y;
 
-    // 高亮闪烁
-    let flashes = 0;
-    const flash = () => {
-      if (flashes >= 6) {
-        this.searchHighlight = null;
-        return;
-      }
-      this.searchHighlight = flashes % 2 === 0 ? node : null;
-      flashes++;
-      setTimeout(flash, 250);
-    };
-    flash();
-
     // 选中波纹
     this.ripples.push({ x: node.x, y: node.y, r: 0, alpha: 1, color: node.color });
+    this.ripples.push({ x: node.x, y: node.y, r: 0, alpha: 0.7, color: COLORS.white });
 
     if (this.onNodeClick) this.onNodeClick(node);
+    if (this.onSearchComplete) this.onSearchComplete({ query: '', results: 1, first: node });
+  }
+
+  // 多结果搜索模式：高亮所有命中，暗化其他
+  focusOnSearchResults(results) {
+    if (!results || results.length === 0) {
+      this.clearSearchMode();
+      return;
+    }
+
+    this.searchMode = true;
+    this.searchResults.clear();
+    results.forEach(r => {
+      const id = r.id || r;
+      this.searchResults.add(String(id));
+    });
+    this.searchPulseTime = 0;
+    this.autoRotate = false;
+
+    // 计算所有命中节点的外接中心
+    const matchedNodes = this.nodes.filter(n => this.searchResults.has(String(n.id)));
+    if (matchedNodes.length === 0) {
+      this.clearSearchMode();
+      return;
+    }
+
+    const cx = matchedNodes.reduce((s, n) => s + n.x, 0) / matchedNodes.length;
+    const cy = matchedNodes.reduce((s, n) => s + n.y, 0) / matchedNodes.length;
+
+    this.targetOffsetX = -cx;
+    this.targetOffsetY = -cy;
+
+    const maxDist = Math.max(...matchedNodes.map(n => dist(n.x, n.y, cx, cy)));
+    this.targetScale = clamp(500 / (maxDist + 120), 0.25, 1.0);
+
+    if (this.onSearchComplete) this.onSearchComplete({ query: '', results: matchedNodes.length, first: matchedNodes[0] });
+  }
+
+  clearSearchMode() {
+    this.searchMode = false;
+    this.searchResults.clear();
+    this.searchHighlight = null;
   }
 
   focusOnGenre(genre) {
@@ -623,6 +692,9 @@ export class SpiralUniverse {
     ctx.fillStyle = fog;
     ctx.fillRect(0, 0, w, h);
 
+    // 绘制旋臂光带
+    this._renderSpiralArms(ctx);
+
     // 绘制背景星尘
     this._renderStarDust(ctx);
 
@@ -642,6 +714,60 @@ export class SpiralUniverse {
     if (this.searchHighlight) {
       this._renderSearchHighlight(ctx);
     }
+  }
+
+  _renderSpiralArms(ctx) {
+    if (this.scale > 1.2) return; // 太近不画旋臂，避免遮挡
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+
+    for (const arm of this.spiralArms) {
+      const points = arm.points;
+      if (points.length < 2) continue;
+
+      ctx.beginPath();
+      const first = this.worldToScreen(points[0].x, points[0].y);
+      ctx.moveTo(first.x, first.y);
+
+      for (let i = 1; i < points.length; i++) {
+        const p = this.worldToScreen(points[i].x, points[i].y);
+        const prev = this.worldToScreen(points[i - 1].x, points[i - 1].y);
+        const mx = (prev.x + p.x) / 2;
+        const my = (prev.y + p.y) / 2;
+        ctx.quadraticCurveTo(prev.x, prev.y, mx, my);
+      }
+
+      const last = this.worldToScreen(points[points.length - 1].x, points[points.length - 1].y);
+      ctx.lineTo(last.x, last.y);
+
+      // 动态流动效果
+      const flowAlpha = 0.4 + 0.3 * Math.sin(this.time * 1.5);
+      const gradient = ctx.createLinearGradient(first.x, first.y, last.x, last.y);
+      const rgb = hexToRgb(arm.color);
+      gradient.addColorStop(0, `rgba(${rgb.r},${rgb.g},${rgb.b},0)`);
+      gradient.addColorStop(0.3, `rgba(${rgb.r},${rgb.g},${rgb.b},${0.04 * flowAlpha * this.birthProgress})`);
+      gradient.addColorStop(0.7, `rgba(${rgb.r},${rgb.g},${rgb.b},${0.08 * flowAlpha * this.birthProgress})`);
+      gradient.addColorStop(1, `rgba(${rgb.r},${rgb.g},${rgb.b},0)`);
+
+      ctx.strokeStyle = gradient;
+      ctx.lineWidth = points[0].width * this.scale;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // 旋臂核心亮线
+      ctx.beginPath();
+      ctx.moveTo(first.x, first.y);
+      for (let i = 1; i < points.length; i++) {
+        const p = this.worldToScreen(points[i].x, points[i].y);
+        ctx.lineTo(p.x, p.y);
+      }
+      ctx.strokeStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},${0.15 * flowAlpha * this.birthProgress})`;
+      ctx.lineWidth = Math.max(0.5, 2 * this.scale);
+      ctx.stroke();
+    }
+
+    ctx.restore();
   }
 
   _renderStarDust(ctx) {
@@ -780,6 +906,11 @@ export class SpiralUniverse {
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
 
+    // 搜索模式下，更新搜索脉冲相位
+    if (this.searchMode) {
+      this.searchPulseTime += 0.016;
+    }
+
     // 按大小排序，大星后画，小星先画
     const sorted = [...this.nodes].sort((a, b) => b.size - a.size);
 
@@ -791,25 +922,38 @@ export class SpiralUniverse {
 
       const isHovered = hovered === node;
       const isSelected = selected === node;
+      const isSearchResult = this.searchResults.has(String(node.id));
       const isSearchHighlight = this.searchHighlight === node;
       const isGenreHighlight = node.highlightUntil && node.highlightUntil > now;
 
-      // 基础脉冲
-      const pulse = 1 + 0.12 * Math.sin(t * 2 + node.pulsePhase);
+      // 搜索模式下的暗化逻辑
+      let dimFactor = 1;
+      if (this.searchMode && !isSearchResult) {
+        dimFactor = 0.15; // 非命中节点大幅暗化
+      }
+
+      // 基础脉冲 + 搜索结果强脉冲
+      let pulse = 1 + 0.12 * Math.sin(t * 2 + node.pulsePhase);
+      if (isSearchResult) {
+        pulse *= 1 + 0.35 * Math.sin(this.searchPulseTime * 6);
+      }
       const baseSize = node.size * birth * pulse;
 
-      // hover/selected放大
-      const hoverScale = isHovered ? 1.5 : (isSelected ? 1.3 : 1);
+      // hover/selected/搜索结果放大
+      let hoverScale = 1;
+      if (isHovered) hoverScale = 1.5;
+      else if (isSelected || isSearchHighlight) hoverScale = 1.35;
+      else if (isSearchResult) hoverScale = 1.2;
       const size = baseSize * this.scale * hoverScale;
       if (size < 0.5) continue;
 
       // 亮度
-      const baseAlpha = node.alpha * birth;
-      const alpha = isHovered || isSelected || isSearchHighlight || isGenreHighlight ?
-        Math.min(1, baseAlpha * 1.5) : baseAlpha;
+      const baseAlpha = node.alpha * birth * dimFactor;
+      const alpha = isHovered || isSelected || isSearchHighlight || isGenreHighlight || isSearchResult ?
+        Math.min(1, baseAlpha * 1.8) : baseAlpha;
 
       // 光晕
-      const glowSize = size * (isHovered ? 5 : (isSelected ? 4 : 2.5));
+      const glowSize = size * (isHovered ? 5 : (isSelected || isSearchHighlight ? 4.5 : (isSearchResult ? 3.5 : 2.5)));
       if (glowSize > 1) {
         const glow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, glowSize);
         glow.addColorStop(0, colorWithAlpha(node.color, alpha * 0.6));
@@ -833,13 +977,27 @@ export class SpiralUniverse {
       ctx.fillStyle = colorWithAlpha(node.color, alpha);
       ctx.fill();
 
-      // 选中/高亮外环
-      if (isSelected || isSearchHighlight || isGenreHighlight) {
+      // 选中/高亮/搜索结果外环
+      if (isSelected || isSearchHighlight || isGenreHighlight || isSearchResult) {
         ctx.beginPath();
         ctx.arc(pos.x, pos.y, size * 2.5, 0, Math.PI * 2);
-        ctx.strokeStyle = colorWithAlpha(node.color, 0.6);
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = colorWithAlpha(node.color, isSearchResult && !isSearchHighlight ? 0.35 : 0.6);
+        ctx.lineWidth = isSearchResult ? 1 : 1.5;
         ctx.stroke();
+      }
+
+      // 搜索高亮特殊标记：粉色旋转虚线环
+      if (isSearchHighlight) {
+        ctx.save();
+        ctx.translate(pos.x, pos.y);
+        ctx.rotate(t * 2);
+        ctx.beginPath();
+        ctx.arc(0, 0, size * 4, 0, Math.PI * 2);
+        ctx.strokeStyle = colorWithAlpha(COLORS.pink, 0.8);
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 4]);
+        ctx.stroke();
+        ctx.restore();
       }
 
       // 高分作品十字光芒

@@ -15,6 +15,9 @@ export const FeedbackEngine = {
     this.cursorRenderer = new CursorRenderer();
     this.cursorRenderer.init(canvas);
 
+    let lastFist = 0;
+    let lastOpen = 0;
+
     this.cleanupFns = [
       bus.on('gesture:move', ({ x, y }) => {
         this.cursorRenderer.setPosition(x, y);
@@ -31,9 +34,19 @@ export const FeedbackEngine = {
       }),
       bus.on('gesture:fist:progress', (progress) => {
         this.cursorRenderer.onFistProgress(progress);
+        // 检测握拳动作完成（从高位快速回落）
+        if (lastFist > 0.7 && progress < 0.2) {
+          this.cursorRenderer.onFistComplete();
+        }
+        lastFist = progress;
       }),
       bus.on('gesture:open:progress', (progress) => {
         this.cursorRenderer.onOpenProgress(progress);
+        // 检测张开动作完成
+        if (lastOpen > 0.7 && progress < 0.2) {
+          this.cursorRenderer.onOpenComplete();
+        }
+        lastOpen = progress;
       }),
       bus.on('gesture:swipe:direction', (direction) => {
         this.cursorRenderer.onSwipe(direction);

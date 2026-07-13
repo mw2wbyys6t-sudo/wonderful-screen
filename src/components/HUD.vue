@@ -18,6 +18,7 @@
           :style="chipStyle(genre, info.color)"
           @click="toggleGenre(genre)"
         >
+          <span class="chip-dot" :style="{ background: info.color }"></span>
           {{ genre }}
         </div>
       </div>
@@ -74,6 +75,9 @@
     <transition name="fade">
       <div v-if="noResult" class="hud-toast">未找到结果</div>
     </transition>
+    <transition name="fade">
+      <div v-if="searchResultText" class="hud-toast hud-toast--success">{{ searchResultText }}</div>
+    </transition>
     <div v-if="showHelp" class="help-panel" @click="showHelp = false">
       <div class="help-content" @click.stop>
         <h3>操作指南</h3>
@@ -113,6 +117,7 @@ const activeGenre = ref(StateEngine.state.activeGenre);
 const showHelp = ref(false);
 const showNebula = ref(false);
 const noResult = ref(false);
+const searchResultText = ref('');
 const gestureState = ref('');
 
 const gestureItems = [
@@ -124,6 +129,7 @@ const gestureItems = [
 ];
 
 let noResultTimeout = null;
+let searchResultTimeout = null;
 let searchDebounce = null;
 let unsubscribe = null;
 let gestureUnsubscribe = null;
@@ -168,10 +174,20 @@ function focusNebula(genre) {
 
 function showNoResult() {
   noResult.value = true;
+  searchResultText.value = '';
   if (noResultTimeout) clearTimeout(noResultTimeout);
   noResultTimeout = setTimeout(() => {
     noResult.value = false;
   }, 2000);
+}
+
+function showSearchResult(query, count) {
+  noResult.value = false;
+  searchResultText.value = `找到 ${count} 颗恒星`;
+  if (searchResultTimeout) clearTimeout(searchResultTimeout);
+  searchResultTimeout = setTimeout(() => {
+    searchResultText.value = '';
+  }, 2500);
 }
 
 watch(searchText, (val) => {
@@ -181,7 +197,7 @@ watch(searchText, (val) => {
   }, 300);
 });
 
-defineExpose({ showNoResult });
+defineExpose({ showNoResult, showSearchResult });
 </script>
 
 <style scoped>
@@ -239,6 +255,9 @@ defineExpose({ showNoResult });
 }
 
 .hud-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 6px 12px;
   border-radius: 16px;
   border: 1px solid var(--glass-border);
@@ -246,6 +265,13 @@ defineExpose({ showNoResult });
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
+}
+
+.chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-shadow: 0 0 6px currentColor;
 }
 
 .hud-actions {
@@ -413,6 +439,19 @@ defineExpose({ showNoResult });
   font-size: 13px;
   pointer-events: none;
   z-index: 20;
+}
+
+.hud-toast--success {
+  border-color: rgba(0, 243, 255, 0.5);
+  color: #00f3ff;
+  box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+  animation: toastPulse 0.6s ease;
+}
+
+@keyframes toastPulse {
+  0% { transform: translateX(-50%) scale(0.9); opacity: 0; }
+  50% { transform: translateX(-50%) scale(1.05); opacity: 1; }
+  100% { transform: translateX(-50%) scale(1); opacity: 1; }
 }
 
 .fade-enter-active,

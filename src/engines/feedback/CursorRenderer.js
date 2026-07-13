@@ -17,6 +17,40 @@ const STATE_LABELS = {
   swiping: '挥手'
 };
 
+// 光标形状配置
+const CURSOR_SHAPES = {
+  pointing: 'dot',
+  pinching: 'diamond',
+  fist: 'x',
+  open: 'ring',
+  swiping: 'arrow'
+};
+
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : { r: 0, g: 243, b: 255 };
+}
+
+function lerpColor(colorA, colorB, t) {
+  const ca = hexToRgb(colorA);
+  const cb = hexToRgb(colorB);
+  const r = Math.round(ca.r + (cb.r - ca.r) * t);
+  const g = Math.round(ca.g + (cb.g - ca.g) * t);
+  const b = Math.round(ca.b + (cb.b - ca.b) * t);
+  return `rgb(${r},${g},${b})`;
+}
+
+// 速度色温：低速冷青 -> 高速热粉
+function speedColor(speed, baseColor) {
+  const t = Math.min(1, speed / 400);
+  if (t < 0.3) return baseColor;
+  return t > 0.7 ? '#ff2a6d' : (t > 0.45 ? '#fffd75' : baseColor);
+}
+
 export class CursorRenderer {
   constructor() {
     this.canvas = null;
@@ -33,7 +67,9 @@ export class CursorRenderer {
     this.trail = []; // 拖尾粒子
     this.rings = []; // 冲击波环
     this.arrows = []; // 挥手箭头
+    this.flashes = []; // 屏幕闪光
     this.charge = { fist: 0, open: 0 }; // 蓄力进度
+    this.fistTriggered = false;
 
     this.lastTrailTime = 0;
     this.isActive = false;
@@ -87,14 +123,38 @@ export class CursorRenderer {
   onPinchComplete() {
     this.spawnRing(2.2, '#ffffff', 0.55);
     this.spawnRing(1.5, STATE_COLORS.pinching, 0.45);
+    this.spawnScreenFlash(STATE_COLORS.pinching);
+  }
+
+  // 屏幕闪光效果
+  spawnScreenFlash(color) {
+    if (!this.flashes) this.flashes = [];
+    this.flashes.push({ life: 1.0, color });
   }
 
   onFistProgress(progress) {
     this.charge.fist = progress;
+    // 握拳进度高时触发暗角预告
+    if (progress > 0.85 && !this.fistTriggered) {
+      this.fistTriggered = true;
+      this.spawnScreenFlash(STATE_COLORS.fist);
+    }
+    if (progress < 0.1) this.fistTriggered = false;
+  }
+
+  onFistComplete() {
+    this.charge.fist = 0;
+    this.fistTriggered = false;
+    this.spawnScreenFlash(STATE_COLORS.fist);
   }
 
   onOpenProgress(progress) {
     this.charge.open = progress;
+  }
+
+  onOpenComplete() {
+    this.charge.open = 0;
+    this.spawnScreenFlash(STATE_COLORS.open);
   }
 
   onSwipe(direction) {
@@ -105,8 +165,10 @@ export class CursorRenderer {
       y: this.pos.y,
       life: 1.0,
       color,
-      size: 0
+      size: 0,
+      blade: true
     });
+    this.spawnScreenFlash(color);
   }
 
   spawnRing(intensity, color, alpha) {
@@ -127,17 +189,22 @@ export class CursorRenderer {
     const speed = Math.hypot(this.velocity.x, this.velocity.y);
     if (speed < 2) return;
 
-    const count = Math.min(3, Math.floor(speed / 40) + 1);
+    const baseColor = STATE_COLORS[this.state] || STATE_COLORS.pointing;
+    const hotColor = speedColor(speed, baseColor);
+    const count = Math.min(10, Math.floor(speed / 22) + 2);
+
     for (let i = 0; i < count; i++) {
+      const t = i / Math.max(1, count - 1);
+      const color = lerpColor(baseColor, hotColor, t * 0.8);
       this.trail.push({
-        x: this.pos.x + (Math.random() - 0.5) * 0.008,
-        y: this.pos.y + (Math.random() - 0.5) * 0.008,
-        vx: (Math.random() - 0.5) * 0.0005,
-        vy: (Math.random() - 0.5) * 0.0005,
+        x: this.pos.x + (Math.random() - 0.5) * 0.012,
+        y: this.pos.y + (Math.random() - 0.5) * 0.012,
+        vx: (Math.random() - 0.5) * 0.0007,
+        vy: (Math.random() - 0.5) * 0.0007,
         life: 1.0,
-        decay: 0.04 + Math.random() * 0.03,
-        size: 2 + Math.random() * 3,
-        color: STATE_COLORS[this.state] || STATE_COLORS.pointing
+        decay: 0.022 + Math.random() * 0.018,
+        size: (2.8 + Math.random() * 4) * (1 + speed / 280),
+        color
       });
     }
   }
@@ -156,7 +223,7 @@ export class CursorRenderer {
     const dt = 16.67;
 
     // 生成拖尾
-    if (now - this.lastTrailTime > 16) {
+    if (now - this.lastTrailTime > 12) {
       this.spawnTrailParticle();
       this.lastTrailTime = now;
     }
@@ -165,7 +232,43 @@ export class CursorRenderer {
     const h = window.innerHeight;
     this.ctx.clearRect(0, 0, w, h);
 
+    // 绘制屏幕闪光
+    this._renderFlashes(w, h);
+
     // 绘制拖尾
+    this._renderTrail();
+
+    // 绘制冲击波环
+    this._renderRings();
+
+    // 绘制挥手光刃
+    this._renderBlades();
+
+    // 绘制主光标
+    this._renderCursor(w, h);
+  }
+
+  _renderFlashes(w, h) {
+    if (!this.flashes || this.flashes.length === 0) return;
+    for (let i = this.flashes.length - 1; i >= 0; i--) {
+      const f = this.flashes[i];
+      f.life -= 0.04;
+      if (f.life <= 0) {
+        this.flashes.splice(i, 1);
+        continue;
+      }
+      const alpha = f.life * 0.18;
+      const rgb = hexToRgb(f.color);
+      this.ctx.fillStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`;
+      this.ctx.fillRect(0, 0, w, h);
+    }
+  }
+
+  _renderTrail() {
+    if (this.trail.length === 0) return;
+    this.ctx.save();
+    this.ctx.globalCompositeOperation = 'screen';
+
     for (let i = this.trail.length - 1; i >= 0; i--) {
       const p = this.trail[i];
       p.life -= p.decay;
@@ -176,13 +279,23 @@ export class CursorRenderer {
       p.x += p.vx;
       p.y += p.vy;
       const pos = this.toScreen(p);
+      const alpha = Math.floor(p.life * 200).toString(16).padStart(2, '0');
+      const size = Math.max(0.5, p.size * p.life);
+
       this.ctx.beginPath();
-      this.ctx.arc(pos.x, pos.y, p.size * p.life, 0, Math.PI * 2);
-      this.ctx.fillStyle = p.color + Math.floor(p.life * 120).toString(16).padStart(2, '0');
+      this.ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
+      this.ctx.fillStyle = p.color + alpha;
       this.ctx.fill();
     }
 
-    // 绘制冲击波环
+    this.ctx.restore();
+  }
+
+  _renderRings() {
+    if (this.rings.length === 0) return;
+    this.ctx.save();
+    this.ctx.globalCompositeOperation = 'screen';
+
     for (let i = this.rings.length - 1; i >= 0; i--) {
       const r = this.rings[i];
       r.life -= r.decay;
@@ -192,14 +305,22 @@ export class CursorRenderer {
       }
       r.radius += (r.maxRadius - r.radius) * 0.12;
       const pos = this.toScreen(r);
+      const alpha = Math.floor(r.life * r.alpha * 255).toString(16).padStart(2, '0');
       this.ctx.beginPath();
       this.ctx.arc(pos.x, pos.y, r.radius, 0, Math.PI * 2);
-      this.ctx.strokeStyle = r.color + Math.floor(r.life * r.alpha * 255).toString(16).padStart(2, '0');
+      this.ctx.strokeStyle = r.color + alpha;
       this.ctx.lineWidth = r.width * r.life;
       this.ctx.stroke();
     }
 
-    // 绘制挥手箭头
+    this.ctx.restore();
+  }
+
+  _renderBlades() {
+    if (this.arrows.length === 0) return;
+    this.ctx.save();
+    this.ctx.globalCompositeOperation = 'screen';
+
     for (let i = this.arrows.length - 1; i >= 0; i--) {
       const a = this.arrows[i];
       a.life -= 0.025;
@@ -210,64 +331,147 @@ export class CursorRenderer {
       }
       const pos = this.toScreen(a);
       const dx = a.direction === 'right' ? 1 : -1;
+      const rgb = hexToRgb(a.color);
+
       this.ctx.save();
       this.ctx.translate(pos.x, pos.y);
       this.ctx.globalAlpha = a.life;
-      this.ctx.strokeStyle = a.color;
-      this.ctx.lineWidth = 3;
+      this.ctx.shadowColor = a.color;
+      this.ctx.shadowBlur = 20;
+      this.ctx.strokeStyle = `rgba(255,255,255,${a.life * 0.9})`;
+      this.ctx.lineWidth = 4;
       this.ctx.lineCap = 'round';
+
+      // 光刃主体
       this.ctx.beginPath();
-      this.ctx.moveTo(-30 * a.size * dx, -15 * a.size);
+      this.ctx.moveTo(-120 * a.size * dx, -3 * a.size);
       this.ctx.lineTo(0, 0);
-      this.ctx.lineTo(-30 * a.size * dx, 15 * a.size);
+      this.ctx.lineTo(-120 * a.size * dx, 3 * a.size);
       this.ctx.stroke();
+
+      // 光刃尾焰
+      this.ctx.strokeStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},${a.life * 0.6})`;
+      this.ctx.lineWidth = 8;
+      this.ctx.beginPath();
+      this.ctx.moveTo(-80 * a.size * dx, 0);
+      this.ctx.lineTo(-140 * a.size * dx, 0);
+      this.ctx.stroke();
+
       this.ctx.restore();
     }
 
-    // 绘制主光标
+    this.ctx.restore();
+  }
+
+  _renderCursor(w, h) {
     const cursorPos = this.toScreen(this.pos);
     const color = STATE_COLORS[this.state] || STATE_COLORS.pointing;
+    const shape = CURSOR_SHAPES[this.state] || 'dot';
+    const rgb = hexToRgb(color);
+
+    // 握拳时屏幕暗角收缩
+    if (this.charge.fist > 0.1) {
+      const vig = this.ctx.createRadialGradient(
+        cursorPos.x, cursorPos.y, 40,
+        cursorPos.x, cursorPos.y, Math.max(w, h) * (0.6 - this.charge.fist * 0.25)
+      );
+      vig.addColorStop(0, 'transparent');
+      vig.addColorStop(1, `rgba(255,42,109,${0.25 + this.charge.fist * 0.25})`);
+      this.ctx.fillStyle = vig;
+      this.ctx.fillRect(0, 0, w, h);
+    }
 
     // 外圈光晕
-    const glow = this.ctx.createRadialGradient(cursorPos.x, cursorPos.y, 0, cursorPos.x, cursorPos.y, 40);
-    glow.addColorStop(0, color + '44');
-    glow.addColorStop(1, color + '00');
+    const glow = this.ctx.createRadialGradient(cursorPos.x, cursorPos.y, 0, cursorPos.x, cursorPos.y, 50);
+    glow.addColorStop(0, `rgba(${rgb.r},${rgb.g},${rgb.b},0.35)`);
+    glow.addColorStop(1, `rgba(${rgb.r},${rgb.g},${rgb.b},0)`);
     this.ctx.fillStyle = glow;
     this.ctx.beginPath();
-    this.ctx.arc(cursorPos.x, cursorPos.y, 40, 0, Math.PI * 2);
+    this.ctx.arc(cursorPos.x, cursorPos.y, 50, 0, Math.PI * 2);
     this.ctx.fill();
 
     // 蓄力环（fist / open）
     const chargeProgress = Math.max(this.charge.fist, this.charge.open);
     if (chargeProgress > 0.05) {
       const chargeColor = this.charge.fist > this.charge.open ? STATE_COLORS.fist : STATE_COLORS.open;
-      const radius = 24 + chargeProgress * 12;
+      const chargeRgb = hexToRgb(chargeColor);
+      const radius = 28 + chargeProgress * 14;
       this.ctx.beginPath();
       this.ctx.arc(cursorPos.x, cursorPos.y, radius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * chargeProgress);
-      this.ctx.strokeStyle = chargeColor + Math.floor(180 + chargeProgress * 75).toString(16).padStart(2, '0');
-      this.ctx.lineWidth = 3;
+      this.ctx.strokeStyle = `rgba(${chargeRgb.r},${chargeRgb.g},${chargeRgb.b},${0.7 + chargeProgress * 0.3})`;
+      this.ctx.lineWidth = 4;
       this.ctx.lineCap = 'round';
       this.ctx.stroke();
     }
 
-    // 主圆点
-    this.ctx.beginPath();
-    this.ctx.arc(cursorPos.x, cursorPos.y, 8, 0, Math.PI * 2);
-    this.ctx.fillStyle = color + 'ee';
-    this.ctx.fill();
+    // 状态形状
+    this.ctx.save();
+    this.ctx.translate(cursorPos.x, cursorPos.y);
+    this.ctx.strokeStyle = color;
+    this.ctx.lineWidth = 2;
+    this.ctx.lineCap = 'round';
+    this.ctx.lineJoin = 'round';
+    this.ctx.shadowColor = color;
+    this.ctx.shadowBlur = 12;
 
-    // 内核
-    this.ctx.beginPath();
-    this.ctx.arc(cursorPos.x, cursorPos.y, 4, 0, Math.PI * 2);
-    this.ctx.fillStyle = '#ffffff';
-    this.ctx.fill();
+    if (shape === 'dot') {
+      this.ctx.beginPath();
+      this.ctx.arc(0, 0, 8, 0, Math.PI * 2);
+      this.ctx.fillStyle = color;
+      this.ctx.fill();
+      this.ctx.beginPath();
+      this.ctx.arc(0, 0, 4, 0, Math.PI * 2);
+      this.ctx.fillStyle = '#ffffff';
+      this.ctx.fill();
+    } else if (shape === 'diamond') {
+      this.ctx.beginPath();
+      this.ctx.moveTo(0, -10);
+      this.ctx.lineTo(10, 0);
+      this.ctx.lineTo(0, 10);
+      this.ctx.lineTo(-10, 0);
+      this.ctx.closePath();
+      this.ctx.fillStyle = color;
+      this.ctx.fill();
+      this.ctx.beginPath();
+      this.ctx.arc(0, 0, 3, 0, Math.PI * 2);
+      this.ctx.fillStyle = '#ffffff';
+      this.ctx.fill();
+    } else if (shape === 'x') {
+      this.ctx.lineWidth = 3;
+      this.ctx.beginPath();
+      this.ctx.moveTo(-8, -8);
+      this.ctx.lineTo(8, 8);
+      this.ctx.moveTo(8, -8);
+      this.ctx.lineTo(-8, 8);
+      this.ctx.stroke();
+    } else if (shape === 'ring') {
+      this.ctx.beginPath();
+      this.ctx.arc(0, 0, 10, 0, Math.PI * 2);
+      this.ctx.stroke();
+      this.ctx.beginPath();
+      this.ctx.arc(0, 0, 4, 0, Math.PI * 2);
+      this.ctx.fillStyle = color;
+      this.ctx.fill();
+    } else if (shape === 'arrow') {
+      const dx = this.direction === 'right' ? 1 : -1;
+      this.ctx.beginPath();
+      this.ctx.moveTo(-10 * dx, -8);
+      this.ctx.lineTo(6 * dx, 0);
+      this.ctx.lineTo(-10 * dx, 8);
+      this.ctx.stroke();
+    }
+
+    this.ctx.restore();
 
     // 状态文字（光标下方）
-    this.ctx.font = '12px sans-serif';
+    this.ctx.font = 'bold 12px Orbitron, sans-serif';
     this.ctx.textAlign = 'center';
     this.ctx.fillStyle = color;
+    this.ctx.shadowColor = color;
+    this.ctx.shadowBlur = 8;
     const label = STATE_LABELS[this.state] + (this.direction ? (this.direction === 'right' ? ' ›' : ' ‹') : '');
-    this.ctx.fillText(label, cursorPos.x, cursorPos.y + 32);
+    this.ctx.fillText(label, cursorPos.x, cursorPos.y + 38);
+    this.ctx.shadowBlur = 0;
   }
 
   dispose() {

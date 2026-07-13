@@ -452,9 +452,18 @@ function onFilterGenre(genre) {
 function onSearch(query) {
   const results = DataEngine.search(query);
   if (results.length) {
-    const first = results[0];
-    StateEngine.select(first.id);
-    apiFocusAnime(first.id);
+    // 搜索反馈：通知 HUD 显示结果数量
+    if (hudRef.value) hudRef.value.showSearchResult(query, results.length);
+
+    // 多结果模式：聚焦第一个并高亮所有命中
+    if (results.length > 1 && spiralApi) {
+      spiralApi.focusOnSearchResults(results);
+      StateEngine.select(results[0].id);
+    } else {
+      const first = results[0];
+      StateEngine.select(first.id);
+      apiFocusAnime(first.id);
+    }
   } else if (hudRef.value) {
     hudRef.value.showNoResult();
   }
