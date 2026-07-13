@@ -22,7 +22,7 @@ html, body, #app, #universe {
   overflow: hidden;
   background: var(--bg-darker);
   color: var(--text-primary);
-  font-family: 'Noto Sans SC', sans-serif;
+  font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', 'WenQuanYi Micro Hei', sans-serif;
 }
 
 #universe {

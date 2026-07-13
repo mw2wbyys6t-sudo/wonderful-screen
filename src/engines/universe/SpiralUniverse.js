@@ -346,6 +346,7 @@ export class SpiralUniverse {
     this.isDragging = true;
     this.autoRotate = false;
     this.lastMouse = { x: e.clientX, y: e.clientY };
+    this.dragStart = { x: e.clientX, y: e.clientY };
     this.velocity = { x: 0, y: 0 };
   }
 

@@ -155,6 +155,11 @@ onMounted(async () => {
     } catch (err) {
       console.warn('[UniversePhase] WebGL 不可用，自动降级到 2D 螺旋宇宙:', err);
       webglOk = false;
+      // 彻底丢弃失败的 galaxyApi，避免后续统一接口误调用
+      if (galaxyApi) {
+        try { galaxyApi.dispose?.(); } catch (e) {}
+        galaxyApi = null;
+      }
     }
 
     if (!webglOk) {

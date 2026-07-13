@@ -6,6 +6,9 @@ js/llm-config.js
 # 依赖
 node_modules/
 
+# 构建产物
+dist/
+
 # 测试产物
 /test-results/
 /screenshots/
