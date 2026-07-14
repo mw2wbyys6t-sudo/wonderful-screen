@@ -1,5 +1,5 @@
 <template>
-  <section class="phase-universe cg-vignette">
+  <section class="phase-universe">
     <div class="deep-space"></div>
     <div v-if="shouldUseVideo && videoLoaded !== false" class="universe-video-wrap">
       <video
@@ -851,7 +851,7 @@ function showAiFeedback(text) {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-family: 'Orbitron', 'Courier New', monospace;
+  font-family: 'Courier New', 'Noto Sans SC', monospace;
   font-size: 10px;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -934,7 +934,7 @@ function showAiFeedback(text) {
 .tooltip-meta {
   font-size: 11px;
   color: rgba(201, 177, 255, 0.7);
-  font-family: 'Orbitron', monospace;
+  font-family: 'Courier New', 'Noto Sans SC', monospace;
   letter-spacing: 0.5px;
 }
 
@@ -1091,7 +1091,7 @@ function showAiFeedback(text) {
   font-size: 11px;
   letter-spacing: 0.5px;
   backdrop-filter: blur(8px);
-  font-family: 'Orbitron', monospace;
+  font-family: 'Noto Sans SC', 'PingFang SC', sans-serif;
   box-shadow: 0 0 12px rgba(255, 158, 196, 0.1);
 }
 
@@ -1169,7 +1169,7 @@ function showAiFeedback(text) {
   box-shadow: 0 0 20px rgba(255, 158, 196, 0.15);
   animation: hintPulse 2s ease-in-out infinite;
   pointer-events: none;
-  font-family: 'Orbitron', monospace;
+  font-family: 'Noto Sans SC', 'PingFang SC', sans-serif;
   letter-spacing: 0.5px;
 }
 
@@ -1240,7 +1240,7 @@ function showAiFeedback(text) {
   color: #ff9ec4;
   letter-spacing: 2px;
   text-shadow: 0 0 12px rgba(255, 158, 196, 0.5), 0 0 24px rgba(255, 158, 196, 0.2);
-  font-family: 'Orbitron', sans-serif;
+  font-family: 'Noto Sans SC', 'PingFang SC', sans-serif;
 }
 
 .guide-grid {
@@ -1303,7 +1303,7 @@ function showAiFeedback(text) {
   letter-spacing: 1px;
   cursor: pointer;
   transition: all 0.25s ease;
-  font-family: 'Orbitron', sans-serif;
+  font-family: 'Noto Sans SC', 'PingFang SC', sans-serif;
 }
 
 .guide-close:hover {

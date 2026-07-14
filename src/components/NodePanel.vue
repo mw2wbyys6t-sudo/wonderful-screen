@@ -322,7 +322,7 @@ function focusRelated(anime) {
   background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(255, 158, 196, 0.25));
   border: 2px solid #ffd700;
   color: #ffd700;
-  font-family: 'Orbitron', sans-serif;
+  font-family: 'Courier New', 'Noto Sans SC', monospace;
   font-size: 14px;
   font-weight: 700;
   display: flex;
@@ -357,7 +357,7 @@ function focusRelated(anime) {
 }
 
 .node-year {
-  font-family: 'Orbitron', sans-serif;
+  font-family: 'Courier New', 'Noto Sans SC', monospace;
   font-size: 13px;
   color: #ff9ec4;
   font-weight: 600;

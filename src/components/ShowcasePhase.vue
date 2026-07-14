@@ -1,5 +1,5 @@
 <template>
-  <section class="phase-showcase cg-vignette">
+  <section class="phase-showcase">
     <canvas ref="gridCanvas" class="hologrid-canvas"></canvas>
 
     <div v-if="shouldUseVideo && videoLoaded !== false" class="data-stream-bg">
@@ -399,7 +399,7 @@ onUnmounted(() => {
   top: calc(100% + 16px);
   left: 50%;
   transform: translateX(-50%);
-  font-family: 'Orbitron', monospace;
+  font-family: 'Noto Sans SC', 'PingFang SC', sans-serif;
   font-size: 10px;
   letter-spacing: 3px;
   background: linear-gradient(90deg, #ff9ec4, #c9b1ff, #b8e0ff, #ffd700, #ff9ec4);
@@ -493,7 +493,7 @@ onUnmounted(() => {
 }
 
 .loading-text {
-  font-family: 'Orbitron', monospace;
+  font-family: 'Noto Sans SC', 'PingFang SC', sans-serif;
   font-size: 12px;
   background: linear-gradient(90deg, #ff9ec4, #c9b1ff, #ff9ec4);
   background-size: 200% 100%;
@@ -698,7 +698,7 @@ onUnmounted(() => {
 }
 
 .data-text {
-  font-family: 'Orbitron', monospace;
+  font-family: 'Courier New', 'Noto Sans SC', monospace;
   font-size: 7px;
   color: rgba(255, 158, 196, 0.8);
   letter-spacing: 0.5px;
@@ -725,7 +725,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  font-family: 'Orbitron', monospace;
+  font-family: 'Courier New', 'Noto Sans SC', monospace;
   font-size: 9px;
   color: rgba(201, 177, 255, 0.7);
   letter-spacing: 1px;
@@ -783,7 +783,7 @@ onUnmounted(() => {
 }
 
 .hud-text {
-  font-family: 'Orbitron', monospace;
+  font-family: 'Noto Sans SC', 'PingFang SC', sans-serif;
   font-size: 9px;
   letter-spacing: 2px;
   background: linear-gradient(90deg, #ff9ec4, #c9b1ff, #b8e0ff);
@@ -800,7 +800,7 @@ onUnmounted(() => {
   bottom: 95px;
   left: 50%;
   transform: translateX(-50%);
-  font-family: 'Orbitron', monospace;
+  font-family: 'Noto Sans SC', 'PingFang SC', sans-serif;
   font-size: 10px;
   color: rgba(255, 158, 196, 0.4);
   letter-spacing: 2px;
@@ -828,7 +828,7 @@ onUnmounted(() => {
   color: #fff;
   border-radius: 24px;
   cursor: pointer;
-  font-family: 'Orbitron', sans-serif;
+  font-family: 'Noto Sans SC', 'PingFang SC', sans-serif;
   font-size: 13px;
   letter-spacing: 2px;
   backdrop-filter: blur(10px);

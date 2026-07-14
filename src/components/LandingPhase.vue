@@ -1,5 +1,5 @@
 <template>
-  <section class="phase-landing cg-vignette" @mousemove="onMouseMove">
+  <section class="phase-landing" @mousemove="onMouseMove">
     <div class="distant-nebula">
       <div
         class="nebula-image"

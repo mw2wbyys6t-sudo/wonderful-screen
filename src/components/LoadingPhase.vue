@@ -1,5 +1,5 @@
 <template>
-  <section class="phase-loading cg-vignette" :class="{ 'is-complete': isComplete }">
+  <section class="phase-loading" :class="{ 'is-complete': isComplete }">
     <canvas ref="starfield" class="starfield"></canvas>
 
     <div v-if="shouldUseVideo && videoLoaded !== false" class="energy-core-wrap">
