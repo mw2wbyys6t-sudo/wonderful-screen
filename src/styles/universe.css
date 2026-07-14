@@ -4,10 +4,11 @@
   --neon-cyan: #00f3ff;
   --neon-purple: #b892ff;
   --neon-pink: #ff2a6d;
+  --neon-gold: #d4a853;
   --text-primary: #f0f0ff;
   --text-secondary: rgba(240, 240, 255, 0.72);
   --glass-bg: rgba(255, 255, 255, 0.08);
-  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-border: rgba(0, 243, 255, 0.2);
 }
 
 * {

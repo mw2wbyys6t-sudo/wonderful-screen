@@ -1,7 +1,59 @@
 <template>
   <section class="phase-universe">
-    <div class="universe-bg" :style="{ backgroundImage: `url(${baseUrl}images/generated/nebula-bg.jpg)` }"></div>
+    <div class="deep-space"></div>
     <canvas ref="universeCanvas" id="universe-canvas"></canvas>
+
+    <div class="cockpit-frame">
+      <svg class="cockpit-svg" viewBox="0 0 1920 1080" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="frameGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#00f3ff" stop-opacity="0.0"/>
+            <stop offset="15%" stop-color="#00f3ff" stop-opacity="0.35"/>
+            <stop offset="50%" stop-color="#b892ff" stop-opacity="0.3"/>
+            <stop offset="85%" stop-color="#00f3ff" stop-opacity="0.35"/>
+            <stop offset="100%" stop-color="#00f3ff" stop-opacity="0.0"/>
+          </linearGradient>
+          <linearGradient id="frameGradV" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#00f3ff" stop-opacity="0.0"/>
+            <stop offset="15%" stop-color="#00f3ff" stop-opacity="0.3"/>
+            <stop offset="50%" stop-color="#d4a853" stop-opacity="0.25"/>
+            <stop offset="85%" stop-color="#00f3ff" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#00f3ff" stop-opacity="0.0"/>
+          </linearGradient>
+        </defs>
+        <path d="M0,40 Q200,10 960,10 Q1720,10 1920,40 L1920,0 L0,0 Z" fill="url(#frameGrad)" opacity="0.5"/>
+        <path d="M0,1040 Q200,1070 960,1070 Q1720,1070 1920,1040 L1920,1080 L0,1080 Z" fill="url(#frameGrad)" opacity="0.5"/>
+        <path d="M40,0 Q10,200 10,540 Q10,880 40,1080 L0,1080 L0,0 Z" fill="url(#frameGradV)" opacity="0.4"/>
+        <path d="M1880,0 Q1910,200 1910,540 Q1910,880 1880,1080 L1920,1080 L1920,0 Z" fill="url(#frameGradV)" opacity="0.4"/>
+        <line x1="80" y1="80" x2="180" y2="80" stroke="#00f3ff" stroke-width="1" opacity="0.4"/>
+        <line x1="80" y1="80" x2="80" y2="180" stroke="#00f3ff" stroke-width="1" opacity="0.4"/>
+        <line x1="1740" y1="80" x2="1840" y2="80" stroke="#00f3ff" stroke-width="1" opacity="0.4"/>
+        <line x1="1840" y1="80" x2="1840" y2="180" stroke="#00f3ff" stroke-width="1" opacity="0.4"/>
+        <line x1="80" y1="1000" x2="80" y2="900" stroke="#00f3ff" stroke-width="1" opacity="0.4"/>
+        <line x1="80" y1="1000" x2="180" y2="1000" stroke="#00f3ff" stroke-width="1" opacity="0.4"/>
+        <line x1="1840" y1="1000" x2="1840" y2="900" stroke="#00f3ff" stroke-width="1" opacity="0.4"/>
+        <line x1="1740" y1="1000" x2="1840" y2="1000" stroke="#00f3ff" stroke-width="1" opacity="0.4"/>
+      </svg>
+    </div>
+
+    <div class="scan-line"></div>
+
+    <div class="cockpit-readout top-left">
+      <span class="readout-label">SYS</span>
+      <span class="readout-val">NEBULA.NAV v3.2</span>
+    </div>
+    <div class="cockpit-readout top-right">
+      <span class="readout-val" ref="coordReadout">COORD: α-Centauri</span>
+      <span class="readout-label">NAV</span>
+    </div>
+    <div class="cockpit-readout bottom-left">
+      <span class="readout-label">CORE</span>
+      <span class="readout-val">STABLE · 98.7%</span>
+    </div>
+    <div class="cockpit-readout bottom-right">
+      <span class="readout-val" ref="starCountReadout">{{ dataCount }} STARS INDEXED</span>
+      <span class="readout-label">DB</span>
+    </div>
 
     <div v-if="loading" class="universe-loading">
       <div class="loading-spinner"></div>
@@ -585,16 +637,15 @@ function showAiFeedback(text) {
 .phase-universe {
   position: absolute;
   inset: 0;
-  background: var(--bg-darker);
+  background: #020308;
+  overflow: hidden;
 }
 
-.universe-bg {
+.deep-space {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background-size: cover;
-  background-position: center;
-  opacity: 0.55;
+  background: radial-gradient(ellipse at 50% 50%, #0a0e1a 0%, #050714 40%, #020308 100%);
   pointer-events: none;
 }
 
@@ -609,29 +660,124 @@ function showAiFeedback(text) {
   cursor: grabbing;
 }
 
+.cockpit-frame {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  opacity: 0;
+  animation: cockpit-fade-in 1.5s ease-out 0.3s forwards;
+}
+
+.cockpit-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.scan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 21;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 0%, rgba(0,243,255,0.08) 20%, rgba(0,243,255,0.15) 50%, rgba(0,243,255,0.08) 80%, transparent 100%);
+  box-shadow: 0 0 20px rgba(0,243,255,0.1), 0 0 60px rgba(0,243,255,0.05);
+  animation: scan-move 8s linear infinite;
+  opacity: 0;
+  animation-delay: 1.5s;
+  animation-fill-mode: forwards;
+}
+
+.cockpit-readout {
+  position: absolute;
+  z-index: 22;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Orbitron', 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  opacity: 0;
+  animation: cockpit-fade-in 1.2s ease-out 0.8s forwards;
+  pointer-events: none;
+}
+
+.cockpit-readout.top-left {
+  top: 50px;
+  left: 30px;
+}
+.cockpit-readout.top-right {
+  top: 50px;
+  right: 30px;
+  flex-direction: row-reverse;
+}
+.cockpit-readout.bottom-left {
+  bottom: 30px;
+  left: 30px;
+  align-items: flex-end;
+}
+.cockpit-readout.bottom-right {
+  bottom: 30px;
+  right: 30px;
+  flex-direction: row-reverse;
+  align-items: flex-end;
+}
+
+.readout-label {
+  color: rgba(212,168,83,0.7);
+  font-size: 9px;
+  padding: 2px 6px;
+  border: 1px solid rgba(212,168,83,0.3);
+  border-radius: 2px;
+}
+
+.readout-val {
+  color: rgba(0,243,255,0.65);
+  text-shadow: 0 0 6px rgba(0,243,255,0.3);
+}
+
 .star-tooltip {
   position: fixed;
   z-index: 30;
   pointer-events: none;
-  background: rgba(5, 7, 20, 0.85);
-  border: 1px solid var(--glass-border);
-  border-radius: 10px;
+  background: rgba(5, 7, 20, 0.92);
+  border: 1px solid rgba(0,243,255,0.3);
+  border-radius: 4px;
   padding: 10px 14px;
   backdrop-filter: blur(8px);
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
-  max-width: 240px;
+  box-shadow: 0 0 20px rgba(0,243,255,0.1), inset 0 0 10px rgba(0,243,255,0.03);
+  max-width: 260px;
+  position: relative;
+}
+
+.star-tooltip::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #00f3ff, transparent);
+  opacity: 0.5;
 }
 
 .tooltip-title {
   font-size: 14px;
   font-weight: 700;
-  color: var(--text-primary);
+  color: #e0faff;
   margin-bottom: 4px;
+  text-shadow: 0 0 8px rgba(0,243,255,0.3);
 }
 
 .tooltip-meta {
-  font-size: 12px;
-  color: var(--text-secondary);
+  font-size: 11px;
+  color: rgba(0,243,255,0.6);
+  font-family: 'Orbitron', monospace;
+  letter-spacing: 1px;
 }
 
 .universe-loading {
@@ -642,21 +788,36 @@ function showAiFeedback(text) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--text-secondary);
+  color: rgba(0,243,255,0.7);
   pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(5,7,20,0.3) 0%, rgba(2,3,8,0.95) 70%);
 }
 
 .loading-spinner {
-  width: 48px;
-  height: 48px;
-  border: 2px solid rgba(0, 243, 255, 0.2);
-  border-top-color: var(--neon-cyan);
+  width: 56px;
+  height: 56px;
+  border: 2px solid rgba(212,168,83,0.15);
+  border-top-color: #d4a853;
+  border-right-color: rgba(0,243,255,0.4);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 1.2s linear infinite;
+  box-shadow: 0 0 20px rgba(212,168,83,0.15), inset 0 0 10px rgba(0,243,255,0.05);
 }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+@keyframes cockpit-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scan-move {
+  0% { top: -2px; opacity: 0; }
+  5% { opacity: 1; }
+  95% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
 }
 
 /* 手势摄像头 */
@@ -676,17 +837,18 @@ function showAiFeedback(text) {
   position: relative;
   width: 200px;
   height: 150px;
-  border-radius: 16px;
+  border-radius: 4px;
   overflow: hidden;
-  border: 1px solid rgba(0, 243, 255, 0.25);
-  background: rgba(5, 7, 20, 0.7);
-  box-shadow: 0 0 24px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(0, 243, 255, 0.3);
+  background: rgba(5, 7, 20, 0.85);
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.6), inset 0 0 20px rgba(0,243,255,0.03);
 }
 
 .camera-section.minimized .camera-container {
   width: 56px;
   height: 56px;
   border-radius: 50%;
+  border-color: rgba(212,168,83,0.4);
 }
 
 .gesture-video,
@@ -723,9 +885,9 @@ function showAiFeedback(text) {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  border: none;
-  background: rgba(0, 0, 0, 0.5);
-  color: #fff;
+  border: 1px solid rgba(0,243,255,0.3);
+  background: rgba(5, 7, 20, 0.8);
+  color: #00f3ff;
   font-size: 14px;
   cursor: pointer;
   display: flex;
@@ -736,10 +898,10 @@ function showAiFeedback(text) {
 .gesture-start {
   width: 72px;
   height: 72px;
-  border-radius: 50%;
-  background: rgba(5, 7, 20, 0.8);
+  border-radius: 4px;
+  background: rgba(5, 7, 20, 0.85);
   border: 1px solid rgba(0, 243, 255, 0.3);
-  color: var(--neon-cyan);
+  color: #00f3ff;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -751,8 +913,9 @@ function showAiFeedback(text) {
 }
 
 .gesture-start:hover {
-  background: rgba(0, 243, 255, 0.15);
-  box-shadow: 0 0 20px rgba(0, 243, 255, 0.3);
+  background: rgba(0, 243, 255, 0.1);
+  box-shadow: 0 0 20px rgba(0, 243, 255, 0.25);
+  border-color: rgba(0,243,255,0.5);
 }
 
 .gesture-start span {
@@ -761,19 +924,21 @@ function showAiFeedback(text) {
 
 .gesture-badge {
   padding: 6px 12px;
-  border-radius: 100px;
-  background: rgba(5, 7, 20, 0.85);
-  border: 1px solid rgba(0, 243, 255, 0.25);
-  color: var(--neon-cyan);
-  font-size: 12px;
+  border-radius: 2px;
+  background: rgba(5, 7, 20, 0.9);
+  border: 1px solid rgba(0, 243, 255, 0.3);
+  color: #00f3ff;
+  font-size: 11px;
+  letter-spacing: 1px;
   backdrop-filter: blur(8px);
+  font-family: 'Orbitron', monospace;
 }
 
 .gesture-error {
   max-width: 180px;
   padding: 8px 12px;
-  border-radius: 10px;
-  background: rgba(255, 42, 109, 0.15);
+  border-radius: 4px;
+  background: rgba(255, 42, 109, 0.1);
   border: 1px solid rgba(255, 42, 109, 0.3);
   color: #ff7aa3;
   font-size: 12px;
@@ -782,9 +947,9 @@ function showAiFeedback(text) {
 .retry-btn {
   margin-top: 6px;
   padding: 4px 10px;
-  border-radius: 6px;
+  border-radius: 2px;
   border: 1px solid rgba(255, 42, 109, 0.4);
-  background: rgba(255, 42, 109, 0.15);
+  background: rgba(255, 42, 109, 0.1);
   color: #ff7aa3;
   cursor: pointer;
   font-size: 11px;
@@ -805,15 +970,17 @@ function showAiFeedback(text) {
   right: 20px;
   z-index: 25;
   padding: 12px 18px;
-  border-radius: 12px;
+  border-radius: 4px;
   background: rgba(5, 7, 20, 0.92);
-  border: 1px solid rgba(0, 243, 255, 0.25);
-  color: var(--neon-cyan);
+  border: 1px solid rgba(0, 243, 255, 0.3);
+  border-left: 3px solid #d4a853;
+  color: #c8e0ff;
   font-size: 13px;
   backdrop-filter: blur(8px);
-  max-width: 260px;
+  max-width: 280px;
   pointer-events: none;
   line-height: 1.5;
+  box-shadow: 0 0 20px rgba(0,243,255,0.08);
 }
 
 /* 手势热区提示 */
@@ -823,18 +990,20 @@ function showAiFeedback(text) {
   right: 20px;
   z-index: 26;
   padding: 10px 16px;
-  border-radius: 100px;
-  background: rgba(5, 7, 20, 0.9);
+  border-radius: 2px;
+  background: rgba(5, 7, 20, 0.92);
   border: 1px solid rgba(0, 243, 255, 0.35);
-  color: var(--neon-cyan);
+  color: #00f3ff;
   font-size: 12px;
   display: flex;
   align-items: center;
   gap: 8px;
   backdrop-filter: blur(8px);
-  box-shadow: 0 0 20px rgba(0, 243, 255, 0.15);
+  box-shadow: 0 0 20px rgba(0, 243, 255, 0.1);
   animation: hintPulse 2s ease-in-out infinite;
   pointer-events: none;
+  font-family: 'Orbitron', monospace;
+  letter-spacing: 1px;
 }
 
 .hint-icon {
@@ -842,8 +1011,8 @@ function showAiFeedback(text) {
 }
 
 @keyframes hintPulse {
-  0%, 100% { opacity: 0.85; transform: translateY(0); }
-  50% { opacity: 1; transform: translateY(-3px); }
+  0%, 100% { opacity: 0.85; transform: translateY(0); box-shadow: 0 0 20px rgba(0,243,255,0.1); }
+  50% { opacity: 1; transform: translateY(-3px); box-shadow: 0 0 30px rgba(0,243,255,0.2); }
 }
 
 /* 手势新手引导 */
@@ -854,7 +1023,7 @@ function showAiFeedback(text) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(6px);
   animation: guideFadeIn 0.3s ease;
 }
@@ -867,21 +1036,43 @@ function showAiFeedback(text) {
 .guide-card {
   width: min(520px, 90vw);
   padding: 28px 32px;
-  border-radius: 20px;
-  background: rgba(5, 7, 20, 0.95);
-  border: 1px solid rgba(0, 243, 255, 0.25);
-  box-shadow: 0 0 40px rgba(0, 243, 255, 0.15), inset 0 0 20px rgba(0, 243, 255, 0.05);
+  border-radius: 4px;
+  background: rgba(5, 7, 20, 0.96);
+  border: 1px solid rgba(0, 243, 255, 0.3);
+  box-shadow: 0 0 60px rgba(0, 243, 255, 0.12), inset 0 0 30px rgba(0, 243, 255, 0.03);
   color: #fff;
   text-align: center;
+  position: relative;
+}
+
+.guide-card::before,
+.guide-card::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-color: rgba(212,168,83,0.5);
+  border-style: solid;
+}
+.guide-card::before {
+  top: -1px;
+  left: -1px;
+  border-width: 2px 0 0 2px;
+}
+.guide-card::after {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 2px 2px 0;
 }
 
 .guide-card h3 {
   margin: 0 0 24px;
   font-size: 22px;
   font-weight: 700;
-  color: var(--neon-cyan);
+  color: #00f3ff;
   letter-spacing: 2px;
   text-shadow: 0 0 12px rgba(0, 243, 255, 0.4);
+  font-family: 'Orbitron', sans-serif;
 }
 
 .guide-grid {
@@ -893,15 +1084,15 @@ function showAiFeedback(text) {
 
 .guide-item {
   padding: 16px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   transition: all 0.2s ease;
 }
 
 .guide-item:hover {
-  background: rgba(0, 243, 255, 0.08);
-  border-color: rgba(0, 243, 255, 0.25);
+  background: rgba(0, 243, 255, 0.05);
+  border-color: rgba(0, 243, 255, 0.2);
 }
 
 .guide-icon {
@@ -912,13 +1103,13 @@ function showAiFeedback(text) {
 .guide-title {
   font-size: 14px;
   font-weight: 700;
-  color: var(--neon-cyan);
+  color: #00f3ff;
   margin-bottom: 4px;
 }
 
 .guide-desc {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .guide-tip {
@@ -926,26 +1117,28 @@ function showAiFeedback(text) {
   color: rgba(255, 255, 255, 0.7);
   margin-bottom: 20px;
   padding: 10px 16px;
-  border-radius: 10px;
-  background: rgba(255, 253, 117, 0.08);
-  border: 1px solid rgba(255, 253, 117, 0.2);
+  border-radius: 4px;
+  background: rgba(212, 168, 83, 0.06);
+  border: 1px solid rgba(212, 168, 83, 0.2);
+  border-left: 3px solid rgba(212,168,83,0.5);
 }
 
 .guide-close {
   padding: 12px 40px;
-  border-radius: 8px;
+  border-radius: 2px;
   border: 1px solid rgba(0, 243, 255, 0.5);
-  background: rgba(0, 243, 255, 0.1);
-  color: var(--neon-cyan);
+  background: rgba(0, 243, 255, 0.08);
+  color: #00f3ff;
   font-size: 14px;
   letter-spacing: 2px;
   cursor: pointer;
   transition: all 0.2s ease;
+  font-family: 'Orbitron', sans-serif;
 }
 
 .guide-close:hover {
-  background: rgba(0, 243, 255, 0.2);
-  box-shadow: 0 0 20px rgba(0, 243, 255, 0.25);
+  background: rgba(0, 243, 255, 0.15);
+  box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
 }
 
 @media (max-width: 768px) {
@@ -960,6 +1153,7 @@ function showAiFeedback(text) {
   .ai-feedback {
     bottom: 150px;
     right: 12px;
+    font-size: 12px;
   }
   .gesture-hint {
     bottom: 140px;
@@ -967,6 +1161,14 @@ function showAiFeedback(text) {
     font-size: 11px;
     padding: 8px 12px;
   }
+  .cockpit-readout {
+    font-size: 8px;
+    letter-spacing: 1px;
+  }
+  .cockpit-readout.top-left { top: 40px; left: 12px; }
+  .cockpit-readout.top-right { top: 40px; right: 12px; }
+  .cockpit-readout.bottom-left { bottom: 12px; left: 12px; }
+  .cockpit-readout.bottom-right { bottom: 12px; right: 12px; }
   .guide-card {
     padding: 20px 18px;
   }
