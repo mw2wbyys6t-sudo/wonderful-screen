@@ -312,24 +312,31 @@ function initStarfield() {
   draw();
 }
 
+const AUTO_ADVANCE_DELAY = 2600;
+const COMPLETE_HOLD_DELAY = 1600;
+
 onMounted(async () => {
   initStarfield();
   updateTip();
 
+  const dataStart = Date.now();
   await DataEngine.load();
+  const dataElapsed = Date.now() - dataStart;
+  const minLoadDelay = Math.max(0, 1200 - dataElapsed);
+
   progress.value = 45;
   updateTip();
-  await new Promise(r => setTimeout(r, 500));
+  await new Promise(r => setTimeout(r, 500 + minLoadDelay * 0.35));
   progress.value = 75;
   updateTip();
-  await new Promise(r => setTimeout(r, 500));
+  await new Promise(r => setTimeout(r, 500 + minLoadDelay * 0.35));
   progress.value = 100;
   updateTip();
 
   setTimeout(() => {
     isComplete.value = true;
-    setTimeout(() => emit('done'), 900);
-  }, 600);
+    setTimeout(() => emit('done'), COMPLETE_HOLD_DELAY);
+  }, AUTO_ADVANCE_DELAY);
 });
 
 onUnmounted(() => {

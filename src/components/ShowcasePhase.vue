@@ -1,5 +1,5 @@
 <template>
-  <section class="phase-showcase">
+  <section class="phase-showcase" @mouseenter="isHovering = true" @mouseleave="isHovering = false">
     <canvas ref="gridCanvas" class="hologrid-canvas"></canvas>
 
     <div v-if="shouldUseVideo && videoLoaded !== false" class="data-stream-bg">
@@ -94,6 +94,19 @@
       </div>
     </div>
 
+    <div class="auto-progress-wrap">
+      <div class="auto-progress-track">
+        <div
+          class="auto-progress-bar"
+          :style="{ width: autoProgressPercent + '%', animationPlayState: isHovering ? 'paused' : 'running' }"
+        ></div>
+      </div>
+      <div class="auto-progress-label">
+        <span>✿ 自动前往次元之门 ✿</span>
+        <span class="auto-progress-time">{{ remainingSeconds }}s</span>
+      </div>
+    </div>
+
     <div class="showcase-hint">
       <span class="hint-bracket">✿</span>
       回転展示 · クリックでスキップ
@@ -124,6 +137,12 @@ const { shouldUseVideo } = useVideoBackground();
 
 let gridRafId = null;
 let gridResizeHandler = null;
+let autoTimer = null;
+let progressTimer = null;
+const AUTO_ADVANCE_MS = 15000;
+const autoProgressPercent = ref(0);
+const remainingSeconds = ref(Math.ceil(AUTO_ADVANCE_MS / 1000));
+const isHovering = ref(false);
 
 const topWorks = computed(() => DataEngine.topWorks(8));
 const genres = computed(() => DataEngine.genres.value);
@@ -271,12 +290,51 @@ onMounted(async () => {
   initGrid();
   await DataEngine.load();
   ready.value = true;
-  setTimeout(() => emit('skip'), 15000);
+  startAutoAdvance();
 });
+
+let autoStartTime = 0;
+let pausedElapsed = 0;
+let hoverPauseStart = 0;
+
+function startAutoAdvance() {
+  if (autoTimer) clearTimeout(autoTimer);
+  if (progressTimer) clearInterval(progressTimer);
+  autoStartTime = Date.now();
+  pausedElapsed = 0;
+  hoverPauseStart = 0;
+
+  progressTimer = setInterval(() => {
+    let elapsed = Date.now() - autoStartTime - pausedElapsed;
+    if (isHovering.value) {
+      if (hoverPauseStart === 0) hoverPauseStart = Date.now();
+      elapsed -= Date.now() - hoverPauseStart;
+    } else if (hoverPauseStart !== 0) {
+      pausedElapsed += Date.now() - hoverPauseStart;
+      hoverPauseStart = 0;
+    }
+    elapsed = Math.max(0, Math.min(elapsed, AUTO_ADVANCE_MS));
+    const pct = (elapsed / AUTO_ADVANCE_MS) * 100;
+    autoProgressPercent.value = pct;
+    remainingSeconds.value = Math.max(0, Math.ceil((AUTO_ADVANCE_MS - elapsed) / 1000));
+
+    if (elapsed >= AUTO_ADVANCE_MS && autoTimer) {
+      clearInterval(progressTimer);
+      progressTimer = null;
+      clearTimeout(autoTimer);
+      autoTimer = null;
+      emit('skip');
+    }
+  }, 100);
+
+  autoTimer = true;
+}
 
 onUnmounted(() => {
   if (gridRafId) cancelAnimationFrame(gridRafId);
   if (gridResizeHandler) window.removeEventListener('resize', gridResizeHandler);
+  if (autoTimer) clearTimeout(autoTimer);
+  if (progressTimer) clearInterval(progressTimer);
   if (dataVideo.value) {
     dataVideo.value.pause?.();
     dataVideo.value.src = '';
@@ -809,6 +867,48 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.auto-progress-wrap {
+  position: absolute;
+  bottom: 68px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  width: 240px;
+  pointer-events: none;
+}
+
+.auto-progress-track {
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 182, 216, 0.15);
+  border-radius: 3px;
+  overflow: hidden;
+  box-shadow: inset 0 0 4px rgba(255, 158, 196, 0.1);
+}
+
+.auto-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #ff9ec4, #c9b1ff, #b8e0ff, #ffd700);
+  border-radius: 3px;
+  box-shadow: 0 0 8px rgba(255, 158, 196, 0.6);
+  transition: width 0.1s linear;
+}
+
+.auto-progress-label {
+  margin-top: 6px;
+  display: flex;
+  justify-content: space-between;
+  font-family: 'Noto Sans SC', 'PingFang SC', sans-serif;
+  font-size: 10px;
+  color: rgba(255, 182, 216, 0.55);
+  letter-spacing: 1px;
+}
+
+.auto-progress-time {
+  color: rgba(255, 215, 0, 0.7);
+  font-family: 'Courier New', 'Noto Sans SC', monospace;
 }
 
 .hint-bracket {
