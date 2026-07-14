@@ -25,8 +25,8 @@
         muted
         loop
         playsinline
-        :poster="baseUrl + 'images/generated/nebula-trailer-frame.jpg'"
-        :src="baseUrl + 'images/generated/nebula-trailer-v3-a.mp4'"
+        :poster="baseUrl + 'images/generated/anime-sakura-poster.jpg'"
+        :src="baseUrl + 'images/generated/anime-nebula-sakura.mp4'"
         @error="onVideoError"
         @loadeddata="onVideoLoaded"
       ></video>
@@ -106,7 +106,7 @@
           <div
             v-if="causticLoaded"
             class="gate-caustic"
-            :style="{ backgroundImage: `url(${baseUrl}images/generated/glass-caustic.jpg)` }"
+            :style="{ backgroundImage: `url(${baseUrl}images/effects/glass-caustic.jpg)` }"
           ></div>
           <div class="gate-energy-ring ring-pink"></div>
           <div class="gate-energy-ring ring-lavender delay1"></div>
@@ -127,7 +127,7 @@
 
       <div class="gate-title-area">
         <div class="title-ornament"
-          :style="{ backgroundImage: `url(${baseUrl}images/generated/title-ornament.png)` }"
+          :style="{ backgroundImage: `url(${baseUrl}images/effects/title-ornament.png)` }"
         ></div>
         <div class="brand-en">✧ Nebula Chronicle ✧</div>
         <h1 class="brand-title">
@@ -678,7 +678,7 @@ onUnmounted(() => {
   object-fit: cover;
   opacity: 0;
   transition: opacity 1.5s ease;
-  filter: saturate(1.3) brightness(0.65) hue-rotate(-10deg);
+  filter: saturate(1.2) brightness(0.55);
 }
 
 .gate-video.is-loaded {

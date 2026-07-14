@@ -11,8 +11,8 @@
         muted
         loop
         playsinline
-        :poster="baseUrl + 'images/generated/nebula-trailer-frame.jpg'"
-        :src="baseUrl + 'images/generated/nebula-trailer-v3-c.mp4'"
+        :poster="baseUrl + 'images/generated/anime-hall-poster.jpg'"
+        :src="baseUrl + 'images/generated/anime-magic-hall.mp4'"
         @error="onVideoError"
         @loadeddata="onVideoLoaded"
       ></video>
@@ -329,11 +329,11 @@ onUnmounted(() => {
   object-fit: cover;
   opacity: 0;
   transition: opacity 1.5s ease;
-  filter: hue-rotate(260deg) saturate(1.4) brightness(0.4);
+  filter: saturate(1.1) brightness(0.5);
 }
 
 .data-stream-video.is-loaded {
-  opacity: 0.3;
+  opacity: 0.5;
 }
 
 .data-stream-overlay {

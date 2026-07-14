@@ -1,6 +1,22 @@
 <template>
   <section class="phase-universe cg-vignette">
     <div class="deep-space"></div>
+    <div v-if="shouldUseVideo && videoLoaded !== false" class="universe-video-wrap">
+      <video
+        ref="bgVideo"
+        class="universe-video"
+        :class="{ 'is-loaded': videoLoaded === true }"
+        autoplay
+        muted
+        loop
+        playsinline
+        :poster="baseUrl + 'images/generated/anime-starry-poster.jpg'"
+        :src="baseUrl + 'images/generated/anime-starry-universe.mp4'"
+        @error="onVideoError"
+        @loadeddata="onVideoLoaded"
+      ></video>
+      <div class="universe-video-veil"></div>
+    </div>
     <div class="star-dust"></div>
     <canvas ref="universeCanvas" id="universe-canvas"></canvas>
 
@@ -179,11 +195,17 @@ import { StateEngine } from '../engines/core/StateEngine.js';
 import { bus } from '../engines/core/EventBus.js';
 import { FeedbackEngine } from '../engines/feedback/FeedbackEngine.js';
 import { GestureActionEngine } from '../engines/interaction/GestureActionEngine.js';
+import { useVideoBackground } from '../composables/useVideoBackground.js';
 
 const HUD = defineAsyncComponent(() => import('./HUD.vue'));
 const NodePanel = defineAsyncComponent(() => import('./NodePanel.vue'));
 
 const baseUrl = import.meta.env.BASE_URL;
+const { shouldUseVideo } = useVideoBackground();
+const videoLoaded = ref(null);
+const bgVideo = ref(null);
+function onVideoLoaded() { videoLoaded.value = true; }
+function onVideoError() { videoLoaded.value = false; }
 const universeCanvas = ref(null);
 const gestureVideo = ref(null);
 const gestureCanvas = ref(null);
@@ -653,6 +675,40 @@ function showAiFeedback(text) {
   pointer-events: none;
 }
 
+.universe-video-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.universe-video {
+  position: absolute;
+  width: 110%;
+  height: 110%;
+  top: -5%;
+  left: -5%;
+  object-fit: cover;
+  opacity: 0;
+  filter: saturate(1.2) brightness(0.45) hue-rotate(-10deg);
+  transition: opacity 2s ease;
+}
+
+.universe-video.is-loaded {
+  opacity: 0.6;
+}
+
+.universe-video-veil {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 30% 40%, rgba(255,158,196,0.08), transparent 50%),
+    radial-gradient(ellipse at 70% 60%, rgba(201,177,255,0.08), transparent 50%),
+    linear-gradient(180deg, rgba(10,6,24,0.3) 0%, transparent 30%, transparent 70%, rgba(10,6,24,0.5) 100%);
+  pointer-events: none;
+}
+
 .star-dust {
   position: absolute;
   inset: 0;
@@ -765,7 +821,7 @@ function showAiFeedback(text) {
 #universe-canvas {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 3;
   cursor: grab;
 }
 
