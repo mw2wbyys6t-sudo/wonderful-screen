@@ -54,3 +54,47 @@ html, body, #app, #universe {
   background: radial-gradient(ellipse at center, transparent 30%, rgba(255,182,216,0.03) 60%, transparent 100%);
   mix-blend-mode: screen;
 }
+
+.cg-soft-glow {
+  filter: drop-shadow(0 0 6px rgba(255, 158, 196, 0.4)) drop-shadow(0 0 12px rgba(201, 177, 255, 0.2));
+}
+
+.cg-rainbow-text {
+  background: linear-gradient(90deg, #ff9ec4, #c9b1ff, #b8e0ff, #ffd700, #ff9ec4);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: rainbowSlide 4s linear infinite;
+}
+
+@keyframes rainbowSlide {
+  0% { background-position: 0% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes sparkle {
+  0%, 100% { opacity: 0.3; transform: scale(0.8) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.2) rotate(180deg); }
+}
+
+@keyframes float-soft {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { filter: drop-shadow(0 0 4px rgba(255,158,196,0.3)); }
+  50% { filter: drop-shadow(0 0 12px rgba(255,158,196,0.7)) drop-shadow(0 0 20px rgba(201,177,255,0.4)); }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(10, 6, 24, 0.5);
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #ff9ec4, #c9b1ff);
+  border-radius: 3px;
+}
