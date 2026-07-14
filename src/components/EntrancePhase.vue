@@ -71,9 +71,9 @@ const audioPulse = ref(0);
 const isTransitioning = ref(false);
 
 const videos = [
-  './images/generated/nebula-trailer-v3-a.mp4',
-  './images/generated/nebula-trailer-v3-b.mp4',
-  './images/generated/nebula-trailer-v3-c.mp4'
+  './images/generated/anime-nebula-sakura.mp4',
+  './images/generated/anime-starry-universe.mp4',
+  './images/generated/anime-magic-hall.mp4'
 ];
 
 const orbStyle = (dir, strength) => ({
