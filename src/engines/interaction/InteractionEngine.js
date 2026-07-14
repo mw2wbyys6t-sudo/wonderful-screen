@@ -109,13 +109,7 @@ export const InteractionEngine = {
       this.dispatchVoiceIntent(intent);
     });
 
-    // 新的语义动作事件统一处理
-    bus.on('input:search', (query) => {
-      bus.emit('action:search', query);
-    });
-    bus.on('input:reset-camera', () => {
-      bus.emit('action:reset-camera');
-    });
+    // 手势/语音语义动作直接通过 action:* 事件分发，无需二次转发
   },
 
   dispatchVoiceIntent(intent) {

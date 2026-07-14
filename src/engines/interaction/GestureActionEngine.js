@@ -106,12 +106,12 @@ export const GestureActionEngine = {
 
   // 搜索
   search(query) {
-    bus.emit('input:search', query);
+    bus.emit('action:search', query);
   },
 
   // 重置视角
   resetCamera() {
-    bus.emit('input:reset-camera');
+    bus.emit('action:reset-camera');
   },
 
   // 切换全屏

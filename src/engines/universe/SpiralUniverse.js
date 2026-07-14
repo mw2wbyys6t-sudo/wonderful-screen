@@ -40,6 +40,16 @@ function colorWithAlpha(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+function getDeviceTier() {
+  const memory = navigator.deviceMemory || 4;
+  const cores = navigator.hardwareConcurrency || 4;
+  const dpr = window.devicePixelRatio || 1;
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  if (memory <= 4 || cores <= 4 || isMobile) return 'low';
+  if (memory >= 8 && cores >= 8 && dpr <= 2) return 'high';
+  return 'medium';
+}
+
 export class SpiralUniverse {
   constructor(canvas) {
     this.canvas = canvas;
@@ -47,6 +57,17 @@ export class SpiralUniverse {
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
     this.width = 0;
     this.height = 0;
+
+    // 设备分级配置
+    this.tier = getDeviceTier();
+    this.CONFIG = {
+      starDustCount: this.tier === 'low' ? 1500 : this.tier === 'medium' ? 3500 : 5000,
+      maxConnections: this.tier === 'low' ? 400 : this.tier === 'medium' ? 800 : 1200,
+      genreParticles: this.tier === 'low' ? 40 : this.tier === 'medium' ? 80 : 120,
+      hoverGridSize: 120, // 世界坐标空间索引格子大小
+      renderCullMargin: 1.4, // 视口裁剪边距倍数
+      throttleHoverMs: 16  // hover 检测节流
+    };
 
     // 相机状态
     this.scale = 0.35;
@@ -72,6 +93,10 @@ export class SpiralUniverse {
     this.searchResults = new Set(); // 搜索命中集合
     this.searchMode = false;        // 是否处于搜索聚焦模式
     this.searchPulseTime = 0;       // 搜索脉冲相位
+    this.activeGenre = null;        // 当前高亮流派
+    this.activeYear = null;         // 当前高亮年份
+    this.inputMode = 'mouse';       // mouse | hand | voice
+    this.lastHoverCheck = 0;
 
     // 动画状态
     this.time = 0;
@@ -82,6 +107,11 @@ export class SpiralUniverse {
     this.connections = [];
     this.ripples = [];
     this.spiralArms = []; // 旋臂光带路径
+    this.spatialGrid = new Map(); // 节点空间索引
+    this.visibleNodes = []; // 当前视口内节点缓存
+    this.visibleStarDust = []; // 当前视口内星尘缓存
+    this.visibleGenreClouds = []; // 当前视口内星云缓存
+    this.visibleConnections = []; // 当前视口内连线缓存
 
     // 回调（预留纯手势模式接口）
     this.onNodeHover = null;
@@ -91,6 +121,9 @@ export class SpiralUniverse {
 
     this.running = false;
     this.rafId = null;
+    this.isVisible = true;
+    this.visibilityHandler = null;
+    this.frameCount = 0;
 
     this.resize = this.resize.bind(this);
     this.handleMouseDown = this.handleMouseDown.bind(this);
@@ -112,8 +145,14 @@ export class SpiralUniverse {
     this._buildStarDust();
     this._buildGenreClouds();
     this._buildConnections();
+    this._buildSpatialGrid();
     this.resize();
     this.birthProgress = 0;
+
+    this.visibilityHandler = () => {
+      this.isVisible = document.visibilityState !== 'hidden';
+    };
+    document.addEventListener('visibilitychange', this.visibilityHandler);
     return this;
   }
 
@@ -176,8 +215,8 @@ export class SpiralUniverse {
   }
 
   _buildStarDust() {
-    // 5000颗背景星尘，营造深空感
-    const count = 5000;
+    // 根据设备性能调整背景星尘数量，营造深空感
+    const count = this.CONFIG.starDustCount;
     this.starDust = Array.from({ length: count }, () => ({
       x: (Math.random() - 0.5) * 6000,
       y: (Math.random() - 0.5) * 6000,
@@ -193,22 +232,29 @@ export class SpiralUniverse {
     const genres = DataEngine.genres.value;
     const genreMap = genres?.genres || genres || {};
 
-    this.genreClouds = Object.entries(genreMap).map(([name, info], i) => {
+    // 预建 id -> node 映射，避免 O(n^2) 查找
+    const nodeById = new Map();
+    this.nodes.forEach(n => nodeById.set(n.id, n));
+
+    this.genreClouds = Object.entries(genreMap).map(([name, info]) => {
       const works = DataEngine.byGenre(name);
       if (!works || works.length === 0) return null;
 
       // 星云中心取该流派作品的平均位置
-      const cx = works.reduce((s, w) => s + (this.nodes.find(n => n.id === w.id)?.x || 0), 0) / works.length;
-      const cy = works.reduce((s, w) => s + (this.nodes.find(n => n.id === w.id)?.y || 0), 0) / works.length;
+      const matched = works.map(w => nodeById.get(w.id)).filter(Boolean);
+      if (matched.length === 0) return null;
+
+      const cx = matched.reduce((s, n) => s + n.x, 0) / matched.length;
+      const cy = matched.reduce((s, n) => s + n.y, 0) / matched.length;
 
       const color = info.color || COLORS.cyan;
-      const count = Math.min(120, Math.max(30, Math.floor(works.length / 5)));
+      const count = Math.min(this.CONFIG.genreParticles, Math.max(30, Math.floor(works.length / 5)));
 
       return {
         name,
         color,
-        x: cx || (Math.random() - 0.5) * 1000,
-        y: cy || (Math.random() - 0.5) * 1000,
+        x: cx,
+        y: cy,
         particles: Array.from({ length: count }, () => ({
           ox: (Math.random() - 0.5) * 380,
           oy: (Math.random() - 0.5) * 380,
@@ -249,7 +295,7 @@ export class SpiralUniverse {
 
   _buildConnections() {
     // 同流派/同年份/同工作室的作品之间建立弱连接
-    const maxConnections = 1200;
+    const maxConnections = this.CONFIG.maxConnections;
     const connections = [];
     const nodes = this.nodes;
 
@@ -273,6 +319,85 @@ export class SpiralUniverse {
     });
 
     this.connections = connections;
+  }
+
+  _buildSpatialGrid() {
+    this.spatialGrid.clear();
+    const size = this.CONFIG.hoverGridSize;
+    for (const node of this.nodes) {
+      const gx = Math.floor(node.x / size);
+      const gy = Math.floor(node.y / size);
+      const key = `${gx},${gy}`;
+      if (!this.spatialGrid.has(key)) this.spatialGrid.set(key, []);
+      this.spatialGrid.get(key).push(node);
+    }
+  }
+
+  _getGridNodes(worldX, worldY) {
+    const size = this.CONFIG.hoverGridSize;
+    const gx = Math.floor(worldX / size);
+    const gy = Math.floor(worldY / size);
+    const results = [];
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const key = `${gx + dx},${gy + dy}`;
+        const nodes = this.spatialGrid.get(key);
+        if (nodes) results.push(...nodes);
+      }
+    }
+    return results;
+  }
+
+  _updateVisibleNodes() {
+    // 计算当前视口对应的世界坐标范围
+    const margin = this.CONFIG.renderCullMargin;
+    const halfW = (this.width / 2) / this.scale;
+    const halfH = (this.height / 2) / this.scale;
+
+    // 世界坐标中心
+    const cx = -this.offsetX;
+    const cy = -this.offsetY;
+
+    // 粗略包围盒（带旋转的安全边界）
+    const range = Math.max(halfW, halfH) * margin;
+    const minX = cx - range;
+    const maxX = cx + range;
+    const minY = cy - range;
+    const maxY = cy + range;
+
+    this.visibleNodes = this.nodes.filter(n => n.x >= minX && n.x <= maxX && n.y >= minY && n.y <= maxY);
+  }
+
+  _updateVisibilityCaches() {
+    this._updateVisibleNodes();
+
+    const margin = this.CONFIG.renderCullMargin;
+    const halfW = (this.width / 2) / this.scale;
+    const halfH = (this.height / 2) / this.scale;
+    const range = Math.max(halfW, halfH) * margin;
+    const minX = -this.offsetX - range;
+    const maxX = -this.offsetX + range;
+    const minY = -this.offsetY - range;
+    const maxY = -this.offsetY + range;
+
+    // 星尘裁剪
+    this.visibleStarDust = this.starDust.filter(s => {
+      const x = s.x + this.offsetX * 0.02 * s.z;
+      const y = s.y + this.offsetY * 0.02 * s.z;
+      return x >= minX && x <= maxX && y >= minY && y <= maxY;
+    });
+
+    // 星云裁剪
+    this.visibleGenreClouds = this.genreClouds.filter(c =>
+      c.x >= minX && c.x <= maxX && c.y >= minY && c.y <= maxY
+    );
+
+    // 连线裁剪：只要任一端点在视口内即可
+    this.visibleConnections = this.connections.filter(c => {
+      const ax = c.a.x, ay = c.a.y, bx = c.b.x, by = c.b.y;
+      return (ax >= minX && ax <= maxX && ay >= minY && ay <= maxY) ||
+             (bx >= minX && bx <= maxX && by >= minY && by <= maxY);
+    });
   }
 
   _bindEvents() {
@@ -351,6 +476,7 @@ export class SpiralUniverse {
   }
 
   handleMouseMove(e) {
+    const now = performance.now();
     const rect = this.canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
@@ -364,7 +490,10 @@ export class SpiralUniverse {
       this.lastMouse = { x: e.clientX, y: e.clientY };
     }
 
-    this._updateHover(mx, my);
+    // hover 检测节流，降低高频 pointermove 开销
+    if (now - this.lastHoverCheck >= this.CONFIG.throttleHoverMs) {
+      this._updateHover(mx, my);
+    }
   }
 
   handleMouseUp(e) {
@@ -380,16 +509,9 @@ export class SpiralUniverse {
       this.velocity = { x: 0, y: 0 };
     }
 
-    // 如果是点击（移动很小），触发选中或退出搜索模式
-    const rect = this.canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    if (speed < 5) {
-      if (this.hoveredNode) {
-        this.selectNode(this.hoveredNode);
-      } else if (this.searchMode) {
-        this.clearSearchMode();
-      }
+    // 如果是点击（移动很小），退出搜索模式；选中统一由外部 input:select 处理
+    if (speed < 5 && !this.hoveredNode && this.searchMode) {
+      this.clearSearchMode();
     }
   }
 
@@ -452,12 +574,18 @@ export class SpiralUniverse {
   }
 
   _updateHover(mx, my) {
+    const now = performance.now();
+    if (now - this.lastHoverCheck < this.CONFIG.throttleHoverMs) return;
+    this.lastHoverCheck = now;
+
     const world = this.screenToWorld(mx, my);
     let closest = null;
     let closestDist = Infinity;
     const threshold = 22 / this.scale;
 
-    for (const node of this.nodes) {
+    // 使用空间索引，只检查相邻格子
+    const candidates = this._getGridNodes(world.x, world.y);
+    for (const node of candidates) {
       const d = dist(world.x, world.y, node.x, node.y);
       if (d < threshold && d < closestDist) {
         closestDist = d;
@@ -545,13 +673,27 @@ export class SpiralUniverse {
   }
 
   focusOnGenre(genre) {
+    this.highlightGenre(genre);
+  }
+
+  highlightGenre(genre) {
+    if (!genre) {
+      this.activeGenre = null;
+      return;
+    }
+
     const works = DataEngine.byGenre(genre);
     if (!works || works.length === 0) return;
 
-    const matchedNodes = works.map(w => this.nodes.find(n => n.id === w.id)).filter(Boolean);
+    const nodeById = new Map();
+    this.nodes.forEach(n => nodeById.set(n.id, n));
+    const matchedNodes = works.map(w => nodeById.get(w.id)).filter(Boolean);
     if (matchedNodes.length === 0) return;
 
+    this.activeGenre = genre;
+    this.activeYear = null;
     this.autoRotate = false;
+
     // 计算该流派节点的外接中心
     const cx = matchedNodes.reduce((s, n) => s + n.x, 0) / matchedNodes.length;
     const cy = matchedNodes.reduce((s, n) => s + n.y, 0) / matchedNodes.length;
@@ -571,6 +713,54 @@ export class SpiralUniverse {
       if (flashes < 6) setTimeout(flash, 250);
     };
     flash();
+  }
+
+  focusOnYear(year) {
+    this.highlightYear(year);
+  }
+
+  highlightYear(year) {
+    if (!year) {
+      this.activeYear = null;
+      return;
+    }
+
+    const works = DataEngine.byYear(year);
+    if (!works || works.length === 0) return;
+
+    const nodeById = new Map();
+    this.nodes.forEach(n => nodeById.set(n.id, n));
+    const matchedNodes = works.map(w => nodeById.get(w.id)).filter(Boolean);
+    if (matchedNodes.length === 0) return;
+
+    this.activeYear = year;
+    this.activeGenre = null;
+    this.autoRotate = false;
+
+    const cx = matchedNodes.reduce((s, n) => s + n.x, 0) / matchedNodes.length;
+    const cy = matchedNodes.reduce((s, n) => s + n.y, 0) / matchedNodes.length;
+
+    this.targetOffsetX = -cx;
+    this.targetOffsetY = -cy;
+
+    const maxDist = Math.max(...matchedNodes.map(n => dist(n.x, n.y, cx, cy)));
+    this.targetScale = clamp(450 / (maxDist + 120), 0.25, 1.2);
+
+    // 年份高亮闪烁
+    let flashes = 0;
+    const flash = () => {
+      matchedNodes.forEach(n => { n.highlightUntil = flashes % 2 === 0 ? Date.now() + 300 : Date.now(); });
+      flashes++;
+      if (flashes < 6) setTimeout(flash, 250);
+    };
+    flash();
+  }
+
+  setInputMode(mode) {
+    this.inputMode = mode;
+    if (mode === 'hand') {
+      this.autoRotate = false;
+    }
   }
 
   // 预留纯手势接口：外部手势引擎调用
@@ -615,6 +805,11 @@ export class SpiralUniverse {
     this.targetOffsetX = 0;
     this.targetOffsetY = 0;
     this.targetRotation = 0;
+    this.activeGenre = null;
+    this.activeYear = null;
+    this.searchMode = false;
+    this.searchResults.clear();
+    this.searchHighlight = null;
   }
 
   start() {
@@ -632,19 +827,30 @@ export class SpiralUniverse {
   destroy() {
     this.stop();
     this._unbindEvents();
+    if (this.visibilityHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityHandler);
+      this.visibilityHandler = null;
+    }
   }
 
   _loop() {
     if (!this.running) return;
+    this.rafId = requestAnimationFrame(() => this._loop());
+
+    // 后台/不可见时跳过渲染，节省性能
+    if (!this.isVisible) {
+      this.lastTime = performance.now();
+      return;
+    }
+
     const now = performance.now();
     const dt = Math.min((now - this.lastTime) / 1000, 0.05);
     this.lastTime = now;
 
     this.time += dt;
+    this.frameCount++;
     this._update(dt);
     this._render();
-
-    this.rafId = requestAnimationFrame(() => this._loop());
   }
 
   _update(dt) {
@@ -655,6 +861,7 @@ export class SpiralUniverse {
 
     // 平滑插值相机
     const smooth = 1 - Math.pow(0.001, dt);
+    const prevScale = this.scale;
     this.scale = lerp(this.scale, this.targetScale, smooth);
     this.offsetX = lerp(this.offsetX, this.targetOffsetX, smooth);
     this.offsetY = lerp(this.offsetY, this.targetOffsetY, smooth);
@@ -681,6 +888,14 @@ export class SpiralUniverse {
       r.alpha -= dt * 0.8;
     });
     this.ripples = this.ripples.filter(r => r.alpha > 0);
+
+    // 相机显著变化时更新视口缓存
+    const cameraChanged = Math.abs(this.scale - prevScale) > 0.001 ||
+                          this.velocity.x !== 0 || this.velocity.y !== 0 ||
+                          this.isDragging || this.autoRotate;
+    if (cameraChanged || this.visibleNodes.length === 0) {
+      this._updateVisibilityCaches();
+    }
   }
 
   _render() {
@@ -785,7 +1000,7 @@ export class SpiralUniverse {
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
 
-    for (const star of this.starDust) {
+    for (const star of this.visibleStarDust) {
       const pos = this.worldToScreen(star.x, star.y);
 
       // 视差：远星移动慢，近星移动快
@@ -816,7 +1031,7 @@ export class SpiralUniverse {
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
 
-    for (const cloud of this.genreClouds) {
+    for (const cloud of this.visibleGenreClouds) {
       const pos = this.worldToScreen(cloud.x, cloud.y);
 
       for (const p of cloud.particles) {
@@ -858,7 +1073,7 @@ export class SpiralUniverse {
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
 
-    for (const c of this.connections) {
+    for (const c of this.visibleConnections) {
       const a = this.worldToScreen(c.a.x, c.a.y);
       const b = this.worldToScreen(c.b.x, c.b.y);
 
@@ -921,8 +1136,12 @@ export class SpiralUniverse {
       this.searchPulseTime += 0.016;
     }
 
-    // 按大小排序，大星后画，小星先画
-    const sorted = [...this.nodes].sort((a, b) => b.size - a.size);
+    // 按大小排序（仅对视口内节点排序，降低开销）
+    const sorted = this.visibleNodes.length > 0 ? this.visibleNodes : this.nodes;
+    // 每帧对少量节点排序仍可接受；节点很多时只排序一次或使用稳定顺序
+    if (sorted.length > 1 && (this.frameCount & 3) === 0) {
+      sorted.sort((a, b) => b.size - a.size);
+    }
 
     for (const node of sorted) {
       const pos = this.worldToScreen(node.x, node.y);
@@ -935,11 +1154,16 @@ export class SpiralUniverse {
       const isSearchResult = this.searchResults.has(String(node.id));
       const isSearchHighlight = this.searchHighlight === node;
       const isGenreHighlight = node.highlightUntil && node.highlightUntil > now;
+      const isActiveGenre = this.activeGenre && node.genre === this.activeGenre;
+      const isActiveYear = this.activeYear && node.year === this.activeYear;
+      const isActiveMatch = isActiveGenre || isActiveYear || isSearchResult || isSelected || isHovered;
 
-      // 搜索模式下的暗化逻辑
+      // 搜索/流派/年份模式下的暗化逻辑
       let dimFactor = 1;
       if (this.searchMode && !isSearchResult) {
-        dimFactor = 0.15; // 非命中节点大幅暗化
+        dimFactor = 0.15;
+      } else if ((this.activeGenre || this.activeYear) && !isActiveMatch) {
+        dimFactor = 0.25;
       }
 
       // 基础脉冲 + 搜索结果强脉冲
@@ -953,17 +1177,17 @@ export class SpiralUniverse {
       let hoverScale = 1;
       if (isHovered) hoverScale = 1.5;
       else if (isSelected || isSearchHighlight) hoverScale = 1.35;
-      else if (isSearchResult) hoverScale = 1.2;
+      else if (isSearchResult || isActiveGenre || isActiveYear) hoverScale = 1.2;
       const size = baseSize * this.scale * hoverScale;
       if (size < 0.5) continue;
 
       // 亮度
       const baseAlpha = node.alpha * birth * dimFactor;
-      const alpha = isHovered || isSelected || isSearchHighlight || isGenreHighlight || isSearchResult ?
+      const alpha = isHovered || isSelected || isSearchHighlight || isGenreHighlight || isSearchResult || isActiveGenre || isActiveYear ?
         Math.min(1, baseAlpha * 1.8) : baseAlpha;
 
       // 光晕
-      const glowSize = size * (isHovered ? 5 : (isSelected || isSearchHighlight ? 4.5 : (isSearchResult ? 3.5 : 2.5)));
+      const glowSize = size * (isHovered ? 5 : (isSelected || isSearchHighlight ? 4.5 : (isSearchResult || isActiveGenre || isActiveYear ? 3.5 : 2.5)));
       if (glowSize > 1) {
         const glow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, glowSize);
         glow.addColorStop(0, colorWithAlpha(node.color, alpha * 0.6));
@@ -1002,11 +1226,11 @@ export class SpiralUniverse {
       }
 
       // 选中/高亮/搜索结果外环
-      if (isSelected || isSearchHighlight || isGenreHighlight || isSearchResult) {
+      if (isSelected || isSearchHighlight || isGenreHighlight || isSearchResult || isActiveGenre || isActiveYear) {
         ctx.beginPath();
         ctx.arc(pos.x, pos.y, size * 2.5, 0, Math.PI * 2);
-        ctx.strokeStyle = colorWithAlpha(node.color, isSearchResult && !isSearchHighlight ? 0.35 : 0.6);
-        ctx.lineWidth = isSearchResult ? 1 : 1.5;
+        ctx.strokeStyle = colorWithAlpha(node.color, (isSearchResult && !isSearchHighlight) || isActiveGenre || isActiveYear ? 0.35 : 0.6);
+        ctx.lineWidth = (isSearchResult || isActiveGenre || isActiveYear) ? 1 : 1.5;
         ctx.stroke();
       }
 

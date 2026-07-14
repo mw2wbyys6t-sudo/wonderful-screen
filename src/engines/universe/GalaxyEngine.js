@@ -46,11 +46,18 @@ export function GalaxyEngine(canvasRef, options = {}) {
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
 
-  const cameraState = {
+  const INITIAL_CAMERA = {
     theta: 0,
     phi: Math.PI / 2.5,
     radius: 260,
-    target: new THREE.Vector3(0, 0, 0),
+    target: new THREE.Vector3(0, 0, 0)
+  };
+
+  const cameraState = {
+    theta: INITIAL_CAMERA.theta,
+    phi: INITIAL_CAMERA.phi,
+    radius: INITIAL_CAMERA.radius,
+    target: INITIAL_CAMERA.target.clone(),
     animating: false
   };
 
@@ -66,8 +73,13 @@ export function GalaxyEngine(canvasRef, options = {}) {
     sensitivity: 2.4,      // 手势移动转相机旋转的灵敏度
     edgeSensitivity: 0.35, // 边缘持续旋转强度
     deadZone: 0.08,        // 中心死区（避免手轻微抖动引起旋转）
-    smooth: 0.18           // 速度平滑系数
+    smooth: 0.18,          // 速度平滑系数
+    inputMode: 'mouse'     // mouse | hand
   };
+
+  let isVisible = true;
+  let visibilityHandler = null;
+  let lastFrameTime = performance.now();
 
   const hoveredId = { value: null };
   const selectedId = { value: null };
@@ -77,6 +89,11 @@ export function GalaxyEngine(canvasRef, options = {}) {
   let starColors = new Float32Array(0);
   let starSizes = new Float32Array(0);
   let starOriginalColors = new Float32Array(0);
+
+  // 缓存 year/genre -> index[]，避免高亮时 O(n) 查表
+  const indicesByYear = new Map();
+  const indicesByGenre = new Map();
+  let currentSearchIds = new Set();
 
   const tier = getDeviceTier();
   const MAX_RELATION_LINES = tier === 'low' ? 80 : tier === 'medium' ? 150 : 300;
@@ -119,6 +136,12 @@ export function GalaxyEngine(canvasRef, options = {}) {
         renderer.setSize(window.innerWidth, window.innerHeight);
       };
       window.addEventListener('resize', resizeHandler);
+
+      visibilityHandler = () => {
+        isVisible = document.visibilityState !== 'hidden';
+        if (isVisible) lastFrameTime = performance.now();
+      };
+      document.addEventListener('visibilitychange', visibilityHandler);
 
       bindEvents();
       animate();
@@ -180,6 +203,17 @@ export function GalaxyEngine(canvasRef, options = {}) {
 
       idToIndex.set(String(anime.id), i);
       indexToId.set(i, String(anime.id));
+
+      // 构建 year/genre 索引缓存
+      const year = anime.year;
+      if (year != null) {
+        if (!indicesByYear.has(year)) indicesByYear.set(year, []);
+        indicesByYear.get(year).push(i);
+      }
+      (anime.genres || []).forEach(g => {
+        if (!indicesByGenre.has(g)) indicesByGenre.set(g, []);
+        indicesByGenre.get(g).push(i);
+      });
     });
 
     starPositions = positions;
@@ -331,6 +365,17 @@ export function GalaxyEngine(canvasRef, options = {}) {
     const colors = starPoints.geometry.attributes.color.array;
     const count = colors.length / 3;
 
+    // 快速路径：无悬停且未选中时直接恢复原始颜色
+    if (!id && !selectedId.value) {
+      if (colors.length === starOriginalColors.length) {
+        colors.set(starOriginalColors);
+      } else {
+        for (let i = 0; i < colors.length; i++) colors[i] = starOriginalColors[i];
+      }
+      starPoints.geometry.attributes.color.needsUpdate = true;
+      return;
+    }
+
     for (let i = 0; i < count; i++) {
       const idStr = indexToId.get(i);
       const isHovered = idStr === id;
@@ -368,23 +413,18 @@ export function GalaxyEngine(canvasRef, options = {}) {
       return;
     }
     const colors = starPoints.geometry.attributes.color.array;
-    const count = colors.length / 3;
+    const matchSet = new Set(indicesByYear.get(year) || []);
 
-    for (let i = 0; i < count; i++) {
-      const id = indexToId.get(i);
-      const anime = DataEngine.byId(id);
-      const match = anime?.year === year;
-
-      if (match) {
-        colors[i * 3] = 1;
-        colors[i * 3 + 1] = 1;
-        colors[i * 3 + 2] = 1;
-      } else {
-        colors[i * 3] = starOriginalColors[i * 3] * 0.25;
-        colors[i * 3 + 1] = starOriginalColors[i * 3 + 1] * 0.25;
-        colors[i * 3 + 2] = starOriginalColors[i * 3 + 2] * 0.25;
-      }
+    // 先全部按暗色铺底
+    for (let i = 0; i < colors.length; i++) {
+      colors[i] = starOriginalColors[i] * 0.25;
     }
+    // 仅点亮命中
+    matchSet.forEach(idx => {
+      colors[idx * 3] = 1;
+      colors[idx * 3 + 1] = 1;
+      colors[idx * 3 + 2] = 1;
+    });
     starPoints.geometry.attributes.color.needsUpdate = true;
   }
 
@@ -394,29 +434,47 @@ export function GalaxyEngine(canvasRef, options = {}) {
       return;
     }
     const colors = starPoints.geometry.attributes.color.array;
-    const count = colors.length / 3;
+    const matchSet = new Set(indicesByGenre.get(genre) || []);
     const genreColor = DataEngine.genres.value.genres?.[genre]?.color || '#00f3ff';
     const c = new THREE.Color(genreColor);
 
-    for (let i = 0; i < count; i++) {
-      const id = indexToId.get(i);
-      const anime = DataEngine.byId(id);
-      const match = anime?.genres?.includes(genre);
-
-      if (match) {
-        colors[i * 3] = c.r;
-        colors[i * 3 + 1] = c.g;
-        colors[i * 3 + 2] = c.b;
-      } else {
-        colors[i * 3] = starOriginalColors[i * 3] * 0.2;
-        colors[i * 3 + 1] = starOriginalColors[i * 3 + 1] * 0.2;
-        colors[i * 3 + 2] = starOriginalColors[i * 3 + 2] * 0.2;
-      }
+    for (let i = 0; i < colors.length; i++) {
+      colors[i] = starOriginalColors[i] * 0.2;
     }
+    matchSet.forEach(idx => {
+      colors[idx * 3] = c.r;
+      colors[idx * 3 + 1] = c.g;
+      colors[idx * 3 + 2] = c.b;
+    });
+    starPoints.geometry.attributes.color.needsUpdate = true;
+  }
+
+  function highlightSearchResults(ids) {
+    if (!ids || ids.length === 0) {
+      resetHighlight();
+      return;
+    }
+    currentSearchIds = new Set(ids.map(String));
+    const colors = starPoints.geometry.attributes.color.array;
+    const matchIdx = new Set();
+    currentSearchIds.forEach(id => {
+      const idx = idToIndex.get(String(id));
+      if (idx !== undefined) matchIdx.add(idx);
+    });
+
+    for (let i = 0; i < colors.length; i++) {
+      colors[i] = starOriginalColors[i] * 0.25;
+    }
+    matchIdx.forEach(idx => {
+      colors[idx * 3] = 1;
+      colors[idx * 3 + 1] = 0.35;
+      colors[idx * 3 + 2] = 0.75;
+    });
     starPoints.geometry.attributes.color.needsUpdate = true;
   }
 
   function resetHighlight() {
+    currentSearchIds.clear();
     const colors = starPoints.geometry.attributes.color.array;
     for (let i = 0; i < colors.length; i++) {
       colors[i] = starOriginalColors[i];
@@ -427,7 +485,12 @@ export function GalaxyEngine(canvasRef, options = {}) {
   function focusOnYear(year) {
     const target = TimelineEngine.cameraTargetForYear(year);
     if (!target) return;
-    animateCamera(target);
+    animateCamera({
+      target: { x: target.x, y: target.y, z: target.z },
+      radius: target.radius,
+      theta: target.theta,
+      phi: target.phi
+    });
   }
 
   function focusOnAnime(id) {
@@ -442,6 +505,41 @@ export function GalaxyEngine(canvasRef, options = {}) {
       radius: 60,
       theta: cameraState.theta + Math.PI * 0.3,
       phi: Math.PI / 2.3
+    });
+  }
+
+  function focusOnSearchResults(results) {
+    if (!results || results.length === 0) return;
+    const matched = [];
+    results.forEach(r => {
+      const id = r.id || r;
+      const idx = idToIndex.get(String(id));
+      if (idx !== undefined) matched.push(idx);
+    });
+    if (matched.length === 0) return;
+
+    highlightSearchResults(results.map(r => r.id || r));
+
+    // 计算命中作品的质心并聚焦
+    const cx = matched.reduce((s, i) => s + starPositions[i * 3], 0) / matched.length;
+    const cy = matched.reduce((s, i) => s + starPositions[i * 3 + 1], 0) / matched.length;
+    const cz = matched.reduce((s, i) => s + starPositions[i * 3 + 2], 0) / matched.length;
+
+    // 估算包围半径
+    let maxDist = 0;
+    matched.forEach(i => {
+      const dx = starPositions[i * 3] - cx;
+      const dy = starPositions[i * 3 + 1] - cy;
+      const dz = starPositions[i * 3 + 2] - cz;
+      maxDist = Math.max(maxDist, Math.sqrt(dx * dx + dy * dy + dz * dz));
+    });
+    const radius = Math.max(60, Math.min(260, maxDist * 1.8 + 40));
+
+    animateCamera({
+      target: { x: cx, y: cy, z: cz },
+      radius,
+      theta: cameraState.theta + Math.PI * 0.25,
+      phi: Math.PI / 2.4
     });
   }
 
@@ -564,11 +662,12 @@ export function GalaxyEngine(canvasRef, options = {}) {
     handControl.velocity.x += (targetVx - handControl.velocity.x) * handControl.smooth;
     handControl.velocity.y += (targetVy - handControl.velocity.y) * handControl.smooth;
 
-    // 基于移动速度旋转相机
+    // 基于移动速度旋转相机（dt 归一化到 60fps）
+    const dtFactor = Math.min(dt / 16.67, 3);
     if (!inactive) {
-      cameraState.theta -= handControl.velocity.x * handControl.sensitivity;
+      cameraState.theta -= handControl.velocity.x * handControl.sensitivity * dtFactor;
       cameraState.phi = Math.max(0.15, Math.min(Math.PI - 0.15,
-        cameraState.phi - handControl.velocity.y * handControl.sensitivity));
+        cameraState.phi - handControl.velocity.y * handControl.sensitivity * dtFactor));
     }
 
     // 边缘持续旋转（手停在边缘时缓慢环顾）
@@ -585,8 +684,8 @@ export function GalaxyEngine(canvasRef, options = {}) {
     // 缩放速度应用与衰减
     if (Math.abs(handControl.zoomVelocity) > 0.001) {
       cameraState.radius = Math.max(40, Math.min(900,
-        cameraState.radius + handControl.zoomVelocity));
-      handControl.zoomVelocity *= 0.88;
+        cameraState.radius + handControl.zoomVelocity * dtFactor));
+      handControl.zoomVelocity *= Math.pow(0.88, dtFactor);
     }
 
     updateCamera();
@@ -601,23 +700,55 @@ export function GalaxyEngine(canvasRef, options = {}) {
       handControl.zoomVelocity = 0;
       handControl.lastMoveTime = performance.now();
       handControl.firstMove = true;
+      handControl.inputMode = 'hand';
+    } else {
+      handControl.inputMode = 'mouse';
     }
+  }
+
+  function setInputMode(mode) {
+    handControl.inputMode = mode;
+    if (mode === 'hand') {
+      setHandControl(true);
+    } else {
+      setHandControl(false);
+    }
+  }
+
+  function resetCameraState() {
+    cameraState.theta = INITIAL_CAMERA.theta;
+    cameraState.phi = INITIAL_CAMERA.phi;
+    cameraState.radius = INITIAL_CAMERA.radius;
+    cameraState.target.copy(INITIAL_CAMERA.target);
+    updateCamera();
   }
 
   function animate() {
     animationId = requestAnimationFrame(animate);
-    if (coreMesh) coreMesh.rotation.y += 0.002;
+
+    // 后台/不可见时暂停渲染，节省性能
+    if (!isVisible) {
+      lastFrameTime = performance.now();
+      return;
+    }
+
+    const now = performance.now();
+    const dt = Math.min(now - lastFrameTime, 50);
+    lastFrameTime = now;
+
+    if (coreMesh) coreMesh.rotation.y += 0.002 * (dt / 16.67);
     // 手势控制时暂停自动旋转，避免与手控冲突
     if (galaxyGroup && !cameraState.animating && !handControl.enabled) {
-      galaxyGroup.rotation.y += 0.0003;
+      galaxyGroup.rotation.y += 0.0003 * (dt / 16.67);
     }
-    updateHandControl(16.67);
+    updateHandControl(dt);
     renderer.render(scene, camera);
   }
 
   function dispose() {
     cancelAnimationFrame(animationId);
     window.removeEventListener('resize', resizeHandler);
+    if (visibilityHandler) document.removeEventListener('visibilitychange', visibilityHandler);
     if (renderer) renderer.dispose();
     if (starPoints) starPoints.geometry.dispose();
     if (ringLines) ringLines.geometry.dispose();
@@ -634,12 +765,16 @@ export function GalaxyEngine(canvasRef, options = {}) {
     select,
     highlightYear,
     highlightGenre,
+    highlightSearchResults,
     resetHighlight,
     focusOnYear,
     focusOnAnime,
+    focusOnSearchResults,
     rotateCameraByVelocity,
     zoom,
     setHandControl,
+    setInputMode,
+    resetCameraState,
     get hoveredId() { return hoveredId.value; },
     get selectedId() { return selectedId.value; }
   };

@@ -6,6 +6,7 @@
 import { ref, computed } from 'vue';
 import { StateEngine } from '../core/StateEngine.js';
 import { bus } from '../core/EventBus.js';
+import { GestureActionEngine } from './GestureActionEngine.js';
 
 // 手势 → 操作的映射表（可配置）
 const DEFAULT_GESTURE_MAP = {

@@ -249,10 +249,15 @@ let cleanupFns = [];
 let hoveredId = null;
 let lastDwellId = null;
 let hoverStartTime = 0;
-let dwellTimer = null;
+let dwellRafId = null;
 let dwellProgress = 0;
 const DWELL_SELECT_MS = 900; // 手势悬停停留选择阈值
 const isFallback2D = ref(false);
+
+// 输入事件节流
+let pointerThrottleTimer = null;
+let pendingPointer = null;
+const POINTER_THROTTLE_MS = 16;
 
 onMounted(async () => {
   try {
@@ -326,23 +331,36 @@ onMounted(async () => {
         if (id) apiSelect(id);
       }),
       bus.on('input:back', () => {
-        if (selectedAnime.value) StateEngine.select(null);
-        else if (StateEngine.state.activeGenre) StateEngine.clearFilter();
-      }),
-      bus.on('input:pointer', (payload) => {
-        apiSetPointer(payload.x, payload.y);
-        const id = apiRaycast();
-        updateHover(id);
-
-        // 手势模式下：光标跟随手部，并触发悬停停留选择
-        if (StateEngine.state.inputMode === 'hand') {
-          tooltipPos.value = { x: payload.x, y: payload.y };
-          updateDwellSelection(id);
+        if (selectedAnime.value) {
+          StateEngine.select(null);
+        } else if (StateEngine.state.activeGenre) {
+          StateEngine.clearFilter();
+        } else if (StateEngine.state.year) {
+          StateEngine.set('year', null);
+        } else {
+          bus.emit('phase:changed', 'landing');
         }
       }),
-      bus.on('anime:selected', (id) => {
-        selectedAnime.value = id ? DataEngine.byId(id) : null;
-        selectedRelations.value = id ? KnowledgeEngine.neighbors(id, null, 8) : [];
+      bus.on('input:pointer', (payload) => {
+        // 节流：避免每帧都执行 raycast 和 hover 更新
+        pendingPointer = payload;
+        if (!pointerThrottleTimer) {
+          pointerThrottleTimer = setTimeout(() => {
+            pointerThrottleTimer = null;
+            if (!pendingPointer) return;
+            const p = pendingPointer;
+            pendingPointer = null;
+            apiSetPointer(p.x, p.y);
+            const id = apiRaycast();
+            updateHover(id);
+
+            // 手势模式下：光标跟随手部，并触发悬停停留选择
+            if (StateEngine.state.inputMode === 'hand') {
+              tooltipPos.value = { x: p.x, y: p.y };
+              updateDwellSelection(id);
+            }
+          }, POINTER_THROTTLE_MS);
+        }
       }),
       bus.on('state:selectedId', ({ value }) => {
         selectedAnime.value = value ? DataEngine.byId(value) : null;
@@ -381,6 +399,8 @@ onMounted(async () => {
     // 6. 绑定手势就绪状态
     watch(gestureReady, (ready) => {
       apiSetHandControl(ready);
+      if (ready) apiSetInputMode('hand');
+      else if (StateEngine.state.inputMode === 'hand') apiSetInputMode('mouse');
     });
 
     // 初始化语音与手势能力（不自动请求摄像头/麦克风，等用户点击按钮后再启动）
@@ -444,14 +464,17 @@ function apiSelect(id) {
 function apiZoom(delta) {
   if (galaxyApi) galaxyApi.zoom?.(delta * 0.25);
   else if (spiralApi) {
-    const factor = delta > 0 ? 0.9 : 1.1;
+    const factor = delta > 0 ? 0.93 : 1.07;
     spiralApi.gestureZoom(factor, window.innerWidth / 2, window.innerHeight / 2);
   }
 }
 
 function apiRotate(dx, dy) {
   if (galaxyApi) galaxyApi.rotateCameraByVelocity?.(dx, dy);
-  else if (spiralApi) spiralApi.gestureMove(dx, dy);
+  else if (spiralApi) {
+    // 2D 模式下将 normalized 旋转量转换为屏幕像素偏移，拖拽手感与 3D 对齐
+    spiralApi.gestureMove(dx * window.innerWidth * 0.5, dy * window.innerHeight * 0.5);
+  }
 }
 
 function apiHighlightHovered(id) {
@@ -471,7 +494,7 @@ function apiHighlightGenre(genre) {
 
 function apiFocusYear(year) {
   if (galaxyApi) galaxyApi.focusOnYear?.(year);
-  // 2D模式下暂时不支持按年份聚焦
+  else if (spiralApi) spiralApi.focusOnYear?.(year);
 }
 
 function apiSetHandControl(ready) {
@@ -481,11 +504,17 @@ function apiSetHandControl(ready) {
 
 function apiSetInputMode(mode) {
   if (galaxyApi) galaxyApi.setInputMode?.(mode);
+  if (spiralApi) spiralApi.setInputMode?.(mode);
   StateEngine.set('inputMode', mode);
 }
 
 function apiAnimateCamera(config) {
   if (galaxyApi) galaxyApi.animateCamera?.(config);
+  else if (spiralApi) spiralApi.resetView();
+}
+
+function apiResetCamera() {
+  if (galaxyApi) galaxyApi.resetCameraState?.();
   else if (spiralApi) spiralApi.resetView();
 }
 
@@ -496,7 +525,8 @@ function apiDispose() {
 
 onUnmounted(() => {
   cleanupFns.forEach(fn => typeof fn === 'function' && fn());
-  if (dwellTimer) clearInterval(dwellTimer);
+  if (dwellRafId) cancelAnimationFrame(dwellRafId);
+  if (pointerThrottleTimer) clearTimeout(pointerThrottleTimer);
   VoiceEngine.stop();
   GestureEngine.stop();
   FeedbackEngine.dispose();
@@ -513,9 +543,9 @@ function updateHover(id) {
 function updateDwellSelection(id) {
   // 仅在无详情面板、有真实悬停目标、且处于手势模式时启用停留选择
   if (selectedAnime.value || !id) {
-    if (dwellTimer) {
-      clearInterval(dwellTimer);
-      dwellTimer = null;
+    if (dwellRafId) {
+      cancelAnimationFrame(dwellRafId);
+      dwellRafId = null;
     }
     lastDwellId = null;
     dwellProgress = 0;
@@ -530,18 +560,20 @@ function updateDwellSelection(id) {
     bus.emit('gesture:dwell-progress', 0);
   }
 
-  if (!dwellTimer) {
-    dwellTimer = setInterval(() => {
+  if (!dwellRafId) {
+    const step = () => {
       const elapsed = performance.now() - hoverStartTime;
       dwellProgress = Math.min(1, elapsed / DWELL_SELECT_MS);
       bus.emit('gesture:dwell-progress', dwellProgress);
       if (dwellProgress >= 1) {
-        clearInterval(dwellTimer);
-        dwellTimer = null;
+        dwellRafId = null;
         apiSelect(lastDwellId);
         bus.emit('gesture:dwell-complete');
+      } else {
+        dwellRafId = requestAnimationFrame(step);
       }
-    }, 50);
+    };
+    dwellRafId = requestAnimationFrame(step);
   }
 }
 
@@ -606,27 +638,31 @@ function onSearch(query) {
     // 搜索反馈：通知 HUD 显示结果数量
     if (hudRef.value) hudRef.value.showSearchResult(query, results.length);
 
-    // 多结果模式：聚焦第一个并高亮所有命中
-    if (results.length > 1 && spiralApi) {
-      spiralApi.focusOnSearchResults(results);
-      StateEngine.select(results[0].id);
-    } else {
-      const first = results[0];
-      StateEngine.select(first.id);
-      apiFocusAnime(first.id);
+    // 多结果模式：高亮所有命中并聚焦第一个
+    if (results.length > 1) {
+      if (galaxyApi) galaxyApi.focusOnSearchResults?.(results);
+      if (spiralApi) spiralApi.focusOnSearchResults(results);
     }
+
+    const first = results[0];
+    StateEngine.select(first.id);
+    apiFocusAnime(first.id);
   } else if (hudRef.value) {
     hudRef.value.showNoResult();
   }
 }
 
 function onResetCamera() {
-  apiAnimateCamera({
-    target: { x: 0, y: 0, z: 0 },
-    radius: 260,
-    theta: 0,
-    phi: Math.PI / 2.5
-  });
+  if (galaxyApi) {
+    apiAnimateCamera({
+      target: { x: 0, y: 0, z: 0 },
+      radius: 260,
+      theta: 0,
+      phi: Math.PI / 2.5
+    });
+  } else {
+    apiResetCamera();
+  }
 }
 
 function onFocusNebula(genre) {
