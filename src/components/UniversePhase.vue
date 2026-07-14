@@ -16,10 +16,12 @@
       :voice-supported="voiceSupported"
       :narrator-enabled="narratorEnabled"
       :narrator-supported="narratorSupported"
+      :active-year="activeYear"
       @filter-genre="onFilterGenre"
       @search="onSearch"
       @reset-camera="onResetCamera"
       @focus-nebula="onFocusNebula"
+      @focus-year="onFocusYear"
       @toggle-fullscreen="onToggleFullscreen"
       @toggle-voice="onToggleVoice"
       @toggle-narrator="onToggleNarrator"
@@ -160,6 +162,7 @@ const voiceActive = computed(() => VoiceEngine.isListening.value);
 const voiceSupported = computed(() => VoiceEngine.isSupported.value);
 const narratorEnabled = computed(() => !VoiceNarrator.muted);
 const narratorSupported = computed(() => VoicePlayer.isSupported.value);
+const activeYear = computed(() => StateEngine.state.year);
 const showGestureGuide = ref(false);
 const GUIDE_STORAGE_KEY = 'animeverse-gesture-guide-seen';
 
@@ -521,6 +524,11 @@ function onFocusRelated(anime) {
 
 function onFilterGenre(genre) {
   StateEngine.filterGenre(genre);
+}
+
+function onFocusYear(year) {
+  if (year) StateEngine.focusYear(year);
+  else StateEngine.set('year', null);
 }
 
 function onSearch(query) {

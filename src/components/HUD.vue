@@ -42,6 +42,33 @@
           </div>
         </div>
       </div>
+
+      <div class="hud-action-group year-nav">
+        <button title="上一年" :disabled="!activeYear && !years.length" @click="stepYear(-1)">‹</button>
+        <button
+          title="年份导航"
+          class="year-btn"
+          :class="{ active: showYearPicker || activeYear }"
+          @click="showYearPicker = !showYearPicker"
+        >
+          {{ activeYear || '年份' }}
+        </button>
+        <button title="下一年" :disabled="!activeYear && !years.length" @click="stepYear(1)">›</button>
+        <div v-if="showYearPicker" class="year-popover" @click.stop>
+          <div class="year-title">穿越到</div>
+          <div class="year-list">
+            <div
+              v-for="year in years"
+              :key="year"
+              class="year-chip"
+              :class="{ active: activeYear === year }"
+              @click="focusYear(year)"
+            >
+              {{ year }}
+            </div>
+          </div>
+        </div>
+      </div>
       <button title="音乐" @click="toggleMusic">♪</button>
       <button
         v-if="voiceSupported"
@@ -108,10 +135,11 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useData } from '../composables/useData.js';
 import { useAudio } from '../composables/useAudio.js';
 import { StateEngine } from '../engines/core/StateEngine.js';
+import { DataEngine } from '../engines/data/DataEngine.js';
 import { bus } from '../engines/core/EventBus.js';
 
 const props = defineProps({
@@ -119,9 +147,10 @@ const props = defineProps({
   voiceActive: { type: Boolean, default: false },
   voiceSupported: { type: Boolean, default: false },
   narratorEnabled: { type: Boolean, default: true },
-  narratorSupported: { type: Boolean, default: false }
+  narratorSupported: { type: Boolean, default: false },
+  activeYear: { type: Number, default: null }
 });
-const emit = defineEmits(['filter-genre', 'search', 'reset-camera', 'focus-nebula', 'toggle-fullscreen', 'toggle-voice', 'toggle-narrator']);
+const emit = defineEmits(['filter-genre', 'search', 'reset-camera', 'focus-nebula', 'focus-year', 'toggle-fullscreen', 'toggle-voice', 'toggle-narrator']);
 
 const { genres } = useData();
 const { toggle: toggleMusic } = useAudio();
@@ -130,9 +159,11 @@ const searchText = ref('');
 const activeGenre = ref(StateEngine.state.activeGenre);
 const showHelp = ref(false);
 const showNebula = ref(false);
+const showYearPicker = ref(false);
 const noResult = ref(false);
 const searchResultText = ref('');
 const gestureState = ref('');
+const years = computed(() => DataEngine.years.value);
 
 const gestureItems = [
   { state: 'pointing', label: '指向', color: '#00f3ff' },
@@ -184,6 +215,23 @@ function emitSearch() {
 function focusNebula(genre) {
   showNebula.value = false;
   emit('focus-nebula', genre);
+}
+
+function focusYear(year) {
+  showYearPicker.value = false;
+  emit('focus-year', year);
+}
+
+function stepYear(dir) {
+  if (!years.value.length) return;
+  const current = props.activeYear;
+  if (!current) {
+    emit('focus-year', dir > 0 ? years.value[0] : years.value[years.value.length - 1]);
+    return;
+  }
+  const idx = years.value.indexOf(current);
+  const next = years.value[Math.max(0, Math.min(years.value.length - 1, idx + dir))];
+  if (next && next !== current) emit('focus-year', next);
 }
 
 function showNoResult() {
@@ -303,6 +351,17 @@ defineExpose({ showNoResult, showSearchResult });
   gap: 12px;
 }
 
+.hud-action-group.year-nav {
+  gap: 6px;
+}
+
+.hud-action-group.year-nav button:first-child,
+.hud-action-group.year-nav button:last-child {
+  width: 28px;
+  padding: 0;
+  font-size: 18px;
+}
+
 .hud-actions button {
   width: 36px;
   height: 36px;
@@ -345,6 +404,69 @@ defineExpose({ showNoResult, showSearchResult });
   background: rgba(0, 243, 255, 0.18);
   border-color: rgba(0, 243, 255, 0.5);
   box-shadow: 0 0 14px rgba(0, 243, 255, 0.3);
+}
+
+.hud-actions .year-btn {
+  width: auto;
+  min-width: 64px;
+  padding: 0 14px;
+  border-radius: 18px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+
+.hud-actions .year-btn.active {
+  background: rgba(255, 42, 109, 0.18);
+  border-color: rgba(255, 42, 109, 0.5);
+  color: #ff7aa3;
+  box-shadow: 0 0 14px rgba(255, 42, 109, 0.3);
+}
+
+.year-popover {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  width: 220px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: rgba(5, 7, 20, 0.95);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  z-index: 30;
+}
+
+.year-title {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.year-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.year-chip {
+  padding: 5px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 12px;
+  font-family: 'Orbitron', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.year-chip:hover,
+.year-chip.active {
+  background: rgba(255, 42, 109, 0.18);
+  border-color: rgba(255, 42, 109, 0.5);
+  color: #ff7aa3;
 }
 
 @keyframes voicePulse {

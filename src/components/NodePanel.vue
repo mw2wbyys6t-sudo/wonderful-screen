@@ -17,7 +17,15 @@
 
       <div class="node-meta">
         <span class="node-year">{{ anime.year }}</span>
+        <span v-if="anime.format" class="node-format">{{ anime.format }}</span>
+        <span v-if="anime.season && anime.season !== 'Unknown'" class="node-season">{{ anime.season }}</span>
+        <span v-if="anime.episodes" class="node-episodes">{{ anime.episodes }} 集</span>
         <span v-for="g in displayedGenres" :key="g" class="node-genre">{{ g }}</span>
+      </div>
+
+      <div v-if="anime.popularity" class="node-row">
+        <span class="node-label">人气</span>
+        <span class="node-value">{{ anime.popularity.toLocaleString() }}</span>
       </div>
 
       <div v-if="anime.studios?.length" class="node-row">
@@ -25,12 +33,54 @@
         <span class="node-value">{{ anime.studios.slice(0, 3).join(' / ') }}</span>
       </div>
 
+      <div v-if="displayedDirectors.length" class="node-row">
+        <span class="node-label">导演</span>
+        <span class="node-value">{{ displayedDirectors.join(' / ') }}</span>
+      </div>
+
       <div v-if="anime.authors?.length" class="node-row">
-        <span class="node-label">作者 / 导演</span>
+        <span class="node-label">作者 / 编剧</span>
         <span class="node-value">{{ anime.authors.slice(0, 3).join(' / ') }}</span>
       </div>
 
-      <p class="node-desc">{{ anime.description || '暂无简介。' }}</p>
+      <div v-if="displayedMusic.length" class="node-row">
+        <span class="node-label">音乐</span>
+        <span class="node-value">{{ displayedMusic.join(' / ') }}</span>
+      </div>
+
+      <div v-if="displayedCharacters.length" class="node-row">
+        <span class="node-label">角色</span>
+        <span class="node-value">{{ displayedCharacters.join(' / ') }}</span>
+      </div>
+
+      <div v-if="displayedAwards.length" class="node-row">
+        <span class="node-label">奖项</span>
+        <span class="node-value">{{ displayedAwards.join(' / ') }}</span>
+      </div>
+
+      <div v-if="displayedTags.length" class="node-tags">
+        <span v-for="tag in displayedTags" :key="tag" class="node-tag">{{ tag }}</span>
+      </div>
+
+      <p class="node-desc">{{ anime.synopsis || anime.description || '暂无简介。' }}</p>
+
+      <div v-if="recommendations.length" class="node-recommendations">
+        <div class="node-section-title">相关推荐</div>
+        <div class="relation-list">
+          <div
+            v-for="rec in recommendations"
+            :key="rec.id"
+            class="relation-card"
+            @click="focusRelated(rec)"
+          >
+            <img class="relation-thumb" :src="rec.coverImage || rec.coverFallback" :alt="rec.titleRomaji">
+            <div class="relation-info">
+              <div class="relation-title">{{ rec.titleRomaji }}</div>
+              <div class="relation-type">{{ rec.year }} · {{ rec.genres?.[0] }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div v-if="relations.length" class="node-relations">
         <div class="node-section-title">知识图谱连接</div>
@@ -64,6 +114,7 @@
 
 <script setup>
 import { computed } from 'vue';
+import { KnowledgeEngine } from '../engines/data/KnowledgeEngine.js';
 
 const props = defineProps({
   anime: { type: Object, default: null },
@@ -74,6 +125,16 @@ const props = defineProps({
 const emit = defineEmits(['close', 'locate', 'focus-related']);
 
 const displayedGenres = computed(() => props.anime?.genres?.slice(0, 3) || []);
+const displayedTags = computed(() => props.anime?.tags?.slice(0, 6) || []);
+const displayedDirectors = computed(() => props.anime?.directors?.slice(0, 3) || []);
+const displayedMusic = computed(() => props.anime?.music?.slice(0, 3) || []);
+const displayedCharacters = computed(() => props.anime?.characters?.slice(0, 5) || []);
+const displayedAwards = computed(() => props.anime?.awards?.slice(0, 3) || []);
+
+const recommendations = computed(() => {
+  if (!props.anime) return [];
+  return KnowledgeEngine.recommend(props.anime.id, 6);
+});
 
 const coverImage = computed(() => {
   return props.anime?.coverImage || './images/generated/nebula-bg.jpg';
@@ -230,6 +291,33 @@ function focusRelated(anime) {
   color: var(--text-secondary);
 }
 
+.node-format,
+.node-season,
+.node-episodes {
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 243, 255, 0.25);
+  background: rgba(0, 243, 255, 0.08);
+  font-size: 11px;
+  color: var(--neon-cyan);
+}
+
+.node-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 14px 0;
+}
+
+.node-tag {
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 105, 180, 0.25);
+  background: rgba(255, 105, 180, 0.08);
+  font-size: 11px;
+  color: rgba(255, 214, 232, 0.9);
+}
+
 .node-row {
   display: flex;
   justify-content: space-between;
@@ -263,7 +351,8 @@ function focusRelated(anime) {
   letter-spacing: 1px;
 }
 
-.node-relations {
+.node-relations,
+.node-recommendations {
   margin-bottom: 24px;
 }
 
@@ -295,6 +384,15 @@ function focusRelated(anime) {
   height: 36px;
   border-radius: 3px;
   flex-shrink: 0;
+}
+
+.relation-thumb {
+  width: 36px;
+  height: 48px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .relation-title {
