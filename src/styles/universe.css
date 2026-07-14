@@ -1,14 +1,19 @@
 :root {
-  --bg-deep: #050714;
-  --bg-darker: #03030a;
-  --neon-cyan: #00f3ff;
-  --neon-purple: #b892ff;
-  --neon-pink: #ff2a6d;
-  --neon-gold: #d4a853;
-  --text-primary: #f0f0ff;
-  --text-secondary: rgba(240, 240, 255, 0.72);
-  --glass-bg: rgba(255, 255, 255, 0.08);
-  --glass-border: rgba(0, 243, 255, 0.2);
+  --bg-deep: #0a0618;
+  --bg-darker: #060310;
+  --neon-cyan: #a8d8ea;
+  --neon-purple: #c9b1ff;
+  --neon-pink: #ff9ec4;
+  --neon-gold: #ffd700;
+  --neon-sakura: #ffb7d0;
+  --neon-lavender: #d4b8ff;
+  --neon-sky: #b8e0ff;
+  --neon-cream: #fff5e6;
+  --neon-peach: #ffc4b8;
+  --text-primary: #fff5ff;
+  --text-secondary: rgba(255, 240, 255, 0.75);
+  --glass-bg: rgba(255, 200, 240, 0.06);
+  --glass-border: rgba(255, 182, 216, 0.25);
 }
 
 * {
@@ -29,4 +34,23 @@ html, body, #app, #universe {
 #universe {
   position: fixed;
   inset: 0;
+}
+
+.cg-vignette::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999;
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(10, 3, 20, 0.45) 100%);
+}
+
+.cg-bloom::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 998;
+  background: radial-gradient(ellipse at center, transparent 30%, rgba(255,182,216,0.03) 60%, transparent 100%);
+  mix-blend-mode: screen;
 }

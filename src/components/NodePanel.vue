@@ -194,13 +194,64 @@ function focusRelated(anime) {
   width: 440px;
   height: 100%;
   z-index: 20;
-  background: rgba(5, 7, 20, 0.94);
-  border-left: 1px solid var(--glass-border);
+  background: rgba(20, 10, 40, 0.95);
+  border-left: 3px solid;
+  border-image: linear-gradient(180deg, #ff9ec4, #c9b1ff, #ff9ec4) 1;
+  border-radius: 16px 0 0 16px;
   padding: 28px;
+  padding-top: 70px;
   transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   overflow-y: auto;
   backdrop-filter: blur(20px);
-  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.4);
+  box-shadow: -10px 0 40px rgba(255, 158, 196, 0.3), -5px 0 20px rgba(201, 177, 255, 0.2);
+}
+
+.node-panel::before {
+  content: '✦';
+  position: absolute;
+  top: 60px;
+  left: 30px;
+  font-size: 16px;
+  color: rgba(255, 215, 0, 0.6);
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+.node-panel::after {
+  content: '♡';
+  position: absolute;
+  top: 120px;
+  right: 40px;
+  font-size: 14px;
+  color: rgba(255, 158, 196, 0.5);
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes sparkle {
+  0%, 100% { opacity: 0.3; transform: scale(1) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.2) rotate(180deg); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.node-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.node-panel::-webkit-scrollbar-track {
+  background: rgba(201, 177, 255, 0.1);
+  border-radius: 4px;
+}
+
+.node-panel::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #ff9ec4, #c9b1ff);
+  border-radius: 4px;
+}
+
+.node-panel::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #ffb8d4, #d8c8ff);
 }
 
 .node-panel.open {
@@ -209,24 +260,49 @@ function focusRelated(anime) {
 
 .node-close {
   position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 32px;
-  height: 32px;
+  top: 20px;
+  right: 20px;
+  width: 36px;
+  height: 36px;
   border: none;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 24px;
+  background: linear-gradient(135deg, #ff9ec4, #c9b1ff);
+  color: white;
+  font-size: 22px;
   cursor: pointer;
   z-index: 2;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 15px rgba(255, 158, 196, 0.5);
+  transition: all 0.3s ease;
+  line-height: 1;
+}
+
+.node-close:hover {
+  transform: scale(1.1) rotate(90deg);
+  box-shadow: 0 0 25px rgba(255, 158, 196, 0.8);
 }
 
 .node-cover-wrap {
   position: relative;
   width: 100%;
-  border-radius: 14px;
+  border-radius: 16px;
   overflow: hidden;
   margin-bottom: 20px;
+  box-shadow: 0 8px 25px rgba(255, 158, 196, 0.3);
+}
+
+.node-cover-wrap::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(180deg, transparent 50%, rgba(20, 10, 40, 0.6) 100%);
+  z-index: 1;
+  pointer-events: none;
 }
 
 .node-cover-wrap img {
@@ -240,12 +316,12 @@ function focusRelated(anime) {
   position: absolute;
   top: 12px;
   right: 12px;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  background: rgba(0, 243, 255, 0.18);
-  border: 1px solid var(--neon-cyan);
-  color: var(--neon-cyan);
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(255, 158, 196, 0.25));
+  border: 2px solid #ffd700;
+  color: #ffd700;
   font-family: 'Orbitron', sans-serif;
   font-size: 14px;
   font-weight: 700;
@@ -253,6 +329,8 @@ function focusRelated(anime) {
   align-items: center;
   justify-content: center;
   backdrop-filter: blur(8px);
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+  z-index: 2;
 }
 
 .node-title {
@@ -260,11 +338,13 @@ function focusRelated(anime) {
   font-weight: 700;
   margin-bottom: 6px;
   line-height: 1.3;
+  color: #fff0f5;
+  text-shadow: 0 0 10px rgba(255, 158, 196, 0.5);
 }
 
 .node-subtitle {
   font-size: 13px;
-  color: var(--text-secondary);
+  color: #e6d5ff;
   margin-bottom: 14px;
 }
 
@@ -279,27 +359,28 @@ function focusRelated(anime) {
 .node-year {
   font-family: 'Orbitron', sans-serif;
   font-size: 13px;
-  color: var(--neon-pink);
+  color: #ff9ec4;
+  font-weight: 600;
 }
 
 .node-genre {
-  padding: 3px 10px;
-  border-radius: 12px;
-  border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(201, 177, 255, 0.3);
+  background: rgba(201, 177, 255, 0.1);
   font-size: 11px;
-  color: var(--text-secondary);
+  color: #e6d5ff;
 }
 
 .node-format,
 .node-season,
 .node-episodes {
-  padding: 3px 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(0, 243, 255, 0.25);
-  background: rgba(0, 243, 255, 0.08);
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 158, 196, 0.4);
+  background: linear-gradient(135deg, rgba(255, 158, 196, 0.15), rgba(201, 177, 255, 0.15));
   font-size: 11px;
-  color: var(--neon-cyan);
+  color: #ff9ec4;
 }
 
 .node-tags {
@@ -310,30 +391,30 @@ function focusRelated(anime) {
 }
 
 .node-tag {
-  padding: 3px 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 105, 180, 0.25);
-  background: rgba(255, 105, 180, 0.08);
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 158, 196, 0.35);
+  background: linear-gradient(135deg, rgba(255, 158, 196, 0.12), rgba(201, 177, 255, 0.12));
   font-size: 11px;
-  color: rgba(255, 214, 232, 0.9);
+  color: rgba(255, 228, 238, 0.95);
 }
 
 .node-row {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 158, 196, 0.1);
   font-size: 13px;
 }
 
 .node-label {
-  color: var(--text-secondary);
+  color: #c9b1ff;
   flex-shrink: 0;
 }
 
 .node-value {
-  color: var(--text-primary);
+  color: #fff0f5;
   text-align: right;
 }
 
@@ -341,14 +422,26 @@ function focusRelated(anime) {
   margin: 18px 0;
   font-size: 14px;
   line-height: 1.8;
-  color: rgba(220, 230, 255, 0.8);
+  color: rgba(255, 240, 245, 0.85);
 }
 
 .node-section-title {
   font-size: 13px;
-  color: var(--neon-cyan);
+  background: linear-gradient(90deg, #ff9ec4, #c9b1ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   margin-bottom: 12px;
   letter-spacing: 1px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.node-section-title::before {
+  content: '✧';
+  -webkit-text-fill-color: #ffd700;
 }
 
 .node-relations,
@@ -359,51 +452,55 @@ function focusRelated(anime) {
 .relation-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .relation-card {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(255, 158, 196, 0.08), rgba(201, 177, 255, 0.08));
+  border: 1px solid rgba(255, 158, 196, 0.15);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
 }
 
 .relation-card:hover {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: var(--neon-cyan);
+  background: linear-gradient(135deg, rgba(255, 158, 196, 0.15), rgba(201, 177, 255, 0.15));
+  border-color: #ff9ec4;
+  transform: translateX(-4px);
+  box-shadow: -4px 4px 15px rgba(255, 158, 196, 0.3);
 }
 
 .relation-color {
-  width: 6px;
-  height: 36px;
-  border-radius: 3px;
+  width: 8px;
+  height: 40px;
+  border-radius: 4px;
   flex-shrink: 0;
 }
 
 .relation-thumb {
-  width: 36px;
-  height: 48px;
-  border-radius: 4px;
+  width: 40px;
+  height: 52px;
+  border-radius: 10px;
   object-fit: cover;
   flex-shrink: 0;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 158, 196, 0.3);
+  box-shadow: 0 2px 8px rgba(255, 158, 196, 0.2);
 }
 
 .relation-title {
   font-size: 13px;
   font-weight: 600;
-  margin-bottom: 2px;
+  margin-bottom: 3px;
+  color: #fff0f5;
 }
 
 .relation-type {
   font-size: 11px;
-  color: var(--text-secondary);
+  color: #c9b1ff;
 }
 
 .node-actions {
@@ -418,42 +515,75 @@ function focusRelated(anime) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 12px 24px;
-  border-radius: 24px;
+  padding: 14px 28px;
+  border-radius: 50px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   text-decoration: none;
   flex: 1;
+  font-size: 14px;
 }
 
 .watch-btn {
-  background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
-  color: var(--bg-darker);
+  background: linear-gradient(135deg, #ff9ec4, #c9b1ff, #ff9ec4);
+  background-size: 200% 200%;
+  color: #140a28;
+  box-shadow: 0 4px 20px rgba(255, 158, 196, 0.4);
 }
 
 .watch-btn:hover {
-  box-shadow: 0 0 16px rgba(0, 243, 255, 0.35);
+  background-position: 100% 100%;
+  box-shadow: 0 6px 30px rgba(255, 158, 196, 0.6), 0 0 20px rgba(201, 177, 255, 0.4);
+  transform: translateY(-2px);
 }
 
 .locate-btn {
   background: transparent;
-  border: 1px solid var(--neon-cyan);
-  color: var(--neon-cyan);
+  border: 2px solid;
+  border-image: linear-gradient(135deg, #ff9ec4, #c9b1ff) 1;
+  color: #ff9ec4;
+  position: relative;
+  overflow: hidden;
+}
+
+.locate-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 158, 196, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.locate-btn:hover::before {
+  left: 100%;
 }
 
 .locate-btn:hover {
-  background: rgba(0, 243, 255, 0.12);
-  box-shadow: 0 0 12px rgba(0, 243, 255, 0.25);
+  background: linear-gradient(135deg, rgba(255, 158, 196, 0.15), rgba(201, 177, 255, 0.15));
+  box-shadow: 0 0 20px rgba(255, 158, 196, 0.3);
+  color: #fff0f5;
 }
 
 .node-empty {
   height: 100%;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--text-secondary);
+  color: #c9b1ff;
   font-size: 14px;
+  gap: 12px;
+}
+
+.node-empty::before {
+  content: '☆';
+  font-size: 48px;
+  color: rgba(255, 215, 0, 0.5);
+  animation: sparkle 2s ease-in-out infinite;
 }
 
 @media (max-width: 768px) {
@@ -461,6 +591,11 @@ function focusRelated(anime) {
     width: 100%;
     right: -100%;
     padding: 20px;
+    padding-top: 70px;
+    border-radius: 16px 16px 0 0;
+    border-left: none;
+    border-top: 3px solid;
+    border-image: linear-gradient(90deg, #ff9ec4, #c9b1ff, #ff9ec4) 1;
   }
 }
 </style>
