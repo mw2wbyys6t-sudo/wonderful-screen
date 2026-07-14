@@ -14,6 +14,7 @@ const isSpeaking = ref(false);
 const isReady = ref(false);
 const voiceMap = ref({});
 let preferredVoice = null;
+let clonedVoice = null; // 预留：克隆角色声音 Blob / AudioBuffer
 let speechQueue = [];
 let utterance = null;
 let unlockResolver = null;
@@ -114,6 +115,12 @@ export function useVoice() {
     speak(text, { priority = false } = {}) {
       if (!isSupported.value || !text) return;
 
+      // 预留：如果已加载克隆角色声音，使用 Audio 播放克隆音频
+      if (clonedVoice) {
+        // 未来实现：将 text 通过 TTS 服务端转换为角色音频后播放
+        // playClonedAudio(text);
+      }
+
       if (priority) {
         // 高优先级：清空队列并立即播放
         speechQueue = [text];
@@ -138,6 +145,16 @@ export function useVoice() {
       isSpeaking.value = false;
     },
 
+    // 设置首选系统语音
+    setVoice(voice) {
+      preferredVoice = voice;
+    },
+
+    // 预留：设置克隆角色声音（AudioBuffer / Blob / URL）
+    setClonedVoice(voiceAsset) {
+      clonedVoice = voiceAsset;
+    },
+
     // 获取可用语音列表
     getVoices() {
       return window.speechSynthesis?.getVoices() || [];
@@ -156,6 +173,12 @@ export const VoicePlayer = {
   },
   stop() {
     return useVoice().stop();
+  },
+  setVoice(voice) {
+    return useVoice().setVoice(voice);
+  },
+  setClonedVoice(voiceAsset) {
+    return useVoice().setClonedVoice(voiceAsset);
   }
 };
 

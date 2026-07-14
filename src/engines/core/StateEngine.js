@@ -20,7 +20,8 @@ const state = reactive({
   gesture: null,             // 最近一次手势
   aiMessage: null,           // AI 导航提示文本
   loading: false,            // 全局加载状态
-  inputMode: 'mouse'         // mouse | hand | voice
+  inputMode: 'mouse',        // mouse | hand | voice
+  narratorMuted: false       // AI 语音导游是否静音
 });
 
 export const StateEngine = {

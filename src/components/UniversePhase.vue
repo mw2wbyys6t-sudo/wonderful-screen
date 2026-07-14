@@ -14,12 +14,15 @@
       :count="dataCount"
       :voice-active="voiceActive"
       :voice-supported="voiceSupported"
+      :narrator-enabled="narratorEnabled"
+      :narrator-supported="narratorSupported"
       @filter-genre="onFilterGenre"
       @search="onSearch"
       @reset-camera="onResetCamera"
       @focus-nebula="onFocusNebula"
       @toggle-fullscreen="onToggleFullscreen"
       @toggle-voice="onToggleVoice"
+      @toggle-narrator="onToggleNarrator"
     />
 
     <NodePanel
@@ -121,6 +124,8 @@ import { InteractionEngine } from '../engines/interaction/InteractionEngine.js';
 import { GestureEngine } from '../engines/interaction/GestureEngine.js';
 import { VoiceEngine } from '../engines/interaction/VoiceEngine.js';
 import { AIEngine } from '../engines/ai/AIEngine.js';
+import { VoiceNarrator } from '../engines/ai/VoiceNarrator.js';
+import { VoicePlayer } from '../composables/useVoice.js';
 import { StateEngine } from '../engines/core/StateEngine.js';
 import { bus } from '../engines/core/EventBus.js';
 import { FeedbackEngine } from '../engines/feedback/FeedbackEngine.js';
@@ -153,6 +158,8 @@ const gestureText = computed(() => GestureEngine.gestureText.value);
 const handDetected = computed(() => GestureEngine.handDetected.value);
 const voiceActive = computed(() => VoiceEngine.isListening.value);
 const voiceSupported = computed(() => VoiceEngine.isSupported.value);
+const narratorEnabled = computed(() => !VoiceNarrator.muted);
+const narratorSupported = computed(() => VoicePlayer.isSupported.value);
 const showGestureGuide = ref(false);
 const GUIDE_STORAGE_KEY = 'animeverse-gesture-guide-seen';
 
@@ -182,6 +189,11 @@ onMounted(async () => {
     await DataEngine.load();
     dataLoading.value = false;
     dataCount.value = DataEngine.data.value.length;
+
+    // 1.5 初始化 AI 引擎与语音导游（数据未完全加载也可先绑定事件）
+    AIEngine.init();
+    VoiceNarrator.init();
+    VoiceNarrator.muted = StateEngine.state.narratorMuted;
 
     // 2. 初始化 3D 宇宙；若失败则自动降级到 2D 螺旋宇宙
     let webglOk = false;
@@ -221,27 +233,9 @@ onMounted(async () => {
     }
 
     // 3. 绑定交互引擎
+    // 注：鼠标/手势/键盘动作统一走 bus 事件，避免回调与 bus 监听重复执行
     InteractionEngine.init({
-      canvas: universeCanvas.value,
-      onPointerMove: (payload) => {
-        apiSetPointer(payload.x, payload.y);
-        const id = apiRaycast();
-        updateHover(id);
-      },
-      onSelect: () => {
-        const id = apiRaycast();
-        if (id) apiSelect(id);
-      },
-      onZoom: (delta) => {
-        apiZoom(delta);
-      },
-      onBack: () => {
-        if (selectedAnime.value) {
-          StateEngine.select(null);
-        } else if (StateEngine.state.activeGenre) {
-          StateEngine.clearFilter();
-        }
-      }
+      canvas: universeCanvas.value
     });
 
     // 4. 全局事件监听
@@ -503,6 +497,11 @@ function closeGestureGuide() {
 
 function onToggleVoice() {
   VoiceEngine.toggle();
+}
+
+function onToggleNarrator() {
+  const muted = VoiceNarrator.toggleMute();
+  StateEngine.set('narratorMuted', muted);
 }
 
 function onClosePanel() {

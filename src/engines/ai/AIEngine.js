@@ -10,6 +10,11 @@ export const AIEngine = {
   mode: 'local', // local | llm
   llmConfig: null,
 
+  init() {
+    bus.on('ai:explain', (animeId) => this.explainAndNarrate(animeId));
+    return this;
+  },
+
   setMode(mode) {
     this.mode = mode;
   },
@@ -62,6 +67,15 @@ export const AIEngine = {
     bus.emit('ai:narrate', narration);
 
     return { intent, narration };
+  },
+
+  // 处理作品解说请求
+  explainAndNarrate(animeId) {
+    const explanation = this.explain(animeId);
+    if (explanation) {
+      bus.emit('ai:narrate', explanation);
+    }
+    return explanation;
   },
 
   // 获取某部作品的 AI 解说

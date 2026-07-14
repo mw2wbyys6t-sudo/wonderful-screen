@@ -56,6 +56,18 @@
           <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
         </svg>
       </button>
+      <button
+        v-if="narratorSupported"
+        title="语音播报"
+        class="narrator-btn"
+        :class="{ active: narratorEnabled, muted: !narratorEnabled }"
+        :aria-pressed="narratorEnabled"
+        @click="emit('toggle-narrator')"
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+        </svg>
+      </button>
       <button title="帮助" @click="showHelp = !showHelp">?</button>
     </div>
     <div class="hud-counter">{{ count }} 颗恒星已点亮</div>
@@ -105,9 +117,11 @@ import { bus } from '../engines/core/EventBus.js';
 const props = defineProps({
   count: { type: Number, default: 0 },
   voiceActive: { type: Boolean, default: false },
-  voiceSupported: { type: Boolean, default: false }
+  voiceSupported: { type: Boolean, default: false },
+  narratorEnabled: { type: Boolean, default: true },
+  narratorSupported: { type: Boolean, default: false }
 });
-const emit = defineEmits(['filter-genre', 'search', 'reset-camera', 'focus-nebula', 'toggle-fullscreen', 'toggle-voice']);
+const emit = defineEmits(['filter-genre', 'search', 'reset-camera', 'focus-nebula', 'toggle-fullscreen', 'toggle-voice', 'toggle-narrator']);
 
 const { genres } = useData();
 const { toggle: toggleMusic } = useAudio();
@@ -316,6 +330,21 @@ defineExpose({ showNoResult, showSearchResult });
   color: #ff7aa3;
   box-shadow: 0 0 14px rgba(255, 42, 109, 0.35);
   animation: voicePulse 1.6s ease-in-out infinite;
+}
+
+.hud-actions .narrator-btn {
+  color: var(--neon-cyan);
+}
+
+.hud-actions .narrator-btn.muted {
+  opacity: 0.5;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.hud-actions .narrator-btn.active {
+  background: rgba(0, 243, 255, 0.18);
+  border-color: rgba(0, 243, 255, 0.5);
+  box-shadow: 0 0 14px rgba(0, 243, 255, 0.3);
 }
 
 @keyframes voicePulse {
