@@ -1,16 +1,46 @@
 <template>
-  <div class="hud" :class="{ 'panel-open': !!anime }">
+  <div class="hud" :class="{ 'panel-open': !!anime, 'mode-2d': viewMode === '2d' }">
     <div class="hud-top">
       <div class="hud-brand">
         <span class="logo-mark">AV</span>
         <span class="brand-text">动漫宇宙 <em>AnimeVerse</em></span>
       </div>
       <div class="hud-controls">
+        <div class="search-box" v-if="!anime">
+          <input
+            type="text"
+            class="search-input"
+            placeholder="搜索作品、公司、标签..."
+            v-model="searchText"
+            @input="onSearchInput"
+            @keyup.enter="doSearch"
+            @blur="onSearchBlur"
+          />
+          <button class="search-btn" @click="doSearch" v-if="searchText">
+            <span v-if="searchQuery">×</span>
+            <span v-else>🔍</span>
+          </button>
+          <div class="search-suggestions" v-if="showSuggestions && suggestions.length">
+            <div
+              v-for="s in suggestions.slice(0, 6)"
+              :key="s.id"
+              class="suggestion-item"
+              @mousedown.prevent="selectSuggestion(s)"
+            >
+              <span class="suggestion-title">{{ s.titleRomaji }}</span>
+              <span class="suggestion-meta">{{ s.year }} · {{ (s.genres || []).slice(0, 1).join('') }}</span>
+            </div>
+          </div>
+        </div>
         <button class="ctrl-btn" :class="{ active: voiceActive }" @click="$emit('toggle-voice')" :title="voiceActive ? '关闭语音' : '开启语音'">
           <span class="ctrl-ico">🎤</span>
         </button>
         <button class="ctrl-btn" :class="{ active: !narratorEnabled }" @click="$emit('toggle-narrator')" :title="narratorEnabled ? '静音解说' : '开启解说'">
           <span class="ctrl-ico">{{ narratorEnabled ? '🔊' : '🔇' }}</span>
+        </button>
+        <button class="ctrl-btn mode-btn" @click="toggleMode" :title="viewMode === '2d' ? '切换到3D星河' : '切换到2D画廊'">
+          <span class="ctrl-ico">{{ viewMode === '2d' ? '🌌' : '🗂️' }}</span>
+          <span class="ctrl-label">{{ viewMode === '2d' ? '3D' : '2D' }}</span>
         </button>
         <button class="ctrl-btn" @click="$emit('toggle-fullscreen')" title="全屏">
           <span class="ctrl-ico">⛶</span>
@@ -19,11 +49,11 @@
       </div>
     </div>
 
-    <div class="hud-genres" v-if="!anime">
+    <div class="hud-genres" v-if="!anime && viewMode === '3d'">
       <button 
         class="genre-chip" 
-        :class="{ active: !activeGenre }"
-        @click="$emit('filter-genre', null)"
+        :class="{ active: !activeGenre && !searchQuery }"
+        @click="clearFilters"
       >全部</button>
       <button 
         v-for="g in visibleGenres" 
@@ -31,14 +61,17 @@
         class="genre-chip"
         :class="{ active: activeGenre === g }"
         :style="{ '--chip-color': genreColors[g] || '#c9b1ff' }"
-        @click="$emit('filter-genre', g)"
+        @click="filterGenre(g)"
       >{{ g }}</button>
-      <button class="genre-chip year-chip" v-if="activeYear" @click="$emit('focus-year', null)">
+      <button class="genre-chip year-chip" v-if="activeYear" @click="focusYear(null)">
         {{ activeYear }}年代 <span class="chip-clear">×</span>
+      </button>
+      <button class="genre-chip search-chip" v-if="searchQuery" @click="clearSearch">
+        搜索: {{ searchQuery }} <span class="chip-clear">×</span>
       </button>
     </div>
 
-    <div class="hud-bottom">
+    <div class="hud-bottom" v-if="viewMode === '3d'">
       <div class="hud-gesture-hint" v-if="inputMode === 'hand' && !anime">
         <span class="hint-icon">✋</span>
         <span class="hint-text">{{ currentHint }}</span>
@@ -48,7 +81,7 @@
       </div>
       <div class="hud-gesture-hint" v-else-if="inputMode === 'voice'">
         <span class="hint-icon">🎙️</span>
-        <span class="hint-text">说出指令，如「下一年」「龙珠」「返回」</span>
+        <span class="hint-text">{{ lastCommand || '说出指令，如「下一年」「龙珠」「返回」' }}</span>
       </div>
 
       <div class="hud-status" v-if="!anime">
@@ -56,7 +89,7 @@
       </div>
     </div>
 
-    <div class="gesture-indicator" v-if="inputMode === 'hand' && currentGesture">
+    <div class="gesture-indicator" v-if="inputMode === 'hand' && currentGesture && viewMode === '3d'">
       <span class="indicator-icon">{{ gestureIcons[currentGesture] || '✋' }}</span>
       <span class="indicator-text">{{ gestureNames[currentGesture] || currentGesture }}</span>
     </div>
@@ -84,7 +117,7 @@ const props = defineProps({
   activeYear: { type: Number, default: null }
 });
 
-defineEmits([
+const emit = defineEmits([
   'filter-genre', 'search', 'reset-camera', 'focus-nebula',
   'focus-year', 'toggle-fullscreen', 'toggle-voice', 'toggle-narrator'
 ]);
@@ -93,11 +126,18 @@ const showHelp = ref(false);
 const currentGesture = ref(null);
 const dwellProgress = ref(0);
 const toastMessage = ref('');
+const searchText = ref('');
+const showSuggestions = ref(false);
+const suggestions = ref([]);
+const lastCommand = ref('');
 let toastTimer = null;
 let idleTimer = null;
+let searchTimer = null;
 
+const viewMode = computed(() => StateEngine.state.viewMode);
 const inputMode = computed(() => StateEngine.state.inputMode);
 const activeGenre = computed(() => StateEngine.state.activeGenre);
+const searchQuery = computed(() => StateEngine.state.searchQuery);
 const anime = computed(() => StateEngine.state.selectedId ? DataEngine.byId(StateEngine.state.selectedId) : null);
 
 const allGenres = computed(() => {
@@ -148,15 +188,85 @@ const gestureNames = {
 
 const currentHint = computed(() => {
   if (anime.value) return '握拳返回列表';
+  if (searchQuery.value) return `搜索「${searchQuery.value}」· 捏合选择 · 握拳返回`;
   if (activeGenre.value) return `筛选「${activeGenre.value}」· 捏合选择 · 握拳返回`;
   if (activeYear.value) return `${activeYear.value}年代 · 左右挥手切换年份`;
   return '捏合选择恒星 · 挥手切换年份 · 握拳返回';
 });
 
+function toggleMode() {
+  StateEngine.toggleViewMode();
+  const mode = StateEngine.state.viewMode;
+  showToast(mode === '3d' ? '已切换到3D星河模式' : '已切换到2D画廊模式');
+}
+
 function showToast(msg) {
   toastMessage.value = msg;
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toastMessage.value = '', 2000);
+}
+
+function onSearchInput() {
+  if (searchTimer) clearTimeout(searchTimer);
+  if (!searchText.value.trim()) {
+    suggestions.value = [];
+    showSuggestions.value = false;
+    if (searchQuery.value) clearSearch();
+    return;
+  }
+  searchTimer = setTimeout(() => {
+    const results = DataEngine.search(searchText.value);
+    suggestions.value = results;
+    showSuggestions.value = true;
+  }, 200);
+}
+
+function doSearch() {
+  const q = searchText.value.trim();
+  if (!q) {
+    clearSearch();
+    return;
+  }
+  const results = DataEngine.search(q);
+  const ids = results.map(r => r.id);
+  StateEngine.setSearch(q, ids);
+  showSuggestions.value = false;
+  showToast(results.length ? `找到 ${results.length} 个结果` : `未找到「${q}」`);
+  bus.emit('search:performed', { query: q, results: ids });
+}
+
+function selectSuggestion(item) {
+  searchText.value = item.titleRomaji;
+  doSearch();
+  StateEngine.select(item.id);
+  if (viewMode.value === '3d') {
+    StateEngine.setCameraTarget({ id: item.id });
+  }
+}
+
+function onSearchBlur() {
+  setTimeout(() => { showSuggestions.value = false; }, 200);
+}
+
+function clearSearch() {
+  searchText.value = '';
+  suggestions.value = [];
+  StateEngine.clearSearch();
+  showToast('已清除搜索');
+}
+
+function clearFilters() {
+  StateEngine.clearFilter();
+  if (searchQuery.value) clearSearch();
+}
+
+function filterGenre(g) {
+  StateEngine.filterGenre(g);
+  showToast(`已筛选：${g}`);
+}
+
+function focusYear(y) {
+  StateEngine.focusYear(y);
 }
 
 function onGestureRecognized(g) {
@@ -172,23 +282,21 @@ const handlers = {
   'gesture:idle': () => { currentGesture.value = null; },
   'gesture:dwell-progress': (p) => { dwellProgress.value = p; },
   'toast': (msg) => showToast(msg),
-  'state:selectedId': () => {}
+  'voice:text': (text) => { lastCommand.value = text; },
+  'state:viewMode': () => {}
 };
 
 onMounted(() => {
   Object.entries(handlers).forEach(([e, fn]) => bus.on(e, fn));
+  searchText.value = searchQuery.value || '';
 });
 
 onUnmounted(() => {
   Object.entries(handlers).forEach(([e, fn]) => bus.off(e, fn));
   if (toastTimer) clearTimeout(toastTimer);
   if (idleTimer) clearTimeout(idleTimer);
+  if (searchTimer) clearTimeout(searchTimer);
 });
-
-function showSearchResult() {}
-function showNoResult() {}
-
-defineExpose({ showSearchResult, showNoResult });
 </script>
 
 <style scoped>
@@ -203,6 +311,12 @@ defineExpose({ showSearchResult, showNoResult });
 
 .hud.panel-open {
   padding-right: 480px;
+}
+
+.hud.mode-2d {
+  padding-right: 24px;
+  background: linear-gradient(180deg, rgba(10, 5, 24, 0.9) 0%, transparent 100%);
+  padding-bottom: 0;
 }
 
 .hud-top {
@@ -262,6 +376,101 @@ defineExpose({ showSearchResult, showNoResult });
   display: flex;
   gap: 8px;
   pointer-events: auto;
+  align-items: center;
+}
+
+.search-box {
+  position: relative;
+  pointer-events: auto;
+  margin-right: 4px;
+}
+
+.search-input {
+  width: 240px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 158, 196, 0.2);
+  padding: 0 40px 0 16px;
+  color: #fff;
+  font-size: 13px;
+  outline: none;
+  transition: all 0.25s;
+}
+
+.search-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.search-input:focus {
+  border-color: rgba(255, 158, 196, 0.5);
+  background: rgba(255, 255, 255, 0.1);
+  width: 280px;
+  box-shadow: 0 0 20px rgba(255, 158, 196, 0.15);
+}
+
+.search-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #ff9ec4;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.search-btn:hover {
+  background: rgba(255, 158, 196, 0.15);
+}
+
+.search-suggestions {
+  position: absolute;
+  top: 48px;
+  left: 0;
+  right: 0;
+  background: rgba(20, 10, 40, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 158, 196, 0.25);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  z-index: 200;
+}
+
+.suggestion-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  transition: background 0.15s;
+}
+
+.suggestion-item:hover {
+  background: rgba(255, 158, 196, 0.15);
+}
+
+.suggestion-title {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.suggestion-meta {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .ctrl-btn {
@@ -293,6 +502,18 @@ defineExpose({ showSearchResult, showNoResult });
   border-color: rgba(255, 158, 196, 0.5);
   box-shadow: 0 0 20px rgba(255, 158, 196, 0.3);
   color: #fff;
+}
+
+.ctrl-btn.mode-btn {
+  width: auto;
+  padding: 0 14px;
+  border-radius: 12px;
+  gap: 6px;
+}
+
+.ctrl-label {
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .ctrl-btn.help-btn {
@@ -341,6 +562,12 @@ defineExpose({ showSearchResult, showNoResult });
   background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 158, 196, 0.2));
   border-color: rgba(255, 215, 0, 0.4);
   color: #ffd700;
+}
+
+.search-chip {
+  background: linear-gradient(135deg, rgba(100, 200, 255, 0.2), rgba(255, 158, 196, 0.2));
+  border-color: rgba(100, 200, 255, 0.4);
+  color: #7dd3fc;
 }
 
 .chip-clear {
@@ -522,11 +749,19 @@ defineExpose({ showSearchResult, showNoResult });
   .hud-controls {
     gap: 6px;
   }
+
+  .search-box {
+    display: none;
+  }
   
   .ctrl-btn {
     width: 36px;
     height: 36px;
     font-size: 16px;
+  }
+  
+  .ctrl-btn.mode-btn {
+    padding: 0 12px;
   }
   
   .hud-genres {

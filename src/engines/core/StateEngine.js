@@ -6,10 +6,13 @@ import { bus } from './EventBus.js';
 
 const state = reactive({
   phase: 'loading',          // loading | landing | universe
+  viewMode: '3d',            // 2d | 3d
   year: null,                // 当前聚焦年份
   selectedId: null,          // 选中作品 id
   hoveredId: null,           // 悬停作品 id
   activeGenre: null,         // 当前流派筛选
+  searchQuery: null,         // 搜索关键词
+  searchResults: [],         // 搜索结果 id 列表
   camera: {
     theta: 0,
     phi: Math.PI / 2.5,
@@ -88,5 +91,39 @@ export const StateEngine = {
   navigate(phase) {
     this.set('phase', phase);
     bus.emit('phase:changed', phase);
+  },
+
+  toggleViewMode() {
+    const next = state.viewMode === '3d' ? '2d' : '3d';
+    this.set('viewMode', next);
+    bus.emit('view:changed', next);
+  },
+
+  setViewMode(mode) {
+    if (mode !== '2d' && mode !== '3d') return;
+    this.set('viewMode', mode);
+    bus.emit('view:changed', mode);
+  },
+
+  setSearch(query, results = []) {
+    state.searchQuery = query;
+    state.searchResults = results;
+    bus.emit('search:changed', { query, results });
+  },
+
+  clearSearch() {
+    state.searchQuery = null;
+    state.searchResults = [];
+    bus.emit('search:cleared');
+  },
+
+  setCameraTarget(target, animate = true) {
+    state.cameraTarget = target;
+    bus.emit('camera:target', { target, animate });
+  },
+
+  resetCamera() {
+    state.cameraTarget = null;
+    bus.emit('camera:reset');
   }
 };

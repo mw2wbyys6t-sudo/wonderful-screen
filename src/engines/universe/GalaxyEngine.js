@@ -78,6 +78,7 @@ export function GalaxyEngine(canvasRef, options = {}) {
   };
 
   let isVisible = true;
+  let isPaused = false;
   let visibilityHandler = null;
   let lastFrameTime = performance.now();
 
@@ -727,7 +728,7 @@ export function GalaxyEngine(canvasRef, options = {}) {
     animationId = requestAnimationFrame(animate);
 
     // 后台/不可见时暂停渲染，节省性能
-    if (!isVisible) {
+    if (!isVisible || isPaused) {
       lastFrameTime = performance.now();
       return;
     }
@@ -756,9 +757,20 @@ export function GalaxyEngine(canvasRef, options = {}) {
     if (glowTexture) glowTexture.dispose();
   }
 
+  function pause() {
+    isPaused = true;
+  }
+
+  function resume() {
+    isPaused = false;
+    lastFrameTime = performance.now();
+  }
+
   return {
     init,
     dispose,
+    pause,
+    resume,
     setPointerFromScreen,
     raycast,
     highlightHovered,
@@ -775,6 +787,7 @@ export function GalaxyEngine(canvasRef, options = {}) {
     setHandControl,
     setInputMode,
     resetCameraState,
+    animateCamera,
     get hoveredId() { return hoveredId.value; },
     get selectedId() { return selectedId.value; }
   };

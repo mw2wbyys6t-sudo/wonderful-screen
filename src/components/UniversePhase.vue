@@ -18,7 +18,9 @@
       <div class="universe-video-veil"></div>
     </div>
     <div class="star-dust"></div>
-    <canvas ref="universeCanvas" id="universe-canvas"></canvas>
+    <canvas ref="universeCanvas" id="universe-canvas" v-show="viewMode === '3d'"></canvas>
+
+    <Gallery2D v-if="viewMode === '2d'" />
 
     <div class="cockpit-frame">
       <svg class="cockpit-svg" viewBox="0 0 1920 1080" preserveAspectRatio="none">
@@ -201,6 +203,7 @@ GestureActionEngine.init();
 
 const HUD = defineAsyncComponent(() => import('./HUD.vue'));
 const NodePanel = defineAsyncComponent(() => import('./NodePanel.vue'));
+const Gallery2D = defineAsyncComponent(() => import('./Gallery2D.vue'));
 
 const baseUrl = import.meta.env.BASE_URL;
 const { shouldUseVideo } = useVideoBackground();
@@ -234,6 +237,7 @@ const voiceSupported = computed(() => VoiceEngine.isSupported.value);
 const narratorEnabled = computed(() => !VoiceNarrator.muted);
 const narratorSupported = computed(() => VoicePlayer.isSupported.value);
 const activeYear = computed(() => StateEngine.state.year);
+const viewMode = computed(() => StateEngine.state.viewMode);
 const showGestureGuide = ref(false);
 const GUIDE_STORAGE_KEY = 'animeverse-gesture-guide-seen';
 
@@ -383,6 +387,9 @@ onMounted(async () => {
       bus.on('voice:text', (text) => {
         AIEngine.process(text);
       }),
+      bus.on('voice:intent', (intent) => {
+        executeIntent(intent);
+      }),
       bus.on('action:search', (query) => {
         onSearch(query);
       }),
@@ -409,6 +416,36 @@ onMounted(async () => {
       }),
       bus.on('gesture:dwell-complete', () => {
         // dwell 选择已经在 updateDwellSelection 中处理，这里不重复触发
+      }),
+      bus.on('gesture:move', (payload) => {
+        if (StateEngine.state.inputMode !== 'hand' || viewMode.value !== '3d') return;
+        // 如果手势模式下没有悬停到恒星，手部移动控制相机旋转
+        if (!hoveredId && galaxyApi && !selectedAnime.value) {
+          const { x, y } = payload;
+          const edgeSize = 0.18;
+          let rotDx = 0, rotDy = 0;
+          if (x < edgeSize) rotDx = -(edgeSize - x) / edgeSize;
+          else if (x > 1 - edgeSize) rotDx = (x - (1 - edgeSize)) / edgeSize;
+          if (y < edgeSize) rotDy = (edgeSize - y) / edgeSize;
+          else if (y > 1 - edgeSize) rotDy = -(y - (1 - edgeSize)) / edgeSize;
+          if (Math.abs(rotDx) > 0.02 || Math.abs(rotDy) > 0.02) {
+            galaxyApi.rotateCameraByVelocity?.(rotDx * 1.2, rotDy * 0.8);
+          }
+        }
+      }),
+      bus.on('search:performed', ({ query, results }) => {
+        if (galaxyApi) galaxyApi.highlightSearchResults?.(results);
+      }),
+      bus.on('search:cleared', () => {
+        if (galaxyApi) galaxyApi.highlightSearchResults?.([]);
+      }),
+      bus.on('view:changed', (mode) => {
+        if (mode === '2d') {
+          // 切换到2D时暂停3D渲染以节省性能
+          if (galaxyApi?.pause) galaxyApi.pause();
+        } else {
+          if (galaxyApi?.resume) galaxyApi.resume();
+        }
       })
     );
 
@@ -721,6 +758,48 @@ function showAiFeedback(text) {
   aiFeedbackTimer = setTimeout(() => {
     aiFeedback.value = '';
   }, 3500);
+}
+
+function executeIntent(intent) {
+  if (!intent) return;
+  switch (intent.action) {
+    case 'focus-year':
+      if (intent.year) {
+        const decade = Math.floor(intent.year / 10) * 10;
+        StateEngine.focusYear(decade);
+        apiFocusYear(decade);
+      }
+      break;
+    case 'focus-anime':
+      if (intent.id) {
+        StateEngine.select(intent.id);
+        apiFocusAnime(intent.id);
+      } else if (intent.title) {
+        const results = DataEngine.search(intent.title);
+        if (results.length) {
+          StateEngine.select(results[0].id);
+          apiFocusAnime(results[0].id);
+          const ids = results.map(r => r.id);
+          StateEngine.setSearch(intent.title, ids);
+          if (galaxyApi) galaxyApi.highlightSearchResults?.(ids);
+        }
+      }
+      break;
+    case 'recommend':
+      if (intent.genre) {
+        StateEngine.filterGenre(intent.genre);
+      } else {
+        StateEngine.clearFilter();
+      }
+      break;
+    case 'back':
+      GestureActionEngine.back();
+      break;
+    case 'clear':
+      GestureActionEngine.resetFilters();
+      apiResetCamera();
+      break;
+  }
 }
 </script>
 
