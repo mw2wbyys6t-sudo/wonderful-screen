@@ -189,11 +189,11 @@ function focusRelated(anime) {
 <style scoped>
 .node-panel {
   position: fixed;
-  right: -460px;
+  right: -480px;
   top: 0;
   width: 440px;
   height: 100%;
-  z-index: 20;
+  z-index: 120;
   background: rgba(20, 10, 40, 0.95);
   border-left: 3px solid;
   border-image: linear-gradient(180deg, #ff9ec4, #c9b1ff, #ff9ec4) 1;

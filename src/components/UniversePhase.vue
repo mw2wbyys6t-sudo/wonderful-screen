@@ -197,6 +197,8 @@ import { FeedbackEngine } from '../engines/feedback/FeedbackEngine.js';
 import { GestureActionEngine } from '../engines/interaction/GestureActionEngine.js';
 import { useVideoBackground } from '../composables/useVideoBackground.js';
 
+GestureActionEngine.init();
+
 const HUD = defineAsyncComponent(() => import('./HUD.vue'));
 const NodePanel = defineAsyncComponent(() => import('./NodePanel.vue'));
 
@@ -386,6 +388,27 @@ onMounted(async () => {
       }),
       bus.on('action:reset-camera', () => {
         onResetCamera();
+      }),
+      // 手势完成事件 → 语义动作
+      bus.on('gesture:pinch-complete', () => {
+        if (StateEngine.state.inputMode !== 'hand') return;
+        GestureActionEngine.select();
+      }),
+      bus.on('gesture:fist-complete', () => {
+        if (StateEngine.state.inputMode !== 'hand') return;
+        GestureActionEngine.back();
+      }),
+      bus.on('gesture:open-complete', () => {
+        if (StateEngine.state.inputMode !== 'hand') return;
+        GestureActionEngine.back();
+      }),
+      bus.on('gesture:swipe:direction', (direction) => {
+        if (StateEngine.state.inputMode !== 'hand') return;
+        if (direction === 'left') GestureActionEngine.nextYear();
+        else if (direction === 'right') GestureActionEngine.prevYear();
+      }),
+      bus.on('gesture:dwell-complete', () => {
+        // dwell 选择已经在 updateDwellSelection 中处理，这里不重复触发
       })
     );
 
@@ -541,8 +564,9 @@ function updateHover(id) {
 }
 
 function updateDwellSelection(id) {
-  // 仅在无详情面板、有真实悬停目标、且处于手势模式时启用停留选择
-  if (selectedAnime.value || !id) {
+  // 仅在有真实悬停目标、且处于手势模式时启用停留选择
+  // 如果已打开详情面板，dwell 用于关闭面板（返回）
+  if (!id) {
     if (dwellRafId) {
       cancelAnimationFrame(dwellRafId);
       dwellRafId = null;
@@ -553,7 +577,12 @@ function updateDwellSelection(id) {
     return;
   }
 
+  // 如果悬停目标改变，重置 dwell 计时器
   if (lastDwellId !== id) {
+    if (dwellRafId) {
+      cancelAnimationFrame(dwellRafId);
+      dwellRafId = null;
+    }
     lastDwellId = id;
     hoverStartTime = performance.now();
     dwellProgress = 0;
@@ -567,7 +596,16 @@ function updateDwellSelection(id) {
       bus.emit('gesture:dwell-progress', dwellProgress);
       if (dwellProgress >= 1) {
         dwellRafId = null;
-        apiSelect(lastDwellId);
+        // 完成选择：先选中，再重置状态
+        if (selectedAnime.value && selectedAnime.value.id === id) {
+          // 已经选中，再次 dwell 不做操作
+        } else {
+          apiSelect(id);
+          StateEngine.select(id);
+        }
+        lastDwellId = null;
+        dwellProgress = 0;
+        bus.emit('gesture:dwell-progress', 0);
         bus.emit('gesture:dwell-complete');
       } else {
         dwellRafId = requestAnimationFrame(step);
@@ -897,24 +935,30 @@ function showAiFeedback(text) {
 }
 
 .cockpit-readout.top-left {
-  top: 50px;
-  left: 30px;
+  top: 80px;
+  left: 24px;
+  opacity: 0.4;
 }
 .cockpit-readout.top-right {
-  top: 50px;
-  right: 30px;
+  top: 80px;
+  right: 24px;
   flex-direction: row-reverse;
+  opacity: 0 !important;
+  display: none;
 }
 .cockpit-readout.bottom-left {
-  bottom: 30px;
-  left: 30px;
+  bottom: 100px;
+  left: 24px;
   align-items: flex-end;
+  opacity: 0.3;
 }
 .cockpit-readout.bottom-right {
-  bottom: 30px;
-  right: 30px;
+  bottom: 180px;
+  right: 24px;
   flex-direction: row-reverse;
   align-items: flex-end;
+  opacity: 0 !important;
+  display: none;
 }
 
 .readout-label {
@@ -1169,7 +1213,7 @@ function showAiFeedback(text) {
 
 .ai-feedback {
   position: fixed;
-  bottom: 190px;
+  bottom: 200px;
   right: 20px;
   z-index: 25;
   padding: 12px 18px;
@@ -1186,10 +1230,9 @@ function showAiFeedback(text) {
   box-shadow: 0 0 20px rgba(255, 158, 196, 0.1), 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
-/* 手势热区提示 */
 .gesture-hint {
   position: fixed;
-  bottom: 180px;
+  bottom: 200px;
   right: 20px;
   z-index: 26;
   padding: 10px 16px;

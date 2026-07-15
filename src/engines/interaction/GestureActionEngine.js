@@ -1,70 +1,34 @@
-// src/engines/interaction/GestureActionEngine.js
-// 语义动作中枢：把「手势/语音/键盘/鼠标」输入统一映射到业务动作
-// 后续纯手势/语音观看只需扩展输入源，无需改动业务逻辑
-
 import { StateEngine } from '../core/StateEngine.js';
 import { bus } from '../core/EventBus.js';
 import { DataEngine } from '../data/DataEngine.js';
 
 export const GestureActionEngine = {
-  // 当前上下文：universe-main | detail-panel | search | filter | year-focus
-  context: 'universe-main',
+  init() {},
 
-  init() {
-    this._bindContextEvents();
-    return this;
-  },
-
-  _bindContextEvents() {
-    bus.on('state:selectedId', ({ value }) => {
-      this.context = value ? 'detail-panel' : (StateEngine.state.activeGenre || StateEngine.state.year ? 'filter' : 'universe-main');
-    });
-    bus.on('state:activeGenre', ({ value }) => {
-      if (!value && !StateEngine.state.selectedId) this.context = 'universe-main';
-      else if (value && !StateEngine.state.selectedId) this.context = 'filter';
-    });
-    bus.on('state:year', ({ value }) => {
-      if (!value && !StateEngine.state.selectedId) this.context = 'universe-main';
-      else if (value && !StateEngine.state.selectedId) this.context = 'year-focus';
-    });
-  },
-
-  // ===== 语义动作接口 =====
-
-  // 移动光标（归一化坐标）
-  move(x, y) {
-    bus.emit('input:pointer', { x: x * window.innerWidth, y: y * window.innerHeight, normalized: { x, y } });
-  },
-
-  // 拖拽/旋转宇宙
-  rotate(dx, dy) {
-    bus.emit('input:rotate', { dx, dy });
-  },
-
-  // 缩放
-  zoom(delta) {
-    bus.emit('input:zoom', delta);
-  },
-
-  // 选择当前悬停的恒星 / 确认操作
   select() {
-    bus.emit('input:select');
-  },
-
-  // 返回/取消，根据上下文智能处理
-  back() {
-    if (StateEngine.state.selectedId) {
-      StateEngine.select(null);
-    } else if (StateEngine.state.activeGenre) {
-      StateEngine.clearFilter();
-    } else if (StateEngine.state.year) {
-      StateEngine.set('year', null);
-    } else {
-      bus.emit('input:back');
+    const hovered = StateEngine.state.hoveredId;
+    if (hovered) {
+      StateEngine.select(hovered);
+      bus.emit('toast', '已打开详情');
     }
   },
 
-  // 切换年份
+  back() {
+    if (StateEngine.state.selectedId) {
+      StateEngine.select(null);
+      bus.emit('toast', '返回列表');
+    } else if (StateEngine.state.activeGenre) {
+      StateEngine.clearFilter();
+      bus.emit('toast', '已清除流派筛选');
+    } else if (StateEngine.state.year) {
+      StateEngine.set('year', null);
+      bus.emit('toast', '已清除年份筛选');
+    } else {
+      bus.emit('toast', '返回入口');
+      setTimeout(() => bus.emit('input:back'), 300);
+    }
+  },
+
   nextYear() {
     this._stepYear(1);
   },
@@ -73,62 +37,25 @@ export const GestureActionEngine = {
     this._stepYear(-1);
   },
 
-  _stepYear(dir) {
-    const years = DataEngine.years.value;
+  _stepYear(step) {
+    const data = DataEngine.data.value || [];
+    const years = [...new Set(data.map(a => Math.floor((a.year || 2000) / 10) * 10))].filter(y => y >= 1960 && y <= 2030).sort((a, b) => a - b);
     if (!years.length) return;
-    const current = StateEngine.state.year;
-    if (!current) {
-      StateEngine.focusYear(dir > 0 ? years[0] : years[years.length - 1]);
-      return;
+    
+    let cur = StateEngine.state.year;
+    let idx = cur ? years.indexOf(cur) : (step > 0 ? -1 : years.length - 1);
+    idx = Math.max(0, Math.min(years.length - 1, idx + step));
+    const next = years[idx];
+    if (next !== cur) {
+      StateEngine.set('year', next);
+      bus.emit('toast', `${next}年代`);
     }
-    const idx = years.indexOf(current);
-    const next = years[Math.max(0, Math.min(years.length - 1, idx + dir))];
-    if (next) StateEngine.focusYear(next);
   },
 
-  // 聚焦指定流派
-  focusGenre(genre) {
-    if (!genre) return;
-    StateEngine.filterGenre(genre);
-  },
-
-  // 聚焦指定年份
-  focusYear(year) {
-    if (!year) return;
-    StateEngine.focusYear(year);
-  },
-
-  // 聚焦指定作品
-  focusAnime(id) {
-    if (!id) return;
-    StateEngine.select(id);
-  },
-
-  // 搜索
-  search(query) {
-    bus.emit('action:search', query);
-  },
-
-  // 重置视角
-  resetCamera() {
-    bus.emit('action:reset-camera');
-  },
-
-  // 切换全屏
-  toggleFullscreen() {
-    bus.emit('input:fullscreen');
-  },
-
-  // 返回当前可执行动作列表（供 UI 提示用）
-  availableActions() {
-    const actions = ['move', 'rotate', 'zoom'];
-    if (this.context === 'universe-main') {
-      actions.push('select', 'back', 'nextYear', 'prevYear', 'search', 'resetCamera');
-    } else if (this.context === 'detail-panel') {
-      actions.push('back', 'select');
-    } else if (this.context === 'filter' || this.context === 'year-focus') {
-      actions.push('select', 'back', 'nextYear', 'prevYear');
-    }
-    return actions;
+  resetFilters() {
+    StateEngine.clearFilter();
+    StateEngine.set('year', null);
+    StateEngine.select(null);
+    bus.emit('toast', '已重置');
   }
 };
