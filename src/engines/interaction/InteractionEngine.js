@@ -89,7 +89,7 @@ export const InteractionEngine = {
   },
 
   bindGlobal() {
-    // 手势/语音事件二次分发到语义动作
+    // 手势语义事件二次分发
     bus.on('gesture:move', (pos) => {
       StateEngine.set('inputMode', 'hand');
       this.gestureAction.move(pos.x, pos.y);
@@ -103,22 +103,33 @@ export const InteractionEngine = {
     });
     bus.on('gesture:zoom', (delta) => this.gestureAction.zoom(delta));
 
+    // 语音意图直接分发到语义动作
     bus.on('voice:intent', (intent) => {
       StateEngine.set('inputMode', 'voice');
       StateEngine.set('voiceIntent', intent);
       this.dispatchVoiceIntent(intent);
     });
 
-    // 手势/语音语义动作直接通过 action:* 事件分发，无需二次转发
+    // 鼠标/键盘的 input:swipe 统一处理
+    bus.on('input:swipe', (dir) => {
+      if (dir > 0) this.gestureAction.nextYear();
+      else this.gestureAction.prevYear();
+    });
+
+    bus.on('input:back', () => this.gestureAction.back());
+    bus.on('input:select', () => this.gestureAction.select());
+    bus.on('input:zoom', (delta) => this.gestureAction.zoom(delta));
   },
 
   dispatchVoiceIntent(intent) {
+    if (!intent || !intent.action) return;
     switch (intent.action) {
       case 'focus-year':
         this.gestureAction.focusYear(intent.year);
         break;
       case 'focus-anime':
-        this.gestureAction.focusAnime(intent.id);
+        if (intent.id) this.gestureAction.focusAnime(intent.id);
+        else if (intent.title) this.gestureAction.search(intent.title);
         break;
       case 'recommend':
         this.gestureAction.focusGenre(intent.genre);
@@ -130,10 +141,10 @@ export const InteractionEngine = {
         StateEngine.navigate('landing');
         break;
       case 'clear':
-        StateEngine.clearFilter();
+        this.gestureAction.reset();
         break;
       case 'search':
-        this.gestureAction.search(intent.query);
+        this.gestureAction.search(intent.query || intent.title);
         break;
     }
   }

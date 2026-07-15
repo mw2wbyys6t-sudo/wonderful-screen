@@ -100,8 +100,27 @@
         </div>
       </div>
 
+      <div v-if="constellation.length" class="node-constellation">
+        <div class="node-section-title">同星座作品</div>
+        <div class="constellation-grid">
+          <div
+            v-for="item in constellation"
+            :key="item.anime.id"
+            class="constellation-card"
+            @click="focusRelated(item.anime)"
+          >
+            <img class="constellation-thumb" :src="item.anime.coverImage || item.anime.coverFallback" :alt="item.anime.titleRomaji">
+            <div class="constellation-info">
+              <div class="constellation-title">{{ item.anime.titleRomaji }}</div>
+              <div class="constellation-reason">{{ item.reason }} · {{ item.anime.year }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="node-actions">
         <button class="locate-btn" @click="locate">在宇宙中定位</button>
+        <button class="explain-btn" @click="explain">AI 解说</button>
         <a class="watch-btn" :href="watchLink" target="_blank" rel="noopener">进入放映厅</a>
       </div>
     </div>
@@ -115,6 +134,8 @@
 <script setup>
 import { computed } from 'vue';
 import { KnowledgeEngine } from '../engines/data/KnowledgeEngine.js';
+import { DataEngine } from '../engines/data/DataEngine.js';
+import { bus } from '../engines/core/EventBus.js';
 
 const props = defineProps({
   anime: { type: Object, default: null },
@@ -134,6 +155,31 @@ const displayedAwards = computed(() => props.anime?.awards?.slice(0, 3) || []);
 const recommendations = computed(() => {
   if (!props.anime) return [];
   return KnowledgeEngine.recommend(props.anime.id, 6);
+});
+
+// 星座卡片墙：同年代 + 同流派作品
+const constellation = computed(() => {
+  if (!props.anime) return [];
+  const sameYear = DataEngine.data.value.filter(
+    a => a.id !== props.anime.id && Math.abs((a.year || 0) - (props.anime.year || 0)) <= 2
+  );
+  const sameGenre = DataEngine.data.value.filter(
+    a => a.id !== props.anime.id && (props.anime.genres || []).some(g => a.genres?.includes(g))
+  );
+  const map = new Map();
+  sameYear.forEach(a => map.set(a.id, { anime: a, reason: '同年代', score: (a.popularity || 0) + 100 }));
+  sameGenre.forEach(a => {
+    const existing = map.get(a.id);
+    if (existing) {
+      existing.reason = '同年代 · 同流派';
+      existing.score += 200;
+    } else {
+      map.set(a.id, { anime: a, reason: '同流派', score: a.popularity || 0 });
+    }
+  });
+  return [...map.values()]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8);
 });
 
 const coverImage = computed(() => {
@@ -179,6 +225,10 @@ function close() {
 
 function locate() {
   if (props.anime) emit('locate', props.anime);
+}
+
+function explain() {
+  if (props.anime) bus.emit('ai:explain', props.anime.id);
 }
 
 function focusRelated(anime) {
@@ -445,8 +495,62 @@ function focusRelated(anime) {
 }
 
 .node-relations,
-.node-recommendations {
+.node-recommendations,
+.node-constellation {
   margin-bottom: 24px;
+}
+
+.constellation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.constellation-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255, 158, 196, 0.08), rgba(201, 177, 255, 0.08));
+  border: 1px solid rgba(255, 158, 196, 0.15);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.constellation-card:hover {
+  background: linear-gradient(135deg, rgba(255, 158, 196, 0.15), rgba(201, 177, 255, 0.15));
+  border-color: #ff9ec4;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(255, 158, 196, 0.2);
+}
+
+.constellation-thumb {
+  width: 46px;
+  height: 60px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 158, 196, 0.25);
+}
+
+.constellation-info {
+  min-width: 0;
+}
+
+.constellation-title {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #fff0f5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.constellation-reason {
+  font-size: 10px;
+  color: #c9b1ff;
 }
 
 .relation-list {
@@ -596,6 +700,10 @@ function focusRelated(anime) {
     border-left: none;
     border-top: 3px solid;
     border-image: linear-gradient(90deg, #ff9ec4, #c9b1ff, #ff9ec4) 1;
+  }
+
+  .constellation-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

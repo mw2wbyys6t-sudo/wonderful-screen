@@ -18,9 +18,7 @@
       <div class="universe-video-veil"></div>
     </div>
     <div class="star-dust"></div>
-    <canvas ref="universeCanvas" id="universe-canvas" v-show="viewMode === '3d'"></canvas>
-
-    <Gallery2D v-if="viewMode === '2d'" />
+    <canvas ref="universeCanvas" id="universe-canvas"></canvas>
 
     <div class="cockpit-frame">
       <svg class="cockpit-svg" viewBox="0 0 1920 1080" preserveAspectRatio="none">
@@ -75,7 +73,6 @@
 
     <HUD
       v-if="hudReady"
-      ref="hudRef"
       :count="dataCount"
       :voice-active="voiceActive"
       :voice-supported="voiceSupported"
@@ -177,6 +174,9 @@
 
     <!-- AI / 语音反馈 -->
     <div v-if="aiFeedback" class="ai-feedback">{{ aiFeedback }}</div>
+
+    <!-- 星轨时间轴 -->
+    <OrbitTimeline />
   </section>
 </template>
 
@@ -186,7 +186,6 @@ import { DataEngine } from '../engines/data/DataEngine.js';
 import { KnowledgeEngine } from '../engines/data/KnowledgeEngine.js';
 import { GalaxyEngine } from '../engines/universe/GalaxyEngine.js';
 import { SpiralUniverse } from '../engines/universe/SpiralUniverse.js';
-import { TimelineEngine } from '../engines/universe/TimelineEngine.js';
 import { InteractionEngine } from '../engines/interaction/InteractionEngine.js';
 import { GestureEngine } from '../engines/interaction/GestureEngine.js';
 import { VoiceEngine } from '../engines/interaction/VoiceEngine.js';
@@ -198,12 +197,12 @@ import { bus } from '../engines/core/EventBus.js';
 import { FeedbackEngine } from '../engines/feedback/FeedbackEngine.js';
 import { GestureActionEngine } from '../engines/interaction/GestureActionEngine.js';
 import { useVideoBackground } from '../composables/useVideoBackground.js';
+import OrbitTimeline from './OrbitTimeline.vue';
 
 GestureActionEngine.init();
 
 const HUD = defineAsyncComponent(() => import('./HUD.vue'));
 const NodePanel = defineAsyncComponent(() => import('./NodePanel.vue'));
-const Gallery2D = defineAsyncComponent(() => import('./Gallery2D.vue'));
 
 const baseUrl = import.meta.env.BASE_URL;
 const { shouldUseVideo } = useVideoBackground();
@@ -215,7 +214,6 @@ const universeCanvas = ref(null);
 const gestureVideo = ref(null);
 const gestureCanvas = ref(null);
 const cursorCanvas = ref(null);
-const hudRef = ref(null);
 
 const hudReady = ref(false);
 const loading = ref(true);
@@ -237,7 +235,6 @@ const voiceSupported = computed(() => VoiceEngine.isSupported.value);
 const narratorEnabled = computed(() => !VoiceNarrator.muted);
 const narratorSupported = computed(() => VoicePlayer.isSupported.value);
 const activeYear = computed(() => StateEngine.state.year);
-const viewMode = computed(() => StateEngine.state.viewMode);
 const showGestureGuide = ref(false);
 const GUIDE_STORAGE_KEY = 'animeverse-gesture-guide-seen';
 
@@ -259,6 +256,8 @@ let dwellRafId = null;
 let dwellProgress = 0;
 const DWELL_SELECT_MS = 900; // 手势悬停停留选择阈值
 const isFallback2D = ref(false);
+let currentGestureState = '';
+let zoomEdgeTimer = null;
 
 // 输入事件节流
 let pointerThrottleTimer = null;
@@ -322,30 +321,11 @@ onMounted(async () => {
     });
 
     // 4. 全局事件监听
+    // 鼠标/键盘/手势/语音的原始输入统一由 InteractionEngine 路由到 GestureActionEngine，
+    // 这里只监听状态变化与语义动作，避免重复处理。
     cleanupFns.push(
-      bus.on('input:rotate', ({ dx, dy }) => {
-        apiRotate(dx, dy);
-      }),
-      bus.on('input:zoom', (delta) => {
-        apiZoom(delta);
-      }),
       bus.on('input:fullscreen', () => {
         onToggleFullscreen();
-      }),
-      bus.on('input:select', () => {
-        const id = apiRaycast();
-        if (id) apiSelect(id);
-      }),
-      bus.on('input:back', () => {
-        if (selectedAnime.value) {
-          StateEngine.select(null);
-        } else if (StateEngine.state.activeGenre) {
-          StateEngine.clearFilter();
-        } else if (StateEngine.state.year) {
-          StateEngine.set('year', null);
-        } else {
-          bus.emit('phase:changed', 'landing');
-        }
       }),
       bus.on('input:pointer', (payload) => {
         // 节流：避免每帧都执行 raycast 和 hover 更新
@@ -387,39 +367,29 @@ onMounted(async () => {
       bus.on('voice:text', (text) => {
         AIEngine.process(text);
       }),
-      bus.on('voice:intent', (intent) => {
-        executeIntent(intent);
+      bus.on('action:search', (payload) => {
+        onSearch(payload);
       }),
-      bus.on('action:search', (query) => {
-        onSearch(query);
+      bus.on('search:cleared', () => {
+        if (galaxyApi) galaxyApi.resetHighlight?.();
+      }),
+      bus.on('action:focus-year', (year) => {
+        if (year != null) apiFocusYear(year);
+      }),
+      bus.on('action:focus-anime', (id) => {
+        if (id) apiFocusAnime(id);
       }),
       bus.on('action:reset-camera', () => {
         onResetCamera();
       }),
-      // 手势完成事件 → 语义动作
-      bus.on('gesture:pinch-complete', () => {
-        if (StateEngine.state.inputMode !== 'hand') return;
-        GestureActionEngine.select();
-      }),
-      bus.on('gesture:fist-complete', () => {
-        if (StateEngine.state.inputMode !== 'hand') return;
-        GestureActionEngine.back();
-      }),
-      bus.on('gesture:open-complete', () => {
-        if (StateEngine.state.inputMode !== 'hand') return;
-        GestureActionEngine.back();
-      }),
-      bus.on('gesture:swipe:direction', (direction) => {
-        if (StateEngine.state.inputMode !== 'hand') return;
-        if (direction === 'left') GestureActionEngine.nextYear();
-        else if (direction === 'right') GestureActionEngine.prevYear();
-      }),
-      bus.on('gesture:dwell-complete', () => {
-        // dwell 选择已经在 updateDwellSelection 中处理，这里不重复触发
+      // 手势语义动作统一由 InteractionEngine 路由到 GestureActionEngine，
+      // 这里只处理与 3D/2D 渲染直接相关的手势副作用（光标、相机边缘旋转/缩放）。
+      bus.on('gesture:state', ({ state }) => {
+        currentGestureState = state || '';
       }),
       bus.on('gesture:move', (payload) => {
-        if (StateEngine.state.inputMode !== 'hand' || viewMode.value !== '3d') return;
-        // 如果手势模式下没有悬停到恒星，手部移动控制相机旋转
+        if (StateEngine.state.inputMode !== 'hand') return;
+        // 如果手势模式下没有悬停到恒星，手部移动控制相机旋转/缩放
         if (!hoveredId && galaxyApi && !selectedAnime.value) {
           const { x, y } = payload;
           const edgeSize = 0.18;
@@ -428,23 +398,18 @@ onMounted(async () => {
           else if (x > 1 - edgeSize) rotDx = (x - (1 - edgeSize)) / edgeSize;
           if (y < edgeSize) rotDy = (edgeSize - y) / edgeSize;
           else if (y > 1 - edgeSize) rotDy = -(y - (1 - edgeSize)) / edgeSize;
-          if (Math.abs(rotDx) > 0.02 || Math.abs(rotDy) > 0.02) {
+
+          // 张开手掌时，上下边缘控制缩放；其他状态左右边缘控制旋转
+          const isOpenForZoom = currentGestureState === 'open' || currentGestureState === 'pointing';
+          if (isOpenForZoom && Math.abs(rotDy) > 0.02 && Math.abs(rotDx) < 0.05) {
+            const zoomDir = y < edgeSize ? -1 : 1;
+            GestureActionEngine.zoom(zoomDir * 2.5);
+            // 缩放节流，避免连续触发过快
+            if (zoomEdgeTimer) clearTimeout(zoomEdgeTimer);
+            zoomEdgeTimer = setTimeout(() => {}, 120);
+          } else if (Math.abs(rotDx) > 0.02 || Math.abs(rotDy) > 0.02) {
             galaxyApi.rotateCameraByVelocity?.(rotDx * 1.2, rotDy * 0.8);
           }
-        }
-      }),
-      bus.on('search:performed', ({ query, results }) => {
-        if (galaxyApi) galaxyApi.highlightSearchResults?.(results);
-      }),
-      bus.on('search:cleared', () => {
-        if (galaxyApi) galaxyApi.highlightSearchResults?.([]);
-      }),
-      bus.on('view:changed', (mode) => {
-        if (mode === '2d') {
-          // 切换到2D时暂停3D渲染以节省性能
-          if (galaxyApi?.pause) galaxyApi.pause();
-        } else {
-          if (galaxyApi?.resume) galaxyApi.resume();
         }
       })
     );
@@ -587,6 +552,7 @@ onUnmounted(() => {
   cleanupFns.forEach(fn => typeof fn === 'function' && fn());
   if (dwellRafId) cancelAnimationFrame(dwellRafId);
   if (pointerThrottleTimer) clearTimeout(pointerThrottleTimer);
+  if (zoomEdgeTimer) clearTimeout(zoomEdgeTimer);
   VoiceEngine.stop();
   GestureEngine.stop();
   FeedbackEngine.dispose();
@@ -699,31 +665,27 @@ function onFocusRelated(anime) {
 }
 
 function onFilterGenre(genre) {
-  StateEngine.filterGenre(genre);
+  GestureActionEngine.focusGenre(genre);
 }
 
 function onFocusYear(year) {
-  if (year) StateEngine.focusYear(year);
-  else StateEngine.set('year', null);
+  GestureActionEngine.focusYear(year);
 }
 
-function onSearch(query) {
-  const results = DataEngine.search(query);
-  if (results.length) {
-    // 搜索反馈：通知 HUD 显示结果数量
-    if (hudRef.value) hudRef.value.showSearchResult(query, results.length);
-
-    // 多结果模式：高亮所有命中并聚焦第一个
-    if (results.length > 1) {
-      if (galaxyApi) galaxyApi.focusOnSearchResults?.(results);
-      if (spiralApi) spiralApi.focusOnSearchResults(results);
+function onSearch(payload) {
+  // 来自 HUD / 语音的字符串搜索请求交给 GestureActionEngine 统一处理；
+  // 来自 GestureActionEngine 的回包对象只负责高亮结果，避免循环触发。
+  if (typeof payload === 'string') {
+    GestureActionEngine.search(payload);
+    return;
+  }
+  if (payload && typeof payload === 'object') {
+    if (payload.results && galaxyApi) {
+      galaxyApi.highlightSearchResults?.(payload.results);
     }
-
-    const first = results[0];
-    StateEngine.select(first.id);
-    apiFocusAnime(first.id);
-  } else if (hudRef.value) {
-    hudRef.value.showNoResult();
+    if (payload.query && spiralApi) {
+      spiralApi.focusOnSearchResults?.(DataEngine.search(payload.query));
+    }
   }
 }
 
@@ -741,7 +703,7 @@ function onResetCamera() {
 }
 
 function onFocusNebula(genre) {
-  StateEngine.filterGenre(genre);
+  GestureActionEngine.focusGenre(genre);
 }
 
 function onToggleFullscreen() {
@@ -758,48 +720,6 @@ function showAiFeedback(text) {
   aiFeedbackTimer = setTimeout(() => {
     aiFeedback.value = '';
   }, 3500);
-}
-
-function executeIntent(intent) {
-  if (!intent) return;
-  switch (intent.action) {
-    case 'focus-year':
-      if (intent.year) {
-        const decade = Math.floor(intent.year / 10) * 10;
-        StateEngine.focusYear(decade);
-        apiFocusYear(decade);
-      }
-      break;
-    case 'focus-anime':
-      if (intent.id) {
-        StateEngine.select(intent.id);
-        apiFocusAnime(intent.id);
-      } else if (intent.title) {
-        const results = DataEngine.search(intent.title);
-        if (results.length) {
-          StateEngine.select(results[0].id);
-          apiFocusAnime(results[0].id);
-          const ids = results.map(r => r.id);
-          StateEngine.setSearch(intent.title, ids);
-          if (galaxyApi) galaxyApi.highlightSearchResults?.(ids);
-        }
-      }
-      break;
-    case 'recommend':
-      if (intent.genre) {
-        StateEngine.filterGenre(intent.genre);
-      } else {
-        StateEngine.clearFilter();
-      }
-      break;
-    case 'back':
-      GestureActionEngine.back();
-      break;
-    case 'clear':
-      GestureActionEngine.resetFilters();
-      apiResetCamera();
-      break;
-  }
 }
 </script>
 

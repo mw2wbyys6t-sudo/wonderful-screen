@@ -1,5 +1,5 @@
 <template>
-  <div class="hud" :class="{ 'panel-open': !!anime, 'mode-2d': viewMode === '2d' }">
+  <div class="hud" :class="{ 'panel-open': !!anime }">
     <div class="hud-top">
       <div class="hud-brand">
         <span class="logo-mark">AV</span>
@@ -38,10 +38,6 @@
         <button class="ctrl-btn" :class="{ active: !narratorEnabled }" @click="$emit('toggle-narrator')" :title="narratorEnabled ? '静音解说' : '开启解说'">
           <span class="ctrl-ico">{{ narratorEnabled ? '🔊' : '🔇' }}</span>
         </button>
-        <button class="ctrl-btn mode-btn" @click="toggleMode" :title="viewMode === '2d' ? '切换到3D星河' : '切换到2D画廊'">
-          <span class="ctrl-ico">{{ viewMode === '2d' ? '🌌' : '🗂️' }}</span>
-          <span class="ctrl-label">{{ viewMode === '2d' ? '3D' : '2D' }}</span>
-        </button>
         <button class="ctrl-btn" @click="$emit('toggle-fullscreen')" title="全屏">
           <span class="ctrl-ico">⛶</span>
         </button>
@@ -49,7 +45,7 @@
       </div>
     </div>
 
-    <div class="hud-genres" v-if="!anime && viewMode === '3d'">
+    <div class="hud-genres" v-if="!anime">
       <button 
         class="genre-chip" 
         :class="{ active: !activeGenre && !searchQuery }"
@@ -99,6 +95,50 @@
         {{ toastMessage }}
       </div>
     </transition>
+
+    <!-- 帮助面板 -->
+    <transition name="help">
+      <div v-if="showHelp" class="help-overlay" @click="showHelp = false">
+        <div class="help-card" @click.stop>
+          <button class="help-close" @click="showHelp = false">×</button>
+          <h3>宇宙导航指南</h3>
+
+          <div class="help-section">
+            <div class="help-title">🖐 手势控制</div>
+            <div class="help-grid">
+              <div class="help-item"><span class="help-icon">☝️</span><span>食指移动光标</span></div>
+              <div class="help-item"><span class="help-icon">🤏</span><span>捏合选择作品</span></div>
+              <div class="help-item"><span class="help-icon">✊</span><span>握拳返回</span></div>
+              <div class="help-item"><span class="help-icon">👋</span><span>左右挥手切换年代</span></div>
+              <div class="help-item"><span class="help-icon">🖐️</span><span>张开手掌返回</span></div>
+              <div class="help-item"><span class="help-icon">⏱️</span><span>悬停 0.9 秒自动选中</span></div>
+            </div>
+          </div>
+
+          <div class="help-section">
+            <div class="help-title">🎙️ 语音指令</div>
+            <div class="help-voice">
+              <span>“带我去 2008 年”</span>
+              <span>“打开 你的名字”</span>
+              <span>“推荐治愈番”</span>
+              <span>“返回” / “清除”</span>
+            </div>
+          </div>
+
+          <div class="help-section">
+            <div class="help-title">⌨️ 键盘快捷键</div>
+            <div class="help-keys">
+              <span><kbd>←</kbd> <kbd>→</kbd> 切换年代</span>
+              <span><kbd>↑</kbd> <kbd>↓</kbd> 缩放</span>
+              <span><kbd>Esc</kbd> 返回</span>
+              <span><kbd>F</kbd> 全屏</span>
+            </div>
+          </div>
+
+          <div class="help-tip">底部星轨可直接点击年代，详情面板内可浏览同星座作品。</div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -134,10 +174,10 @@ let toastTimer = null;
 let idleTimer = null;
 let searchTimer = null;
 
-const viewMode = computed(() => StateEngine.state.viewMode);
 const inputMode = computed(() => StateEngine.state.inputMode);
 const activeGenre = computed(() => StateEngine.state.activeGenre);
 const searchQuery = computed(() => StateEngine.state.searchQuery);
+const viewMode = computed(() => StateEngine.state.viewMode);
 const anime = computed(() => StateEngine.state.selectedId ? DataEngine.byId(StateEngine.state.selectedId) : null);
 
 const allGenres = computed(() => {
@@ -194,12 +234,6 @@ const currentHint = computed(() => {
   return '捏合选择恒星 · 挥手切换年份 · 握拳返回';
 });
 
-function toggleMode() {
-  StateEngine.toggleViewMode();
-  const mode = StateEngine.state.viewMode;
-  showToast(mode === '3d' ? '已切换到3D星河模式' : '已切换到2D画廊模式');
-}
-
 function showToast(msg) {
   toastMessage.value = msg;
   if (toastTimer) clearTimeout(toastTimer);
@@ -227,21 +261,16 @@ function doSearch() {
     clearSearch();
     return;
   }
-  const results = DataEngine.search(q);
-  const ids = results.map(r => r.id);
-  StateEngine.setSearch(q, ids);
   showSuggestions.value = false;
-  showToast(results.length ? `找到 ${results.length} 个结果` : `未找到「${q}」`);
-  bus.emit('search:performed', { query: q, results: ids });
+  bus.emit('action:search', q);
 }
 
 function selectSuggestion(item) {
   searchText.value = item.titleRomaji;
-  doSearch();
+  showSuggestions.value = false;
+  bus.emit('action:search', item.titleRomaji);
   StateEngine.select(item.id);
-  if (viewMode.value === '3d') {
-    StateEngine.setCameraTarget({ id: item.id });
-  }
+  bus.emit('action:focus-anime', item.id);
 }
 
 function onSearchBlur() {
@@ -282,8 +311,7 @@ const handlers = {
   'gesture:idle': () => { currentGesture.value = null; },
   'gesture:dwell-progress': (p) => { dwellProgress.value = p; },
   'toast': (msg) => showToast(msg),
-  'voice:text': (text) => { lastCommand.value = text; },
-  'state:viewMode': () => {}
+  'voice:text': (text) => { lastCommand.value = text; }
 };
 
 onMounted(() => {
@@ -311,12 +339,6 @@ onUnmounted(() => {
 
 .hud.panel-open {
   padding-right: 480px;
-}
-
-.hud.mode-2d {
-  padding-right: 24px;
-  background: linear-gradient(180deg, rgba(10, 5, 24, 0.9) 0%, transparent 100%);
-  padding-bottom: 0;
 }
 
 .hud-top {
@@ -504,18 +526,6 @@ onUnmounted(() => {
   color: #fff;
 }
 
-.ctrl-btn.mode-btn {
-  width: auto;
-  padding: 0 14px;
-  border-radius: 12px;
-  gap: 6px;
-}
-
-.ctrl-label {
-  font-size: 12px;
-  font-weight: 600;
-}
-
 .ctrl-btn.help-btn {
   font-family: Georgia, serif;
   font-weight: 700;
@@ -577,13 +587,14 @@ onUnmounted(() => {
 
 .hud-bottom {
   position: absolute;
-  bottom: 20px;
+  bottom: 92px;
   left: 24px;
-  right: 240px;
+  right: auto;
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
+  max-width: min(420px, calc(100vw - 48px));
 }
 
 .hud-gesture-hint {
@@ -729,6 +740,158 @@ onUnmounted(() => {
   100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9) translateY(-10px); }
 }
 
+/* 帮助面板 */
+.help-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 6, 24, 0.85);
+  backdrop-filter: blur(10px);
+  padding: 24px;
+}
+
+.help-card {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 32px;
+  border-radius: 20px;
+  background: rgba(20, 10, 40, 0.96);
+  border: 1px solid rgba(255, 158, 196, 0.3);
+  box-shadow: 0 0 60px rgba(255, 158, 196, 0.15), 0 8px 40px rgba(0, 0, 0, 0.5);
+  color: #fff;
+}
+
+.help-card h3 {
+  margin: 0 0 24px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #ff9ec4;
+  letter-spacing: 2px;
+  text-align: center;
+}
+
+.help-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 158, 196, 0.4);
+  background: rgba(255, 158, 196, 0.1);
+  color: #ff9ec4;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+
+.help-close:hover {
+  background: rgba(255, 158, 196, 0.2);
+  transform: rotate(90deg);
+}
+
+.help-section {
+  margin-bottom: 22px;
+}
+
+.help-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #c9b1ff;
+  margin-bottom: 12px;
+  letter-spacing: 1px;
+}
+
+.help-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.help-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.help-icon {
+  font-size: 18px;
+  width: 28px;
+  text-align: center;
+}
+
+.help-voice,
+.help-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.help-voice span,
+.help-keys span {
+  padding: 8px 14px;
+  border-radius: 100px;
+  background: rgba(255, 158, 196, 0.08);
+  border: 1px solid rgba(255, 158, 196, 0.18);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.help-keys kbd {
+  display: inline-block;
+  min-width: 24px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-family: monospace;
+  font-size: 12px;
+  margin-right: 4px;
+}
+
+.help-tip {
+  margin-top: 8px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(255, 215, 0, 0.08);
+  border-left: 3px solid rgba(255, 215, 0, 0.5);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.help-enter-active,
+.help-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.help-enter-from,
+.help-leave-to {
+  opacity: 0;
+}
+
+.help-enter-active .help-card,
+.help-leave-active .help-card {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.help-enter-from .help-card,
+.help-leave-to .help-card {
+  transform: scale(0.95) translateY(10px);
+}
+
 @media (max-width: 768px) {
   .hud {
     padding: 12px 16px 16px;
@@ -760,10 +923,6 @@ onUnmounted(() => {
     font-size: 16px;
   }
   
-  .ctrl-btn.mode-btn {
-    padding: 0 12px;
-  }
-  
   .hud-genres {
     margin-top: 10px;
     gap: 6px;
@@ -776,10 +935,9 @@ onUnmounted(() => {
   
   .hud-bottom {
     left: 16px;
-    right: 16px;
-    bottom: 16px;
-    flex-direction: column;
-    align-items: stretch;
+    right: auto;
+    bottom: 86px;
+    max-width: calc(100vw - 32px);
   }
   
   .hud-gesture-hint {
@@ -787,6 +945,18 @@ onUnmounted(() => {
     max-width: none;
     padding: 9px 14px;
     font-size: 12px;
+  }
+
+  .help-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .help-card {
+    padding: 24px;
+  }
+
+  .help-card h3 {
+    font-size: 18px;
   }
 }
 </style>
