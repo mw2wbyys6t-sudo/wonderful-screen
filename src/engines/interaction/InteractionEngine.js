@@ -141,10 +141,20 @@ export const InteractionEngine = {
         StateEngine.navigate('landing');
         break;
       case 'clear':
+      case 'reset':
         this.gestureAction.reset();
         break;
       case 'search':
         this.gestureAction.search(intent.query || intent.title);
+        break;
+      case 'chat':
+        // 闲聊模式：如果有 message 则通过 toast 展示
+        if (intent.message) bus.emit('toast', intent.message);
+        break;
+      case 'unknown':
+      default:
+        // 未识别的意图，如果有 message 则提示
+        if (intent.message) bus.emit('toast', intent.message);
         break;
     }
   }

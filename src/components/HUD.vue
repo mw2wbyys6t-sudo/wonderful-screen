@@ -41,6 +41,10 @@
         <button class="ctrl-btn" @click="$emit('toggle-fullscreen')" title="全屏">
           <span class="ctrl-ico">⛶</span>
         </button>
+        <button class="ctrl-btn" :class="{ active: showFavorites }" @click="showFavorites = !showFavorites" title="收藏">
+          <span class="ctrl-ico">{{ favoritesCount > 0 ? '★' : '☆' }}</span>
+          <span v-if="favoritesCount > 0" class="fav-count">{{ favoritesCount }}</span>
+        </button>
         <button class="ctrl-btn help-btn" @click="showHelp = true" title="帮助">?</button>
       </div>
     </div>
@@ -48,16 +52,16 @@
     <div class="hud-genres" v-if="!anime">
       <button 
         class="genre-chip" 
-        :class="{ active: !activeGenre && !searchQuery }"
+        :class="{ active: activeGenres.length === 0 && !searchQuery }"
         @click="clearFilters"
       >全部</button>
       <button 
         v-for="g in visibleGenres" 
         :key="g"
         class="genre-chip"
-        :class="{ active: activeGenre === g }"
+        :class="{ active: activeGenres.includes(g) }"
         :style="{ '--chip-color': genreColors[g] || '#c9b1ff' }"
-        @click="filterGenre(g)"
+        @click="toggleGenre(g)"
       >{{ g }}</button>
       <button class="genre-chip year-chip" v-if="activeYear" @click="focusYear(null)">
         {{ activeYear }}年代 <span class="chip-clear">×</span>
@@ -66,6 +70,38 @@
         搜索: {{ searchQuery }} <span class="chip-clear">×</span>
       </button>
     </div>
+
+    <!-- 收藏面板 -->
+    <transition name="slide-right">
+      <div v-if="showFavorites" class="favorites-panel" @click.self="showFavorites = false">
+        <div class="fav-card">
+          <div class="fav-header">
+            <h3>★ 我的收藏</h3>
+            <button class="fav-close" @click="showFavorites = false">×</button>
+          </div>
+          <div v-if="favoriteAnimes.length === 0" class="fav-empty">
+            还没有收藏的作品<br>
+            <span>在作品详情中点击 ★ 收藏</span>
+          </div>
+          <div v-else class="fav-list">
+            <div
+              v-for="a in favoriteAnimes"
+              :key="a.id"
+              class="fav-item"
+              @click="focusAnime(a)"
+            >
+              <img class="fav-thumb" :src="a.coverImage || a.coverFallback" :alt="a.titleRomaji">
+              <div class="fav-info">
+                <div class="fav-title">{{ a.titleRomaji }}</div>
+                <div class="fav-meta">{{ a.year }} · {{ (a.genres || []).slice(0, 2).join(' / ') }}</div>
+              </div>
+              <button class="fav-remove" @click.stop="removeFavorite(a.id)" title="取消收藏">×</button>
+            </div>
+          </div>
+          <button v-if="favoriteAnimes.length > 0" class="fav-clear" @click="clearAllFavorites">清空收藏</button>
+        </div>
+      </div>
+    </transition>
 
     <div class="hud-bottom" v-if="viewMode === '3d'">
       <div class="hud-gesture-hint" v-if="inputMode === 'hand' && !anime">
@@ -163,6 +199,7 @@ const emit = defineEmits([
 ]);
 
 const showHelp = ref(false);
+const showFavorites = ref(false);
 const currentGesture = ref(null);
 const dwellProgress = ref(0);
 const toastMessage = ref('');
@@ -176,9 +213,16 @@ let searchTimer = null;
 
 const inputMode = computed(() => StateEngine.state.inputMode);
 const activeGenre = computed(() => StateEngine.state.activeGenre);
+const activeGenres = computed(() => StateEngine.state.activeGenres);
 const searchQuery = computed(() => StateEngine.state.searchQuery);
 const viewMode = computed(() => StateEngine.state.viewMode);
 const anime = computed(() => StateEngine.state.selectedId ? DataEngine.byId(StateEngine.state.selectedId) : null);
+const favoritesCount = computed(() => StateEngine.state.favorites.length);
+const favoriteAnimes = computed(() =>
+  StateEngine.state.favorites
+    .map(id => DataEngine.byId(id))
+    .filter(Boolean)
+);
 
 const allGenres = computed(() => {
   const g = new Set();
@@ -229,6 +273,7 @@ const gestureNames = {
 const currentHint = computed(() => {
   if (anime.value) return '握拳返回列表';
   if (searchQuery.value) return `搜索「${searchQuery.value}」· 捏合选择 · 握拳返回`;
+  if (activeGenres.value.length > 0) return `筛选「${activeGenres.value.join('·')}」· 捏合选择 · 握拳返回`;
   if (activeGenre.value) return `筛选「${activeGenre.value}」· 捏合选择 · 握拳返回`;
   if (activeYear.value) return `${activeYear.value}年代 · 左右挥手切换年份`;
   return '捏合选择恒星 · 挥手切换年份 · 握拳返回';
@@ -292,6 +337,32 @@ function clearFilters() {
 function filterGenre(g) {
   StateEngine.filterGenre(g);
   showToast(`已筛选：${g}`);
+}
+
+function toggleGenre(g) {
+  StateEngine.toggleGenre(g);
+  const active = StateEngine.state.activeGenres;
+  if (active.length === 0) {
+    showToast('已清除流派筛选');
+  } else {
+    showToast(`筛选：${active.join(' · ')}`);
+  }
+}
+
+function focusAnime(a) {
+  showFavorites.value = false;
+  StateEngine.select(a.id);
+  bus.emit('action:focus-anime', a.id);
+}
+
+function removeFavorite(id) {
+  StateEngine.toggleFavorite(id);
+  showToast('已取消收藏');
+}
+
+function clearAllFavorites() {
+  StateEngine.clearFavorites();
+  showToast('已清空收藏');
 }
 
 function focusYear(y) {
@@ -957,6 +1028,210 @@ onUnmounted(() => {
 
   .help-card h3 {
     font-size: 18px;
+  }
+}
+
+/* 收藏面板 */
+.favorites-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  background: rgba(10, 6, 24, 0.6);
+  backdrop-filter: blur(6px);
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: auto;
+}
+
+.fav-card {
+  width: min(380px, 100%);
+  height: 100%;
+  background: rgba(20, 10, 40, 0.96);
+  border-left: 1px solid rgba(255, 158, 196, 0.3);
+  box-shadow: -8px 0 40px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.fav-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.fav-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffd700;
+  letter-spacing: 1px;
+}
+
+.fav-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 158, 196, 0.3);
+  background: transparent;
+  color: #ff9ec4;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.fav-close:hover {
+  background: rgba(255, 158, 196, 0.15);
+}
+
+.fav-empty {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 14px;
+  padding: 60px 20px;
+  line-height: 1.8;
+}
+
+.fav-empty span {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.fav-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255, 158, 196, 0.06);
+  border: 1px solid rgba(255, 158, 196, 0.12);
+  cursor: pointer;
+  transition: all 0.25s;
+}
+
+.fav-item:hover {
+  background: rgba(255, 158, 196, 0.12);
+  border-color: rgba(255, 158, 196, 0.3);
+  transform: translateX(-4px);
+}
+
+.fav-thumb {
+  width: 42px;
+  height: 56px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 158, 196, 0.2);
+}
+
+.fav-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.fav-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff0f5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 3px;
+}
+
+.fav-meta {
+  font-size: 11px;
+  color: #c9b1ff;
+}
+
+.fav-remove {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 100, 100, 0.15);
+  color: #ff6464;
+  font-size: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.fav-remove:hover {
+  background: rgba(255, 100, 100, 0.3);
+}
+
+.fav-clear {
+  margin-top: 16px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 100, 100, 0.3);
+  background: rgba(255, 100, 100, 0.08);
+  color: #ff6464;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.fav-clear:hover {
+  background: rgba(255, 100, 100, 0.15);
+}
+
+.fav-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: #ff9ec4;
+  color: #140a28;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+.ctrl-btn {
+  position: relative;
+}
+
+/* 收藏面板滑入动画 */
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.slide-right-enter-active .fav-card,
+.slide-right-leave-active .fav-card {
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-right-enter-from,
+.slide-right-leave-to {
+  opacity: 0;
+}
+
+.slide-right-enter-from .fav-card,
+.slide-right-leave-to .fav-card {
+  transform: translateX(100%);
+}
+
+@media (max-width: 768px) {
+  .fav-card {
+    width: 100%;
+    padding: 16px;
   }
 }
 </style>

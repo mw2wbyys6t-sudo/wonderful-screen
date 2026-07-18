@@ -121,6 +121,9 @@
       <div class="node-actions">
         <button class="locate-btn" @click="locate">在宇宙中定位</button>
         <button class="explain-btn" @click="explain">AI 解说</button>
+        <button class="fav-btn" :class="{ active: isFav }" @click="toggleFav">
+          {{ isFav ? '★ 已收藏' : '☆ 收藏' }}
+        </button>
         <a class="watch-btn" :href="watchLink" target="_blank" rel="noopener">进入放映厅</a>
       </div>
     </div>
@@ -135,6 +138,7 @@
 import { computed } from 'vue';
 import { KnowledgeEngine } from '../engines/data/KnowledgeEngine.js';
 import { DataEngine } from '../engines/data/DataEngine.js';
+import { StateEngine } from '../engines/core/StateEngine.js';
 import { bus } from '../engines/core/EventBus.js';
 
 const props = defineProps({
@@ -229,6 +233,17 @@ function locate() {
 
 function explain() {
   if (props.anime) bus.emit('ai:explain', props.anime.id);
+}
+
+const isFav = computed(() => {
+  if (!props.anime) return false;
+  return StateEngine.isFavorite(props.anime.id);
+});
+
+function toggleFav() {
+  if (!props.anime) return;
+  StateEngine.toggleFavorite(props.anime.id);
+  bus.emit('toast', isFav.value ? '已收藏' : '已取消收藏');
 }
 
 function focusRelated(anime) {
@@ -615,7 +630,9 @@ function focusRelated(anime) {
 }
 
 .watch-btn,
-.locate-btn {
+.locate-btn,
+.fav-btn,
+.explain-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -627,6 +644,37 @@ function focusRelated(anime) {
   text-decoration: none;
   flex: 1;
   font-size: 14px;
+}
+
+.explain-btn {
+  background: transparent;
+  border: 2px solid rgba(201, 177, 255, 0.5);
+  color: #c9b1ff;
+}
+
+.explain-btn:hover {
+  background: rgba(201, 177, 255, 0.12);
+  border-color: #c9b1ff;
+  box-shadow: 0 0 16px rgba(201, 177, 255, 0.3);
+}
+
+.fav-btn {
+  background: transparent;
+  border: 2px solid rgba(255, 215, 0, 0.4);
+  color: rgba(255, 215, 0, 0.8);
+}
+
+.fav-btn:hover {
+  background: rgba(255, 215, 0, 0.1);
+  border-color: #ffd700;
+  box-shadow: 0 0 16px rgba(255, 215, 0, 0.3);
+}
+
+.fav-btn.active {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 158, 196, 0.15));
+  border-color: #ffd700;
+  color: #ffd700;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
 }
 
 .watch-btn {

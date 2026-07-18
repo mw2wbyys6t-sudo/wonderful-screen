@@ -53,7 +53,7 @@ export const GestureActionEngine = {
       bus.emit('toast', '已清除搜索');
       return;
     }
-    if (StateEngine.state.activeGenre) {
+    if (StateEngine.state.activeGenres.length > 0 || StateEngine.state.activeGenre) {
       StateEngine.clearFilter();
       bus.emit('toast', '已清除流派筛选');
       return;

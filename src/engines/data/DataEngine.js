@@ -15,6 +15,13 @@ const graphLoaded = ref(false);
 const graphLoading = ref(false);
 let loadPromise = null;
 
+// 搜索索引（数据加载后构建，将 O(n) 扫描降为 O(k) 查找）
+let indexById = new Map();
+let indexByYear = new Map();
+let indexByGenre = new Map();
+let indexByTitleToken = new Map(); // 分词倒排索引
+let indexBuilt = false;
+
 const years = computed(() =>
   [...new Set(data.value.map(a => a.year).filter(Boolean))].sort((a, b) => a - b)
 );
@@ -80,6 +87,90 @@ function normalizeCJK(text) {
   return String(text).split('').map(ch => SC_TO_TC_MAP[ch] || ch).join('');
 }
 
+/** 构建搜索索引：id/年份/流派/标题分词倒排 */
+function buildIndex() {
+  if (indexBuilt) return;
+  indexById = new Map();
+  indexByYear = new Map();
+  indexByGenre = new Map();
+  indexByTitleToken = new Map();
+
+  for (const anime of data.value) {
+    // id 索引
+    indexById.set(String(anime.id), anime);
+
+    // 年份索引
+    if (anime.year) {
+      if (!indexByYear.has(anime.year)) indexByYear.set(anime.year, []);
+      indexByYear.get(anime.year).push(anime);
+    }
+
+    // 流派索引
+    if (anime.genres) {
+      for (const g of anime.genres) {
+        if (!indexByGenre.has(g)) indexByGenre.set(g, []);
+        indexByGenre.get(g).push(anime);
+      }
+    }
+
+    // 标题分词倒排索引（按字符 bigram + 完整词）
+    const titles = [anime.titleRomaji, anime.titleJa, anime.titleEnglish]
+      .filter(Boolean)
+      .map(s => String(s).toLowerCase());
+    const tokens = new Set();
+    for (const title of titles) {
+      // 完整标题作为一个 token
+      tokens.add(title);
+      // 字符 bigram
+      for (let i = 0; i < title.length - 1; i++) {
+        tokens.add(title.slice(i, i + 2));
+      }
+      // 单字符
+      for (const ch of title) {
+        tokens.add(ch);
+      }
+    }
+    // 标签和工作室也加入索引
+    if (anime.tags) {
+      for (const tag of anime.tags) {
+        tokens.add(String(tag).toLowerCase());
+      }
+    }
+    if (anime.studios) {
+      for (const s of anime.studios) {
+        tokens.add(String(s).toLowerCase());
+      }
+    }
+
+    for (const token of tokens) {
+      if (!indexByTitleToken.has(token)) indexByTitleToken.set(token, new Set());
+      indexByTitleToken.get(token).add(anime);
+    }
+  }
+
+  indexBuilt = true;
+  console.log(`[DataEngine] 索引构建完成: ${indexById.size} id, ${indexByYear.size} 年份, ${indexByGenre.size} 流派, ${indexByTitleToken.size} 标题token`);
+}
+
+/** 基于索引的快速搜索 */
+function searchByIndex(term) {
+  const lower = term.toLowerCase();
+  const results = new Set();
+
+  // 精确匹配标题
+  const exact = indexByTitleToken.get(lower);
+  if (exact) exact.forEach(a => results.add(a));
+
+  // 前缀匹配
+  for (const [token, animes] of indexByTitleToken) {
+    if (token.startsWith(lower) || token.includes(lower)) {
+      animes.forEach(a => results.add(a));
+    }
+  }
+
+  return [...results];
+}
+
 export const DataEngine = {
   data,
   genres,
@@ -123,6 +214,9 @@ export const DataEngine = {
         loaded.value = true;
         loading.value = false;
 
+        // 构建搜索索引（同步，1711 条约 < 20ms）
+        buildIndex();
+
         // 2. 后台懒加载知识图谱（6MB+），不阻塞 3D 宇宙渲染
         this.loadGraphInBackground();
       } catch (err) {
@@ -156,14 +250,17 @@ export const DataEngine = {
   },
 
   byId(id) {
+    if (indexBuilt) return indexById.get(String(id));
     return data.value.find(a => String(a.id) === String(id));
   },
 
   byYear(year) {
+    if (indexBuilt && indexByYear.has(year)) return indexByYear.get(year);
     return data.value.filter(a => a.year === year);
   },
 
   byGenre(genre) {
+    if (indexBuilt && indexByGenre.has(genre)) return indexByGenre.get(genre);
     return data.value.filter(a => a.genres?.includes(genre));
   },
 
@@ -171,11 +268,24 @@ export const DataEngine = {
     const term = String(q || '').toLowerCase().trim();
     if (!term) return [];
 
-    // 对中文/日文搜索词做归一化，使简体、繁体、日文汉字能互相匹配
+    // 对中文/日文搜索词做归一化
     const variants = new Set([term, normalizeCJK(term)]);
     if (term.includes('的')) variants.add(term.replace(/的/g, 'の'));
     if (term.includes('の')) variants.add(term.replace(/の/g, '的'));
 
+    // 使用索引加速（多变体合并去重）
+    if (indexBuilt) {
+      const results = new Set();
+      for (const v of variants) {
+        const hits = searchByIndex(v);
+        hits.forEach(a => results.add(a));
+      }
+      // 保持原始排序
+      const idOrder = new Map(data.value.map((a, i) => [a, i]));
+      return [...results].sort((a, b) => (idOrder.get(a) ?? 0) - (idOrder.get(b) ?? 0));
+    }
+
+    // 索引未就绪时回退到线性扫描
     return data.value.filter(a =>
       [...variants].some(t =>
         a.titleRomaji?.toLowerCase().includes(t) ||
@@ -193,6 +303,13 @@ export const DataEngine = {
   fuzzyFindByTitle(title) {
     const term = String(title).toLowerCase().trim();
     if (!term) return null;
+
+    // 优先用索引精确匹配
+    if (indexBuilt) {
+      const exact = indexByTitleToken.get(term);
+      if (exact && exact.size === 1) return [...exact][0];
+    }
+
     return data.value.find(a =>
       a.titleRomaji?.toLowerCase().includes(term) ||
       a.titleJa?.toLowerCase().includes(term) ||
